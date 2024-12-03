@@ -1,1 +1,21 @@
-<p>log-in works!</p>
+<div>
+    <h2>Phone Authentication</h2>
+    <form (ngSubmit)="sendOTP()">
+      <label for="phoneNumber">Phone Number:</label>
+      <input id="phoneNumber" [(ngModel)]="phoneNumber" name="phoneNumber" required />
+      <button type="submit">Send OTP</button>
+    </form>
+    
+    @if (otpSent) {
+    <div >
+      <label for="otp">Enter OTP:</label>
+      <input id="otp" [(ngModel)]="otp" name="otp" required />
+      <button (click)="verifyOTP()">Verify OTP</button>
+    </div>
+    }
+    
+    @if (errorMessage) {
+        <p style="color:red">{{ errorMessage }}</p>
+    }
+  </div>
+  <div id="recaptcha-container"></div>
