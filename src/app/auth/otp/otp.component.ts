@@ -4,7 +4,8 @@ import { Component } from '@angular/core';
   selector: 'app-otp',
   imports: [],
   templateUrl: './otp.component.html',
-  styleUrl: './otp.component.scss'
+  styleUrl: './otp.component.scss',
+  standalone:true,
 })
 export class OtpComponent {
 
