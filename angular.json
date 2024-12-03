@@ -37,9 +37,9 @@
             ],
             "scripts": [],
             "server": "src/main.server.ts",
-            "outputMode": "server",
+            "prerender": true,
             "ssr": {
-              "entry": "src/server.ts"
+              "entry": "server.ts"
             }
           },
           "configurations": {
@@ -52,8 +52,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "2kB",
+                  "maximumError": "4kB"
                 }
               ],
               "outputHashing": "all"
@@ -106,6 +106,6 @@
     }
   },
   "cli": {
-    "analytics": "6ffeb24b-0fb1-4928-8e47-e923a83b5639"
+    "analytics": "c212f789-3019-42e3-b76c-268f11e4cb7c"
   }
 }

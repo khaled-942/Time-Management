@@ -4,7 +4,8 @@ import { Component } from '@angular/core';
   selector: 'app-fullcalendar',
   imports: [],
   templateUrl: './fullcalendar.component.html',
-  styleUrl: './fullcalendar.component.scss'
+  styleUrl: './fullcalendar.component.scss',
+  standalone:true,
 })
 export class FullcalendarComponent {
 
