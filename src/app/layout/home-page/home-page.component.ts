@@ -1,12 +1,11 @@
 import { Component } from '@angular/core';
-import { ButtonModule } from 'primeng/button';
+import { FullcalendarComponent } from '../../shared/components/fullcalendar/fullcalendar.component';
+
 @Component({
   selector: 'app-home-page',
-  imports: [ButtonModule],
+  imports: [FullcalendarComponent],
   templateUrl: './home-page.component.html',
   styleUrl: './home-page.component.scss',
-  standalone:true,
+  standalone: true,
 })
-export class HomePageComponent {
-
-}
+export class HomePageComponent {}
