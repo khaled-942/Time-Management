@@ -1,13 +1,104 @@
-<p>register works!</p>
+<div class="register-container">
+  <div class="register-card">
+    <div class="register-header">
+      <div class="register-icon">
+        <i class="pi pi-user-plus"></i>
+      </div>
+      <h2>Create an Account</h2>
+    </div>
 
-<form (ngSubmit)="register()">
-  <input type="text" [(ngModel)]="name" placeholder="Enter name" name="name" required />
-  <br>
-  <input type="email" [(ngModel)]="email" placeholder="Enter email" name="email" required />
-  <br>
-  <input type="password" [(ngModel)]="password" placeholder="Enter password" name="password" required />
-  <br>
-  <input type="password" [(ngModel)]="cpassword" placeholder="confirm password" name="cpassword" required />
-  <br>
-  <button type="submit">Register</button>
-</form>
+    <form [formGroup]="registerForm" (ngSubmit)="handleRegister()" class="register-form">
+      <div class="p-field">
+        <label for="username" class="p-sr-only">Username</label>
+        <input 
+          id="username" 
+          pInputText 
+          type="text" 
+          formControlName="username" 
+          placeholder="Username" 
+          [class.p-invalid]="registerForm.get('username')?.invalid && registerForm.get('username')?.touched"
+        >
+        <small 
+          *ngIf="registerForm.get('username')?.invalid && registerForm.get('username')?.touched" 
+          class="p-error"
+        >
+          Username must be at least 3 characters long
+        </small>
+      </div>
+
+      <div class="p-field">
+        <label for="email" class="p-sr-only">Email</label>
+        <input 
+          id="email" 
+          pInputText 
+          type="email" 
+          formControlName="email" 
+          placeholder="Email" 
+          [class.p-invalid]="registerForm.get('email')?.invalid && registerForm.get('email')?.touched"
+        >
+        <small 
+          *ngIf="registerForm.get('email')?.invalid && registerForm.get('email')?.touched" 
+          class="p-error"
+        >
+          Please enter a valid email
+        </small>
+      </div>
+
+      <div class="p-field">
+        <label for="password" class="p-sr-only">Password</label>
+        <input 
+          id="password" 
+          pInputText 
+          type="password" 
+          formControlName="password" 
+          placeholder="Password"
+          [class.p-invalid]="registerForm.get('password')?.invalid && registerForm.get('password')?.touched"
+        >
+        <small 
+          *ngIf="registerForm.get('password')?.invalid && registerForm.get('password')?.touched" 
+          class="p-error"
+        >
+          Password must be at least 6 characters long
+        </small>
+      </div>
+
+      <div class="p-field">
+        <label for="confirmPassword" class="p-sr-only">Confirm Password</label>
+        <input 
+          id="confirmPassword" 
+          pInputText 
+          type="password" 
+          formControlName="confirmPassword" 
+          placeholder="Confirm Password"
+          [class.p-invalid]="registerForm.get('confirmPassword')?.errors?.['passwordMismatch']"
+        >
+        <small 
+          *ngIf="registerForm.get('confirmPassword')?.errors?.['passwordMismatch']" 
+          class="p-error"
+        >
+          Passwords do not match
+        </small>
+      </div>
+
+      <div *ngIf="error" class="error-message">
+        {{ error }}
+      </div>
+
+      <button 
+        pButton 
+        type="submit" 
+        label="Sign Up" 
+        [disabled]="!isFormValid() || isLoading"
+        [ngClass]="{
+          'p-button-primary': isFormValid(),
+          'p-button-secondary': !isFormValid()
+        }"
+        class="register-button"
+      >
+        <i *ngIf="isLoading" class="pi pi-spin pi-spinner"></i>
+        <i *ngIf="!isLoading" class="pi pi-user-plus"></i>
+        {{ isLoading ? 'Signing Up...' : 'Sign Up' }}
+      </button>
+    </form>
+  </div>
+</div>

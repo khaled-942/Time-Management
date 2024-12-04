@@ -1,0 +1,89 @@
+.register-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8fafc;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+}
+
+.register-card {
+  width: 100%;
+  max-width: 28rem;
+  background: white;
+  padding: 2rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.register-header {
+  text-align: center;
+  margin-bottom: 2rem;
+
+  .register-icon {
+    display: flex;
+    justify-content: center;
+    color: #f97316;
+    margin-bottom: 1.5rem;
+
+    .pi {
+      font-size: 3rem;
+    }
+  }
+
+  h2 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+}
+
+.register-form {
+  .p-field {
+    margin-bottom: 1rem;
+
+    input {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    .p-error {
+      color: #dc2626;
+      font-size: 0.75rem;
+    }
+  }
+
+  .error-message {
+    color: #dc2626;
+    text-align: center;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .register-button {
+    width: 100%;
+    margin-top: 1rem;
+    padding: 11px;
+    border: none;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+
+    &.p-button-secondary {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    &.p-button-primary {
+      background-color: #cbfc8b;
+      border-color: #f97316;
+    }
+
+    .pi-spinner,
+    .pi-user-plus {
+      margin-right: 0.5rem;
+    }
+  }
+}
