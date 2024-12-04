@@ -1,1 +1,6 @@
-<p>log-in works!</p>
+  <h2>Email Authentication</h2>
+  <form (ngSubmit)="login()">
+    <input type="email" [(ngModel)]="email" placeholder="Enter email" name="email" required />
+    <input type="password" [(ngModel)]="password" placeholder="Enter password" name="password" required />
+    <button type="submit">Login</button>
+  </form>

@@ -1,12 +1,12 @@
 export const environment = {
   production: false,
   firebase: {
-    apiKey: 'AIzaSyD6xn1RRJIsKAxyXjmLKgBgWDU6T0rbdQY',
-    authDomain: 'xyz-c21dd.firebaseapp.com',
-    projectId: 'xyz-c21dd',
-    storageBucket: 'xyz-c21dd.firebasestorage.app',
-    messagingSenderId: '198744760141',
-    appId: '1:198744760141:web:4531534beeeb697a78a104',
-    measurementId: 'G-5077SY0LB1',
+    apiKey: 'AIzaSyDNW9T0L-1iqFP2x7Bx-Tc5AAcKH9oARo0',
+    authDomain: 'time-management-6cd21.firebaseapp.com',
+    projectId: 'time-management-6cd21',
+    storageBucket: 'time-management-6cd21.firebasestorage.app',
+    messagingSenderId: '63976208649',
+    appId: '1:63976208649:web:682c6132672869775dfbd8',
+    measurementId: 'G-0J65MDFDVR',
   },
 };
