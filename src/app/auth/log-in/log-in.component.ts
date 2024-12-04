@@ -1,11 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { AuthService } from '../auth.service';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  Auth,
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-} from '@angular/fire/auth';
-
+import { Router } from '@angular/router';
 @Component({
   selector: 'app-log-in',
   imports: [FormsModule],
@@ -14,47 +11,27 @@ import {
   styleUrl: './log-in.component.scss',
 })
 export class LogInComponent {
-  phoneNumber: string = '';
-  otp: string = '';
-  otpSent = false;
-  errorMessage: string | null = null;
-  private recaptchaVerifier: RecaptchaVerifier | undefined;
-  private confirmationResult: any;
+  email: string = '';
+  password: string = '';
+  private authService = inject(AuthService);
 
-  constructor(private auth: Auth) {}
+  constructor(private router: Router) { }
 
-  sendOTP() {
-    this.errorMessage = null;
-
-    this.recaptchaVerifier = new RecaptchaVerifier(
-      this.auth,
-      'recaptcha-container',
-      { size: 'invisible' }
-    );
-
-    signInWithPhoneNumber(this.auth, this.phoneNumber, this.recaptchaVerifier)
-      .then((confirmationResult) => {
-        this.otpSent = true;
-        this.confirmationResult = confirmationResult;
+  async login() {
+    try {
+      await this.authService.login(this.email, this.password).then((res: any) => {
+        console.log(res);
+        if(res._tokenResponse != undefined) {
+          this.router.navigate(['/home']);
+          console.log('User logged in');
+        } else if(res.code == 'auth/invalid-credential') {
+          console.log("invalid credential");
+        } else if(res.code == 'auth/invalid-email') {
+          console.log("invalid email");
+        }
       })
-      .catch((error) => {
-        this.errorMessage = error.message;
-      });
-  }
-
-  verifyOTP() {
-    if (!this.confirmationResult) {
-      this.errorMessage = 'No OTP was sent!';
-      return;
+    } catch (error) {
+      console.error('Login error:', error);
     }
-
-    this.confirmationResult
-      .confirm(this.otp)
-      .then((result: any) => {
-        console.log('User signed in successfully:', result.user);
-      })
-      .catch((error: any) => {
-        this.errorMessage = error.message;
-      });
   }
 }
