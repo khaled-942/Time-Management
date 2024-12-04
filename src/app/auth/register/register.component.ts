@@ -3,6 +3,7 @@ import { AuthService } from '../auth.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { user } from '@angular/fire/auth';
 
 @Component({
   selector: 'app-register',
@@ -13,8 +14,16 @@ import { Router } from '@angular/router';
 })
 
 export class RegisterComponent {
+  user = {
+    userId: '',
+    email: '',
+    name: '',
+  }
   email: string = '';
   password: string = '';
+  cpassword: string = '';
+  name: string = '';
+
   private authService = inject(AuthService);
 
   constructor(private router: Router) { }
@@ -24,7 +33,16 @@ export class RegisterComponent {
       await this.authService.register(this.email, this.password).then((res: any) => {
         console.log(res.code);
         if(res._tokenResponse != undefined) {
-          this.router.navigate(['/login']);
+          this.user.userId = res.user.uid;
+          this.user.email = this.email;
+          this.user.name = this.name;
+          console.log(this.user);
+          this.authService.saveRegisterdUser('users', this.user).then((result: any) => {
+            this.router.navigate(['/login']);
+            console.log(result);
+          }).catch((err) => {
+            console.log(err);
+          })
           console.log('User registered');
         } else if(res.code == 'auth/email-already-in-use') {
           console.log("email already exist");

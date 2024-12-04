@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from '@angular/fire/auth';
 import { inject } from '@angular/core';
+import { addDoc, collection, DocumentData, DocumentReference, Firestore, WithFieldValue } from '@angular/fire/firestore';
 
 @Injectable({
   providedIn: 'root',
@@ -8,7 +9,7 @@ import { inject } from '@angular/core';
 export class AuthService {
   private auth = inject(Auth);
 
-  constructor() {}
+  constructor(private firestore: Firestore) {}
 
   // Register a new user with email and password
   async register(email: string, password: string) {
@@ -38,4 +39,17 @@ export class AuthService {
       console.error('Error signing out:', error);
     }
   }
+
+
+
+  saveRegisterdUser<T extends object>(collectionName: string, data: WithFieldValue<T>): Promise<DocumentReference<DocumentData, DocumentData>> {
+    try {
+      const colRef = collection(this.firestore, collectionName);
+      return addDoc(colRef, data);
+    } catch (error) {
+      throw error;
+  }
+  }
+
+
 }
