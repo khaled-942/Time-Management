@@ -1,37 +1,69 @@
 import { Component, inject } from '@angular/core';
 import { AuthService } from '../auth.service';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import {
+  FormsModule,
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+} from '@angular/forms';
 import { Router } from '@angular/router';
 @Component({
   selector: 'app-log-in',
-  imports: [FormsModule],
+  imports: [FormsModule, ReactiveFormsModule, CommonModule],
   standalone: true,
   templateUrl: './log-in.component.html',
   styleUrl: './log-in.component.scss',
 })
 export class LogInComponent {
-  email: string = '';
-  password: string = '';
-  private authService = inject(AuthService);
+  loginForm: FormGroup;
+  error: string = '';
+  isLoading: boolean = false;
+  res: any;
+  // private authService = inject(AuthService);
 
-  constructor(private router: Router) { }
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private fb: FormBuilder
+  ) {
+    this.loginForm = this.fb.group({
+      username: ['', Validators.required],
+      password: ['', Validators.required],
+    });
+  }
 
-  async login() {
+  async handleSubmit() {
+    if (this.loginForm.invalid) return;
+
+    this.error = '';
+    this.isLoading = true;
     try {
-      await this.authService.login(this.email, this.password).then((res: any) => {
+      const { username, password } = this.loginForm.value;
+      await this.authService.login(username, password).then((res: any) => {
         console.log(res);
-        if(res._tokenResponse != undefined) {
+
+        if (res._tokenResponse !== undefined) {
           this.router.navigate(['/home']);
           console.log('User logged in');
-        } else if(res.code == 'auth/invalid-credential') {
-          console.log("invalid credential");
-        } else if(res.code == 'auth/invalid-email') {
-          console.log("invalid email");
+        } else if (res.code === 'auth/invalid-credential') {
+          this.error = 'Invalid credentials';
+          console.log('Invalid credential');
+        } else if (res.code === 'auth/invalid-email') {
+          this.error = 'Invalid email format';
+          console.log('Invalid email');
+        } else {
+          this.error = 'An error occurred';
         }
-      })
-    } catch (error) {
-      console.error('Login error:', error);
+      });
+    } catch (err) {
+      this.error = 'An error occurred';
+    } finally {
+      this.isLoading = false;
     }
+  }
+  isFormValid(): boolean {
+    return this.loginForm.valid;
   }
 }

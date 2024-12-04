@@ -1,6 +1,72 @@
-  <h2>Email Authentication</h2>
-  <form (ngSubmit)="login()">
-    <input type="email" [(ngModel)]="email" placeholder="Enter email" name="email" required />
-    <input type="password" [(ngModel)]="password" placeholder="Enter password" name="password" required />
-    <button type="submit">Login</button>
-  </form>
+<!-- login.component.html -->
+<div class="login-container">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="login-icon">
+        <i class="pi pi-link"></i>
+      </div>
+      <h2>Time Managment</h2>
+    </div>
+
+    <form
+      [formGroup]="loginForm"
+      (ngSubmit)="handleSubmit()"
+      class="login-form"
+    >
+      <div class="p-field">
+        <label for="username" class="p-sr-only">Username</label>
+        <input
+          id="username"
+          pInputText
+          type="text"
+          formControlName="username"
+          placeholder="Username"
+          [class.p-invalid]="
+            loginForm.get('username')?.invalid &&
+            loginForm.get('username')?.touched
+          "
+        />
+      </div>
+
+      <div class="p-field">
+        <label for="password" class="p-sr-only">Password</label>
+        <input
+          id="password"
+          pInputText
+          type="password"
+          formControlName="password"
+          placeholder="Password"
+          [class.p-invalid]="
+            loginForm.get('password')?.invalid &&
+            loginForm.get('password')?.touched
+          "
+        />
+      </div>
+
+      @if (error) {
+      <div class="error-message">
+        {{ error }}
+      </div>
+      }
+
+      <button
+        pButton
+        type="submit"
+        label="Sign in"
+        [disabled]="!isFormValid() || isLoading"
+        class="login-button"
+        [ngClass]="{
+          'p-button-primary': isFormValid(),
+          'p-button-secondary': !isFormValid()
+        }"
+      >
+        @if (isLoading) {
+        <i class="pi pi-spin pi-spinner"></i>
+        } @else {
+        <i class="pi pi-lock"></i>
+        }
+        {{ isLoading ? "Signing in..." : "Sign in" }}
+      </button>
+    </form>
+  </div>
+</div>
