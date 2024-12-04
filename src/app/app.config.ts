@@ -7,6 +7,7 @@ import { provideClientHydration } from '@angular/platform-browser';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient } from '@angular/common/http';
 import { environment } from '../environments/environment';
+import { FullCalendarModule } from '@fullcalendar/angular';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -17,5 +18,6 @@ export const appConfig: ApplicationConfig = {
     provideAuth(() => getAuth()),
     provideAnimations(),
     provideHttpClient(),
+    importProvidersFrom(FullCalendarModule)
   ],
 };
