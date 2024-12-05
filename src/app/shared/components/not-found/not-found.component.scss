@@ -1,0 +1,135 @@
+@keyframes tear-animation {
+  0% {
+    transform: rotate(0deg) skew(0deg);
+  }
+  25% {
+    transform: rotate(-5deg) skew(-10deg);
+  }
+  50% {
+    transform: rotate(5deg) skew(10deg);
+  }
+  75% {
+    transform: rotate(-3deg) skew(-5deg);
+  }
+  100% {
+    transform: rotate(0deg) skew(0deg);
+  }
+}
+
+@keyframes float-animation {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+.error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f8fafc;
+  padding: 2rem;
+}
+
+.error-content {
+  text-align: center;
+  max-width: 600px;
+  padding: 2rem;
+  background-color: white;
+  border-radius: 1rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.error-animation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 2rem;
+
+  .number {
+    font-size: 10rem;
+    font-weight: bold;
+    color: #f97316;
+    margin: 0 1rem;
+    animation: float-animation 3s ease-in-out infinite;
+  }
+
+  .torn-paper {
+    position: relative;
+    animation: tear-animation 2s ease-in-out infinite;
+
+    &::before,
+    &::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      height: 20px;
+      background: linear-gradient(
+        45deg,
+        transparent 25%,
+        rgba(249, 115, 22, 0.2) 25%,
+        rgba(249, 115, 22, 0.2) 50%,
+        transparent 50%,
+        transparent 75%,
+        rgba(249, 115, 22, 0.2) 75%
+      );
+      background-size: 40px 40px;
+      transform: skew(-45deg);
+    }
+
+    &::before {
+      margin-top: 10px;
+      opacity: 0.5;
+    }
+
+    &::after {
+      margin-top: 20px;
+      opacity: 0.3;
+    }
+  }
+
+  .number:nth-child(1),
+  .number:nth-child(3) {
+    animation-delay: -1.5s;
+  }
+}
+
+h1 {
+  font-size: 2.5rem;
+  color: #0f172a;
+  margin-bottom: 1rem;
+}
+
+p {
+  color: #475569;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.error-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  color: white;
+  background-color: #f97316;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+
+  .pi-home {
+    margin-right: 0.5rem;
+  }
+
+  &:hover {
+    background-color: #ea580c;
+  }
+}
