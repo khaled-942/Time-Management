@@ -39,7 +39,9 @@ export class FullcalendarComponent {
     dayMaxEvents: true,
     select: this.handleDateSelect.bind(this),
     eventClick: this.handleEventClick.bind(this),
-    eventsSet: this.handleEvents.bind(this)
+    eventsSet: this.handleEvents.bind(this),
+    // hiddenDays:[5],
+    firstDay:6
     /* you can update a remote database when these fire:
     eventAdd:
     eventChange:
@@ -58,7 +60,11 @@ export class FullcalendarComponent {
 
   handleWeekendsToggle() {
     const { calendarOptions } = this;
-    calendarOptions.weekends = !calendarOptions.weekends;
+    if(calendarOptions.hiddenDays?.length === 0){
+      calendarOptions.hiddenDays = [5];
+    }else{
+      calendarOptions.hiddenDays = [];
+    }
   }
 
   handleDateSelect(selectInfo: DateSelectArg) {

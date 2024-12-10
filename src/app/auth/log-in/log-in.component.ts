@@ -47,6 +47,7 @@ export class LogInComponent {
         if (res._tokenResponse !== undefined) {
           this.router.navigate(['/home']);
           console.log('User logged in');
+          localStorage.setItem('user', JSON.stringify({ name: username }));
         } else if (res.code === 'auth/invalid-credential') {
           this.error = 'Invalid credentials';
           console.log('Invalid credential');

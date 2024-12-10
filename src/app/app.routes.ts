@@ -1,14 +1,15 @@
 import { Routes } from '@angular/router';
-import { NotFoundComponent } from './shared/components/not-found/not-found.component';
+import { loggedInFormGuard } from './shared/guards/logged-in-form.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   {
     path: 'home',
     loadComponent: () =>
-      import('./layout/home-page/home-page.component').then(
-        (c) => c.HomePageComponent
+      import('./layout/layout.component').then(
+        (c) => c.LayoutComponent
       ),
+    canActivate: [loggedInFormGuard],
   },
   {
     path: 'login',
@@ -18,7 +19,9 @@ export const routes: Routes = [
   {
     path: 'register',
     loadComponent: () =>
-      import('./auth/register/register.component').then((c) => c.RegisterComponent),
+      import('./auth/register/register.component').then(
+        (c) => c.RegisterComponent
+      ),
   },
   {
     path: '**',
