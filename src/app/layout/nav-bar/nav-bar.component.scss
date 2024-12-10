@@ -1,0 +1,29 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #ddd;
+  box-shadow: #ddd 0px 1px 26px;
+
+  .navbar-left {
+    h3 {
+      margin: 0;
+      color: #333;
+    }
+  }
+
+  .navbar-right {
+    display: flex;
+    align-items: center;
+
+    button {
+      margin: 0 5px;
+
+      &.logout {
+        color: #d9534f;
+      }
+    }
+  }
+}

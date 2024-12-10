@@ -1,1 +1,26 @@
-<p>nav-bar works!</p>
+<div class="navbar">
+  <div class="navbar-left">
+    <h3>Project Name</h3>
+  </div>
+  <div class="navbar-right">
+    <button
+      pButton
+      icon="pi pi-bell"
+      class="p-button-text p-button-rounded p-button-plain"
+    ></button>
+    <p-menu #menu [popup]="true" [model]="menuItems"></p-menu>
+    <button
+      pButton
+      icon="pi pi-cog"
+      class="p-button-text p-button-rounded p-button-plain"
+      (click)="menu.toggle($event)"
+    ></button>
+    <p-avatar
+      icon="pi pi-user"
+      styleClass="mr-2"
+      size="large"
+      shape="circle"
+      [style]="{ 'margin-left': '10px' }"
+    ></p-avatar>
+  </div>
+</div>
