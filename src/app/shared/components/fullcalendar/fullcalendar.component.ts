@@ -7,16 +7,20 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import { INITIAL_EVENTS, createEventId } from './event-needs/event';
 import { isPlatformBrowser } from '@angular/common';
+import { InputSwitchModule } from 'primeng/inputswitch';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-fullcalendar',
-  imports: [FullCalendarModule],
+  imports: [FullCalendarModule, InputSwitchModule, FormsModule ],
   templateUrl: './fullcalendar.component.html',
   styleUrl: './fullcalendar.component.scss',
   standalone:true,
 })
 export class FullcalendarComponent {
   calendarVisible = true;
+  checked: boolean = false;
+  checked2: boolean = false;
   isBrowser: boolean;
   calendarOptions: CalendarOptions = {
     plugins: [
@@ -40,7 +44,7 @@ export class FullcalendarComponent {
     select: this.handleDateSelect.bind(this),
     eventClick: this.handleEventClick.bind(this),
     eventsSet: this.handleEvents.bind(this),
-    // hiddenDays:[5],
+    hiddenDays:[],
     firstDay:6
     /* you can update a remote database when these fire:
     eventAdd:
