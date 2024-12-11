@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from '@angular/fire/auth';
 import { inject } from '@angular/core';
 import { addDoc, collection, DocumentData, DocumentReference, Firestore, WithFieldValue } from '@angular/fire/firestore';
+import { Router } from '@angular/router';
 
 @Injectable({
   providedIn: 'root',
@@ -9,7 +10,7 @@ import { addDoc, collection, DocumentData, DocumentReference, Firestore, WithFie
 export class AuthService {
   private auth = inject(Auth);
 
-  constructor(private firestore: Firestore) {}
+  constructor(private firestore: Firestore ,private router: Router) {}
 
   // Register a new user with email and password
   async register(email: string, password: string) {
@@ -32,12 +33,10 @@ export class AuthService {
   }
 
   // Sign out the current user
-  async logout() {
-    try {
-      await signOut(this.auth);
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+  logout() {
+    console.log('Logging out...');
+    localStorage.removeItem('user');
+    this.router.navigate(['/login']);
   }
 
 

@@ -3,6 +3,7 @@ import { MenuModule } from 'primeng/menu';
 import { ButtonModule } from 'primeng/button';
 import { AvatarModule } from 'primeng/avatar';
 import { Router } from '@angular/router';
+import { AuthService } from '../../auth/auth.service';
 @Component({
   selector: 'appNavbar',
   imports: [MenuModule, ButtonModule, AvatarModule],
@@ -11,7 +12,7 @@ import { Router } from '@angular/router';
   standalone: true,
 })
 export class NavBarComponent {
-  constructor(private router: Router) {}
+  constructor(private router: Router, private authService: AuthService) {}
   menuItems = [
     {
       label: 'Profile',
@@ -34,8 +35,6 @@ export class NavBarComponent {
     this.router.navigate(['/profile']);
   }
   logout() {
-    console.log('Logging out...');
-    this.router.navigate(['/login']);
-    // Add logout logic here
+    this.authService.logout();
   }
 }

@@ -21,7 +21,6 @@ export class LogInComponent {
   error: string = '';
   isLoading: boolean = false;
   res: any;
-  // private authService = inject(AuthService);
 
   constructor(
     private authService: AuthService,
@@ -42,12 +41,12 @@ export class LogInComponent {
     try {
       const { username, password } = this.loginForm.value;
       await this.authService.login(username, password).then((res: any) => {
-        console.log(res);
+        console.log("LOG IN", res.user);
 
         if (res._tokenResponse !== undefined) {
           this.router.navigate(['/home']);
           console.log('User logged in');
-          localStorage.setItem('user', JSON.stringify({ name: username }));
+          localStorage.setItem('user', JSON.stringify({ id: res.user.uid, token: res.user.accessToken }));
         } else if (res.code === 'auth/invalid-credential') {
           this.error = 'Invalid credentials';
           console.log('Invalid credential');

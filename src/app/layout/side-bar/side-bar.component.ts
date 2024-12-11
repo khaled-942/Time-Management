@@ -1,10 +1,10 @@
 import { Component } from '@angular/core';
-
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MenuModule } from 'primeng/menu';
 import { ButtonModule } from 'primeng/button';
 import { Router } from '@angular/router';
+import { AuthService } from '../../auth/auth.service';
 
 @Component({
   selector: 'app-side-bar',
@@ -15,7 +15,7 @@ import { Router } from '@angular/router';
 })
 export class SideBarComponent {
   isExpanded = false;
-  constructor(private router: Router) {}
+  constructor(private router: Router, private authService: AuthService) {}
 
   // Toggle sidebar expansion
   toggleSidebar() {
@@ -32,8 +32,6 @@ export class SideBarComponent {
     // { icon: 'pi pi-sign-out', label: 'Logout', route: '/logout' },
   ];
   logout() {
-    console.log('Logging out...');
-    this.router.navigate(['/login']);
-    // Add logout logic here
+    this.authService.logout();
   }
 }
