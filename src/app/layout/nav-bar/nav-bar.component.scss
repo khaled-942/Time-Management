@@ -5,7 +5,8 @@
   background-color: #ffffff;
   padding: 0.5rem 1rem;
   border-bottom: 1px solid #ddd;
-  box-shadow: #ddd 0px 1px 26px;
+  box-shadow: #ddd 27px 1px 26px;
+  // clip-path: polygon(110% 0%, 100% 0%, 100% 100%, 0% 100%);
 
   .navbar-left {
     h3 {
@@ -24,6 +25,9 @@
       &.logout {
         color: #d9534f;
       }
+    }
+    p-avatar {
+      cursor: pointer;
     }
   }
 }

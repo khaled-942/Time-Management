@@ -1,1 +1,35 @@
-<p>side-bar works!</p>
+<!-- sidebar.component.html -->
+<div class="sidebar" [class.collapsed]="!isExpanded">
+  <div class="sidebar-content">
+    <div class="site-name">
+      <h2 *ngIf="isExpanded"><i class="pi pi-link"></i> Time I/O</h2>
+      <h2 *ngIf="!isExpanded"><i class="pi pi-link logo"></i></h2>
+    </div>
+
+    <nav class="sidebar-nav" [class.small]="!isExpanded">
+      <ul>
+        <li *ngFor="let item of sidebarItems">
+          <a [routerLink]="item.route" class="nav-item">
+            <i [class]="item.icon"></i>
+            <span *ngIf="isExpanded">{{ item.label }}</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+
+  <div class="logout">
+    <div class="nav-item" (click)="logout()">
+      <i class="pi pi-sign-out"></i>
+      <span *ngIf="isExpanded">Logout</span>
+    </div>
+  </div>
+
+  <div class="sidebar-toggle" (click)="toggleSidebar()">
+    <i
+      class="pi"
+      [class.pi-chevron-left]="isExpanded"
+      [class.pi-chevron-right]="!isExpanded"
+    ></i>
+  </div>
+</div>

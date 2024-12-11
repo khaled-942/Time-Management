@@ -1,0 +1,121 @@
+/* sidebar.component.css */
+.sidebar {
+  // position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 200px;
+  background-color: #fff;
+  color: #2c3e50;
+  transition: width 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+
+  .logout {
+    margin-bottom: 10px;
+    padding: 5px 10px;
+    .nav-item {
+      cursor: pointer;
+    }
+    .nav-item:hover {
+      background-color: rgba(128, 8, 8, 0.705);
+      border-color: rgba(201, 77, 77, 0.705);
+    }
+  }
+}
+
+.sidebar.collapsed {
+  width: 70px;
+}
+
+.sidebar-content {
+  flex-grow: 1;
+  overflow-x: hidden;
+}
+
+.site-name {
+  height: 65px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  // padding: 20px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+  i.logo {
+    font-size: xx-large;
+    color: #f97416ee;
+  }
+}
+.sidebar-nav {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+  ul {
+    list-style-type: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0;
+    margin: 0;
+  }
+}
+// .sidebar-nav ul {
+//   list-style-type: none;
+//   display: block;
+//   padding: 0;
+//   margin: 0;
+// }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  text-decoration: none;
+  color: #2c3e50;
+  transition: background-color 0.3s ease;
+  gap: 14px;
+  justify-content: flex-start;
+  border: #ddd solid 1px;
+  border-radius: 10px;
+
+  span {
+    padding-right: 5px;
+    width: fit-content;
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.nav-item:hover {
+  background-color: #f97416ee;
+  color: #fff;
+}
+
+.sidebar-nav.small {
+  .nav-item {
+    border-radius: 50%;
+    padding: 5px;
+  }
+  .nav-item:hover {
+    background-color: #f97416ee;
+    color: #fff;
+  }
+}
+.nav-item i {
+  padding: 10px;
+}
+
+.sidebar.collapsed .nav-item span {
+  display: none;
+}
+
+.sidebar-toggle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  background-color: #f974161a;
+  cursor: pointer;
+}

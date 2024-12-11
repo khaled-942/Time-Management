@@ -14,6 +14,11 @@ export class NavBarComponent {
   constructor(private router: Router) {}
   menuItems = [
     {
+      label: 'Profile',
+      icon: 'pi pi-user',
+      command: () => this.onProfile(),
+    },
+    {
       label: 'Settings',
       icon: 'pi pi-cog',
       command: () => this.navigateToSettings(),
@@ -25,7 +30,9 @@ export class NavBarComponent {
     console.log('Navigating to settings...');
     // Add navigation logic here
   }
-
+  onProfile() {
+    this.router.navigate(['/profile']);
+  }
   logout() {
     console.log('Logging out...');
     this.router.navigate(['/login']);
