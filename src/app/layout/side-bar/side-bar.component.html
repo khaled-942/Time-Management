@@ -8,12 +8,14 @@
 
     <nav class="sidebar-nav" [class.small]="!isExpanded">
       <ul>
-        <li *ngFor="let item of sidebarItems">
-          <a [routerLink]="item.route" class="nav-item">
-            <i [class]="item.icon"></i>
-            <span *ngIf="isExpanded">{{ item.label }}</span>
-          </a>
-        </li>
+        @for (item of sidebarItems; track $index) {
+            <li>
+              <a [routerLink]="item.route" class="nav-item">
+                <i [class]="item.icon"></i>
+                <span *ngIf="isExpanded">{{ item.label }}</span>
+              </a>
+            </li>
+        }
       </ul>
     </nav>
   </div>

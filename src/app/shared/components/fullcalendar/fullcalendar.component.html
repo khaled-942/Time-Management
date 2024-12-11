@@ -1,6 +1,6 @@
-<div class='demo-app'>
-    <div class='demo-app-sidebar'>
-        <div class='demo-app-sidebar-section'>
+<div class="demo-app">
+    <!-- <div class="demo-app-sidebar">
+        <div class="demo-app-sidebar-section">
             <h2>Instructions</h2>
             <ul>
                 <li>Select dates and you will be prompted to create a new event</li>
@@ -8,19 +8,19 @@
                 <li>Click an event to delete it</li>
             </ul>
         </div>
-        <div class='demo-app-sidebar-section'>
+        <div class="demo-app-sidebar-section">
             <div class="flex align-items-center justify-content-start gap-2">
                 <p-inputSwitch [(ngModel)]="checked" (onChange)="handleCalendarToggle()" inputId="switch1" />
                 <label for="switch">Hide Calendar</label>
             </div>
         </div>
-        <div class='demo-app-sidebar-section'>
+        <div class="demo-app-sidebar-section">
             <div class="flex align-items-center justify-content-start gap-2">
                 <p-inputSwitch [(ngModel)]="checked2" (onChange)="handleWeekendsToggle()" inputId="switch2" />
                 <label for="switch2">Hide Weekends</label>
             </div>
         </div>
-        <div class='demo-app-sidebar-section'>
+        <div class="demo-app-sidebar-section">
             <h2>All Events ({{currentEvents.length}})</h2>
             <ul>
                 @for (event of currentEvents; track $index) {
@@ -31,16 +31,31 @@
                 }
             </ul>
         </div>
-    </div>
+    </div> -->
 
     <div class='demo-app-main'>
         @if (calendarVisible && isBrowser) {
-        <full-calendar [options]='calendarOptions'>
-            <ng-template #eventContent let-arg>
-                <b>{{ arg.timeText }}</b>
-                <i>{{ arg.event.title }}</i>
-            </ng-template>
-        </full-calendar>
+        <full-calendar [options]='calendarOptions'></full-calendar>
         }
     </div>
+
+    <p-dialog header="Schedule Your Time" [modal]="true" [(visible)]="visible" [style]="{ }">
+        <span class="p-text-secondary block mb-5">Update your day information.</span>
+        <div class="flex align-items-center gap-3 mb-3">
+            <div class="flex-auto">
+                <label for="calendar-12h" class="font-bold block mb-2">Check-In</label>
+                <p-calendar inputId="calendar-timeonly" [(ngModel)]="check_In_time" [inline]="true" [timeOnly]="true"
+                    [showTime]="true" />
+            </div>
+            <div class="flex-auto">
+                <label for="calendar-12h" class="font-bold block mb-2">Check-Out</label>
+                <p-calendar inputId="calendar-timeonly" [(ngModel)]="check_Out_time" [inline]="true" [timeOnly]="true"
+                    [showTime]="true" />
+            </div>
+        </div>
+        <div class="flex justify-content-end gap-2">
+            <p-button label="Cancel" severity="secondary" (onClick)="visible = false" />
+            <p-button label="Save" (onClick)="onDialogSubmit()" />
+        </div>
+    </p-dialog>
 </div>
