@@ -1,6 +1,20 @@
-import { ChangeDetectorRef, Component, Inject, PLATFORM_ID, ViewChild } from '@angular/core';
-import { FullCalendarComponent, FullCalendarModule } from '@fullcalendar/angular';
-import { CalendarOptions, DateSelectArg, EventClickArg, EventApi } from '@fullcalendar/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  Inject,
+  PLATFORM_ID,
+  ViewChild,
+} from '@angular/core';
+import {
+  FullCalendarComponent,
+  FullCalendarModule,
+} from '@fullcalendar/angular';
+import {
+  CalendarOptions,
+  DateSelectArg,
+  EventClickArg,
+  EventApi,
+} from '@fullcalendar/core';
 import interactionPlugin from '@fullcalendar/interaction';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -23,7 +37,7 @@ import { CalendarModule } from 'primeng/calendar';
     DialogModule,
     ButtonModule,
     InputTextModule,
-    CalendarModule
+    CalendarModule,
   ],
   templateUrl: './fullcalendar.component.html',
   styleUrl: './fullcalendar.component.scss',
@@ -44,16 +58,11 @@ export class FullcalendarComponent {
   timing: any[] = [];
 
   calendarOptions: CalendarOptions = {
-    plugins: [
-      interactionPlugin,
-      dayGridPlugin,
-      timeGridPlugin,
-      listPlugin,
-    ],
+    plugins: [interactionPlugin, dayGridPlugin, timeGridPlugin, listPlugin],
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
-      right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+      right: '',
     },
     initialView: 'dayGridMonth',
     initialEvents: this.timing,
@@ -69,7 +78,7 @@ export class FullcalendarComponent {
     // eventClick: this.handleEventClick.bind(this),
     eventsSet: this.handleEvents.bind(this),
     hiddenDays: [],
-    firstDay: 6
+    firstDay: 6,
   };
 
   currentEvents: EventApi[] = [];
@@ -98,12 +107,11 @@ export class FullcalendarComponent {
   handleDateSelect(selectInfo: DateSelectArg) {
     // Store the selected date
     this.selectedDate = selectInfo.startStr;
-    
+
     this.showDialog();
 
     // Clear the calendar selection
     selectInfo.view.calendar.unselect();
-
   }
 
   // Method to handle dialog submission
