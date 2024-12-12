@@ -156,13 +156,18 @@ export class FullcalendarComponent {
       this.compareDates(new Date(this.selectedDate), new Date()) <= 0
     ) {
       console.log(this.timing);
-
+      let index = this.timing.findIndex(
+        (item) => item.start == this.selectedDate
+      );
       const timeOut = new Date();
       const timeIn = new Date();
       isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
       timeIn.setHours(9, 0, 0, 0);
-      this.check_Out_time = timeOut;
-      this.check_In_time = timeIn;
+
+      this.check_Out_time =
+        index == -1 ? timeOut : new Date(this.timing[index].out);
+      this.check_In_time =
+        index == -1 ? timeIn : new Date(this.timing[index].in);
       this.showDialog();
     }
 
@@ -189,6 +194,13 @@ export class FullcalendarComponent {
     const checkInTime = this.convertTime(this.check_In_time);
     const checkOutTime = this.convertTime(this.check_Out_time);
     // Add event to calendar
+
+    calendarApi
+      .getEvents()
+      .filter((i) => i.startStr.split('T')[0] == this.selectedDate)
+      .forEach((event) => event.remove());
+    console.log(calendarApi.getEvents());
+
     calendarApi.addEvent({
       id: createEventId(),
       title: 'Check-in', // Customize as needed
@@ -200,14 +212,27 @@ export class FullcalendarComponent {
       start: `${this.selectedDate}T${checkOutTime}`,
     });
 
+    let index = this.timing.findIndex(
+      (item) => item.start == this.selectedDate
+    );
     // Add to timing array
-    this.timing.push({
-      id: createEventId(),
-      title: 'Check-in Event',
-      start: this.selectedDate,
-      in: `${this.selectedDate}T${checkInTime}`,
-      out: `${this.selectedDate}T${checkOutTime}`,
-    });
+    if (index == -1) {
+      this.timing.push({
+        id: createEventId(),
+        title: 'Check-in Event',
+        start: this.selectedDate,
+        in: `${this.selectedDate}T${checkInTime}`,
+        out: `${this.selectedDate}T${checkOutTime}`,
+      });
+    } else {
+      this.timing[index] = {
+        id: createEventId(),
+        title: 'Check-in Event',
+        start: this.selectedDate,
+        in: `${this.selectedDate}T${checkInTime}`,
+        out: `${this.selectedDate}T${checkOutTime}`,
+      };
+    }
 
     // Close the dialog and reset times
     this.visible = false;
