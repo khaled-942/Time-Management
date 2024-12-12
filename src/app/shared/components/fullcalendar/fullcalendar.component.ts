@@ -27,6 +27,7 @@ import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { CalendarModule } from 'primeng/calendar';
+import { log } from 'console';
 
 @Component({
   selector: 'app-fullcalendar',
@@ -64,9 +65,13 @@ export class FullcalendarComponent {
       center: 'title',
       right: '',
     },
+    // validRange: {
+    //   end: new Date(),
+    // },
     initialView: 'dayGridMonth',
     initialEvents: this.timing,
     weekends: true,
+
     editable: false,
     selectable: true,
     selectMirror: true,
@@ -75,10 +80,14 @@ export class FullcalendarComponent {
       this.selectedDate = info.dateStr;
     },
     select: this.handleDateSelect.bind(this),
-    // eventClick: this.handleEventClick.bind(this),
+
     eventsSet: this.handleEvents.bind(this),
     hiddenDays: [],
     firstDay: 6,
+    events: (info, successCallback, failureCallback) => {
+      const events = this.generateFridays(info.start, info.end);
+      successCallback(events);
+    },
   };
 
   currentEvents: EventApi[] = [];
@@ -88,6 +97,26 @@ export class FullcalendarComponent {
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
+  }
+
+  // Function to generate background events for all Fridays
+  generateFridays(start: Date, end: Date) {
+    const events = [];
+    let currentDate = new Date(start);
+
+    while (currentDate < end) {
+      if (currentDate.getDay() === 6) {
+        // 5 corresponds to Friday
+        events.push({
+          start: currentDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+          display: 'background',
+          backgroundColor: 'lightblue', // Optional: Custom background color
+        });
+      }
+      currentDate.setDate(currentDate.getDate() + 1); // Move to the next day
+    }
+
+    return events;
   }
 
   handleCalendarToggle() {
@@ -102,13 +131,40 @@ export class FullcalendarComponent {
       calendarOptions.hiddenDays = [];
     }
   }
+  compareDates(date1: Date, date2: Date) {
+    date1.setHours(0, 0, 0, 0);
+    date2.setHours(0, 0, 0, 0);
 
+    if (date1 > date2) {
+      return 1;
+    } else if (date1 < date2) {
+      return -1;
+    } else {
+      return 0;
+    }
+  }
   // Handle date selection in FullCalendar
   handleDateSelect(selectInfo: DateSelectArg) {
     // Store the selected date
     this.selectedDate = selectInfo.startStr;
+    const isFriday = new Date(this.selectedDate).getDay() === 5;
+    const isTusday = new Date(this.selectedDate).getDay() === 4;
+    console.log(isFriday);
 
-    this.showDialog();
+    if (
+      !isFriday &&
+      this.compareDates(new Date(this.selectedDate), new Date()) <= 0
+    ) {
+      console.log(this.timing);
+
+      const timeOut = new Date();
+      const timeIn = new Date();
+      isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
+      timeIn.setHours(9, 0, 0, 0);
+      this.check_Out_time = timeOut;
+      this.check_In_time = timeIn;
+      this.showDialog();
+    }
 
     // Clear the calendar selection
     selectInfo.view.calendar.unselect();
@@ -149,6 +205,8 @@ export class FullcalendarComponent {
       id: createEventId(),
       title: 'Check-in Event',
       start: this.selectedDate,
+      in: `${this.selectedDate}T${checkInTime}`,
+      out: `${this.selectedDate}T${checkOutTime}`,
     });
 
     // Close the dialog and reset times

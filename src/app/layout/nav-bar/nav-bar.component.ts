@@ -13,6 +13,7 @@ import { AuthService } from '../../auth/auth.service';
 })
 export class NavBarComponent {
   constructor(private router: Router, private authService: AuthService) {}
+
   menuItems = [
     {
       label: 'Profile',

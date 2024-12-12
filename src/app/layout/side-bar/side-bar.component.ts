@@ -25,7 +25,7 @@ export class SideBarComponent {
   // Navigation items
   sidebarItems = [
     { icon: 'pi pi-home', label: 'Dashboard', route: '/dashboard' },
-    { icon: 'pi pi-calendar', label: 'Calendar', route: '/calendar' },
+    { icon: 'pi pi-calendar', label: 'Calendar', route: '/home' },
     { icon: 'pi pi-file', label: 'Report', route: '/report' },
     { icon: 'pi pi-flag', label: 'National Days', route: '/national-days' },
     // { icon: 'pi pi-cog', label: 'Settings', route: '/settings' },

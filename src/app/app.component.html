@@ -1,1 +1,19 @@
-<router-outlet />
+<div class="flex h-screen">
+  <!-- Sidebar -->
+  @if (isLoggedIn) {
+  <app-side-bar></app-side-bar>
+  }
+
+  <!-- Main Content Area -->
+  <div class="main-content flex flex-column w-full">
+    <!-- Navbar -->
+    @if (isLoggedIn) {
+    <appNavbar></appNavbar>
+    }
+
+    <!-- Content Area -->
+    <div class="content-wrapper">
+      <router-outlet />
+    </div>
+  </div>
+</div>
