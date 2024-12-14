@@ -1,12 +1,14 @@
 <div class="navbar">
   <div class="navbar-left">
     <!-- <h3>Page name</h3> -->
+    <i class="pi pi-link logo"></i>
+    <h2>Time I/O</h2>
   </div>
   <div class="navbar-right">
-    <span> Hi, {{user?.name}}</span>
+    <span> Hi, {{ user?.name }}</span>
     <p-avatar
-      icon="pi pi-user"
       styleClass="mr-2"
+      [image]="user?.currentAvatar"
       size="large"
       shape="circle"
       [style]="{ 'margin-left': '10px' }"

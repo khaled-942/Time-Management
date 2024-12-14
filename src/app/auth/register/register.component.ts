@@ -8,12 +8,12 @@ import {
   FormGroup,
   Validators,
 } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule],
   templateUrl: './register.component.html',
   styleUrl: './register.component.scss',
 })
@@ -26,6 +26,7 @@ export class RegisterComponent {
     userId: '',
     email: '',
     name: '',
+    currentAvatar: '',
   };
 
   // private authService = inject(AuthService);

@@ -1,0 +1,170 @@
+<!-- src/app/user-profile/user-profile.component.html -->
+<div class="flex flex-col align-items-center items-center p-4">
+  <!-- Existing avatar and loading spinner code -->
+  @if (!isLoading) {
+  <p-avatar
+    (click)="showAvatarDialog()"
+    [image]="user?.currentAvatar"
+    size="xlarge"
+    shape="circle"
+    class="cursor-pointer hover:opacity-75 mr-4 transition-all"
+  ></p-avatar>
+  }
+
+  <div class="text-start">
+    <h2 class="text-xl font-bold">{{ user?.name }}</h2>
+    <p class="text-gray-600">{{ user?.email }}</p>
+  </div>
+
+  <!-- Avatar Selection Dialog -->
+  <p-dialog
+    [(visible)]="displayAvatarDialog"
+    header="Choose Avatar"
+    [modal]="true"
+    [style]="{ width: '450px' }"
+    (onHide)="displayAvatarDialog = false"
+  >
+    <div class="flex flex-wrap gap-4 justify-content-center">
+      <img
+        *ngFor="let avatar of avatars"
+        [src]="avatar.url"
+        [alt]="avatar.name"
+        class="h-auto cursor-pointer hover:opacity-75 transition-all"
+        (click)="selectAvatar(avatar)"
+        width="28%"
+      />
+    </div>
+  </p-dialog>
+
+  <!-- Toast Notifications -->
+  <p-toast></p-toast>
+</div>
+
+<form
+  [formGroup]="profileForm"
+  class="profile-form max-w-2xl mx-auto p-4"
+  (ngSubmit)="handleSubmit()"
+>
+  <div class="card p-fluid">
+    <h5 class="text-2xl font-bold mb-4">Your Information</h5>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Personal Information -->
+      <div class="field">
+        <label for="name" class="font-bold block mb-2">Full Name</label>
+        <input
+          pInputText
+          id="name"
+          formControlName="name"
+          placeholder="Full Name"
+          class="w-full"
+        />
+      </div>
+
+      <div class="field">
+        <label for="email" class="font-bold block mb-2">Email</label>
+        <input
+          pInputText
+          id="email"
+          formControlName="email"
+          placeholder="Email Address"
+          class="w-full"
+        />
+      </div>
+
+      <!-- Demographic Information -->
+      <div class="field">
+        <label for="gender" class="font-bold block mb-2">Gender</label>
+        <p-dropdown
+          [options]="genderOptions"
+          formControlName="gender"
+          placeholder="Select Gender"
+          optionLabel="label"
+          optionValue="value"
+          class="w-full"
+        ></p-dropdown>
+      </div>
+
+      <div class="field">
+        <label for="birthDate" class="font-bold block mb-2"
+          >Date of Birth</label
+        >
+        <p-calendar
+          formControlName="birthDate"
+          dateFormat="dd/mm/yy"
+          [showIcon]="true"
+          class="w-full"
+        ></p-calendar>
+      </div>
+
+      <!-- Professional Information -->
+      <div class="field">
+        <label for="occupation" class="font-bold block mb-2">Occupation</label>
+        <input
+          pInputText
+          id="occupation"
+          formControlName="occupation"
+          placeholder="Current Job Title"
+          class="w-full"
+        />
+      </div>
+
+      <div class="field">
+        <label for="salary" class="font-bold block mb-2">Monthly Salary</label>
+        <p-inputNumber
+          formControlName="salary"
+          placeholder="Annual Salary"
+          [min]="0"
+          mode="currency"
+          currency="USD"
+          class="w-full"
+        ></p-inputNumber>
+      </div>
+
+      <!-- Additional Contact Information -->
+      <div class="field">
+        <label for="phone" class="font-bold block mb-2">Phone Number</label>
+        <p-inputMask
+          formControlName="phone"
+          mask="+20 999 999 9999"
+          placeholder="+20 xxx xxx xxxx"
+          class="w-full"
+        ></p-inputMask>
+      </div>
+
+      <div class="field">
+        <label for="location" class="font-bold block mb-2">Location</label>
+        <input
+          pInputText
+          id="location"
+          formControlName="location"
+          placeholder="City, Country"
+          class="w-full"
+        />
+      </div>
+    </div>
+
+    <!-- Additional Details -->
+    <div class="field">
+      <label for="bio" class="font-bold block mb-2">Personal Bio</label>
+      <textarea
+        pInputTextarea
+        formControlName="bio"
+        [rows]="4"
+        placeholder="Tell us a bit about yourself"
+        class="w-full"
+      ></textarea>
+    </div>
+
+    <!-- Submit Button -->
+    <div class="field">
+      <button
+        pButton
+        type="submit"
+        label="Update Profile"
+        class="w-full"
+        [disabled]="!profileForm.valid"
+      ></button>
+    </div>
+  </div>
+</form>

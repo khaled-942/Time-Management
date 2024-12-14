@@ -1,17 +1,30 @@
 .navbar {
+  z-index: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   background-color: #ffffff;
   padding: 0.5rem 1rem;
   border-bottom: 1px solid #ddd;
-  box-shadow: #ddd 27px 1px 26px;
-  // clip-path: polygon(110% 0%, 100% 0%, 100% 100%, 0% 100%);
+  box-shadow: #ddd 70px 0px 26px;
+  position: fixed;
+  width: 100%;
 
   .navbar-left {
-    h3 {
+    // height: 69px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    // padding: 20px;
+    text-align: center;
+    // border-bottom: 1px solid #ddd;
+    h2 {
       margin: 0;
-      color: #333;
+    }
+    i.logo {
+      font-size: xx-large;
+      color: #f97416ee;
+      margin-right: 10px;
     }
   }
 

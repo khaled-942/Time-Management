@@ -7,19 +7,29 @@
       <h2>Create an Account</h2>
     </div>
 
-    <form [formGroup]="registerForm" (ngSubmit)="handleRegister()" class="register-form">
+    <form
+      [formGroup]="registerForm"
+      (ngSubmit)="handleRegister()"
+      class="register-form"
+    >
       <div class="p-field">
         <label for="username" class="p-sr-only">Username</label>
-        <input 
-          id="username" 
-          pInputText 
-          type="text" 
-          formControlName="username" 
-          placeholder="Username" 
-          [class.p-invalid]="registerForm.get('username')?.invalid && registerForm.get('username')?.touched"
-        >
-        <small 
-          *ngIf="registerForm.get('username')?.invalid && registerForm.get('username')?.touched" 
+        <input
+          id="username"
+          pInputText
+          type="text"
+          formControlName="username"
+          placeholder="Username"
+          [class.p-invalid]="
+            registerForm.get('username')?.invalid &&
+            registerForm.get('username')?.touched
+          "
+        />
+        <small
+          *ngIf="
+            registerForm.get('username')?.invalid &&
+            registerForm.get('username')?.touched
+          "
           class="p-error"
         >
           Username must be at least 3 characters long
@@ -28,16 +38,22 @@
 
       <div class="p-field">
         <label for="email" class="p-sr-only">Email</label>
-        <input 
-          id="email" 
-          pInputText 
-          type="email" 
-          formControlName="email" 
-          placeholder="Email" 
-          [class.p-invalid]="registerForm.get('email')?.invalid && registerForm.get('email')?.touched"
-        >
-        <small 
-          *ngIf="registerForm.get('email')?.invalid && registerForm.get('email')?.touched" 
+        <input
+          id="email"
+          pInputText
+          type="email"
+          formControlName="email"
+          placeholder="Email"
+          [class.p-invalid]="
+            registerForm.get('email')?.invalid &&
+            registerForm.get('email')?.touched
+          "
+        />
+        <small
+          *ngIf="
+            registerForm.get('email')?.invalid &&
+            registerForm.get('email')?.touched
+          "
           class="p-error"
         >
           Please enter a valid email
@@ -46,16 +62,22 @@
 
       <div class="p-field">
         <label for="password" class="p-sr-only">Password</label>
-        <input 
-          id="password" 
-          pInputText 
-          type="password" 
-          formControlName="password" 
+        <input
+          id="password"
+          pInputText
+          type="password"
+          formControlName="password"
           placeholder="Password"
-          [class.p-invalid]="registerForm.get('password')?.invalid && registerForm.get('password')?.touched"
-        >
-        <small 
-          *ngIf="registerForm.get('password')?.invalid && registerForm.get('password')?.touched" 
+          [class.p-invalid]="
+            registerForm.get('password')?.invalid &&
+            registerForm.get('password')?.touched
+          "
+        />
+        <small
+          *ngIf="
+            registerForm.get('password')?.invalid &&
+            registerForm.get('password')?.touched
+          "
           class="p-error"
         >
           Password must be at least 6 characters long
@@ -64,16 +86,16 @@
 
       <div class="p-field">
         <label for="confirmPassword" class="p-sr-only">Confirm Password</label>
-        <input 
-          id="confirmPassword" 
-          pInputText 
-          type="password" 
-          formControlName="confirmPassword" 
+        <input
+          id="confirmPassword"
+          pInputText
+          type="password"
+          formControlName="confirmPassword"
           placeholder="Confirm Password"
           [class.p-invalid]="registerForm.get('confirmPassword')?.errors?.['passwordMismatch']"
-        >
-        <small 
-          *ngIf="registerForm.get('confirmPassword')?.errors?.['passwordMismatch']" 
+        />
+        <small
+          *ngIf="registerForm.get('confirmPassword')?.errors?.['passwordMismatch']"
           class="p-error"
         >
           Passwords do not match
@@ -83,11 +105,21 @@
       <div *ngIf="error" class="error-message">
         {{ error }}
       </div>
-
-      <button 
-        pButton 
-        type="submit" 
-        label="Sign Up" 
+      <div class="mb-1">
+        <span class="text-600 ml-auto flex flex-wrap gap-3"
+          >Don you have an account?
+          <a
+            [routerLink]="['/login']"
+            class="text-600 hover:text-primary cursor-pointer ml-auto transition-colors transition-duration-300"
+          >
+            Login</a
+          >
+        </span>
+      </div>
+      <button
+        pButton
+        type="submit"
+        label="Sign Up"
         [disabled]="!isFormValid() || isLoading"
         [ngClass]="{
           'p-button-primary': isFormValid(),
@@ -97,7 +129,7 @@
       >
         <i *ngIf="isLoading" class="pi pi-spin pi-spinner"></i>
         <i *ngIf="!isLoading" class="pi pi-user-plus"></i>
-        {{ isLoading ? 'Signing Up...' : 'Sign Up' }}
+        {{ isLoading ? "Signing Up..." : "Sign Up" }}
       </button>
     </form>
   </div>

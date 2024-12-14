@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class UserService {
   private userSubject = new BehaviorSubject<any>(null); // Initial value is null
@@ -13,6 +13,11 @@ export class UserService {
   }
 
   clearUser(): void {
-    this.userSubject.next(null); // Emit null to clear user
+    this.userSubject.next({
+      id: '',
+      name: '',
+      email: '',
+      currentAvatar: '',
+    }); // Emit null to clear user
   }
 }

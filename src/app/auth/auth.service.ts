@@ -1,4 +1,4 @@
-import { EventEmitter, Injectable } from '@angular/core';
+import { EventEmitter, Inject, Injectable, PLATFORM_ID } from '@angular/core';
 import {
   Auth,
   createUserWithEmailAndPassword,
@@ -20,6 +20,7 @@ import {
 } from '@angular/fire/firestore';
 import { Router } from '@angular/router';
 import { UserService } from '../shared/services/user.service';
+import { isPlatformBrowser } from '@angular/common';
 
 @Injectable({
   providedIn: 'root',
@@ -27,7 +28,12 @@ import { UserService } from '../shared/services/user.service';
 export class AuthService {
   private auth = inject(Auth);
   loginStatusChanged = new EventEmitter<boolean>(); // EventEmitter for status changes
-  constructor(private firestore: Firestore, private router: Router, private userService: UserService) {}
+  constructor(
+    private firestore: Firestore,
+    private router: Router,
+    private userService: UserService,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {}
 
   // Register a new user with email and password
   async register(email: string, password: string) {
@@ -79,16 +85,17 @@ export class AuthService {
   }
 
   async getUserById(userId: string): Promise<any> {
-
     const colRef = collection(this.firestore, 'users');
-    const q = query(colRef, where('userId', '==', userId))
+    const q = query(colRef, where('userId', '==', userId));
     const querySnapshot: QuerySnapshot<DocumentData> = await getDocs(q);
     return querySnapshot.docs.map((doc) => doc.data());
   }
 
   isLoggedIn() {
-    // Check for user information in local storage.  Adapt as needed for your auth
-    let user = localStorage.getItem('user');
-    return !!user; // Returns true if user exists, false otherwise
+    if (isPlatformBrowser(this.platformId)) {
+      let user = localStorage.getItem('user');
+      return !!user;
+    }
+    return false; // Return false if not in browser context
   }
 }

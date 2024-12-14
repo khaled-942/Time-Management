@@ -7,8 +7,14 @@ export const routes: Routes = [
   {
     path: 'home',
     loadComponent: () =>
-      import('./layout/layout.component').then(
-        (c) => c.LayoutComponent
+      import('./layout/layout.component').then((c) => c.LayoutComponent),
+    canActivate: [loggedInFormGuard],
+  },
+  {
+    path: 'profile',
+    loadComponent: () =>
+      import('./layout/profile/profile.component').then(
+        (c) => c.ProfileComponent
       ),
     canActivate: [loggedInFormGuard],
   },
@@ -24,7 +30,7 @@ export const routes: Routes = [
       import('./auth/register/register.component').then(
         (c) => c.RegisterComponent
       ),
-      canActivate: [allowedGuard],
+    canActivate: [allowedGuard],
   },
   {
     path: '**',

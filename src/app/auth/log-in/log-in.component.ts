@@ -8,11 +8,11 @@ import {
   FormGroup,
   Validators,
 } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { UserService } from '../../shared/services/user.service';
 @Component({
   selector: 'app-log-in',
-  imports: [FormsModule, ReactiveFormsModule, CommonModule],
+  imports: [FormsModule, ReactiveFormsModule, CommonModule, RouterModule],
   standalone: true,
   templateUrl: './log-in.component.html',
   styleUrl: './log-in.component.scss',
@@ -43,7 +43,6 @@ export class LogInComponent {
     try {
       const { username, password } = this.loginForm.value;
       await this.authService.login(username, password).then((res: any) => {
-
         if (res._tokenResponse !== undefined) {
           console.log('User logged in');
           this.authService.loginStatusChanged.emit(true);
@@ -51,12 +50,10 @@ export class LogInComponent {
             'user',
             JSON.stringify({ id: res.user.uid, token: res.user.accessToken })
           );
-          this.authService
-            .getUserById(res.user.uid)
-            .then((res: any) => {
-              this.userService.setUser(res[0]);
-              this.router.navigate(['/home']);
-            });
+          this.authService.getUserById(res.user.uid).then((res: any) => {
+            this.userService.setUser(res[0]);
+            this.router.navigate(['/home']);
+          });
         } else if (res.code === 'auth/invalid-credential') {
           this.error = 'Invalid credentials';
           console.log('Invalid credential');

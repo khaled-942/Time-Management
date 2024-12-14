@@ -1,20 +1,20 @@
 <!-- sidebar.component.html -->
-<div class="sidebar" [class.collapsed]="!isExpanded" >
+<div class="sidebar" [class.collapsed]="!isExpanded">
   <div class="sidebar-content">
     <div class="site-name">
-      <h2 *ngIf="isExpanded"><i class="pi pi-link"></i> Time I/O</h2>
-      <h2 *ngIf="!isExpanded"><i class="pi pi-link logo"></i></h2>
+      <!-- <h2 *ngIf="isExpanded"><i class="pi pi-link logo"></i> Time I/O</h2> -->
+      <!-- <h2 *ngIf="!isExpanded"><i class="pi pi-link logo"></i></h2> -->
     </div>
 
     <nav class="sidebar-nav" [class.small]="!isExpanded">
       <ul>
         @for (item of sidebarItems; track $index) {
-            <li>
-              <a [routerLink]="item.route" class="nav-item">
-                <i [class]="item.icon"></i>
-                <span *ngIf="isExpanded">{{ item.label }}</span>
-              </a>
-            </li>
+        <li>
+          <a [routerLink]="item.route" class="nav-item">
+            <i [class]="item.icon"></i>
+            <span *ngIf="isExpanded">{{ item.label }}</span>
+          </a>
+        </li>
         }
       </ul>
     </nav>

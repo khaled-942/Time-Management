@@ -48,6 +48,17 @@
         {{ error }}
       </div>
       }
+      <div class="mb-1">
+        <span class="text-600 ml-auto flex flex-wrap gap-3"
+          >Don't have an account?
+          <a
+            [routerLink]="['/register']"
+            class="text-600 hover:text-primary cursor-pointer ml-auto transition-colors transition-duration-300"
+          >
+            Register</a
+          >
+        </span>
+      </div>
 
       <button
         pButton

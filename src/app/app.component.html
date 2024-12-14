@@ -16,7 +16,7 @@
     }
 
     <!-- Content Area -->
-    <div class="content-wrapper">
+    <div [class.content-wrapper]="isLoggedIn">
       <router-outlet />
     </div>
   </div>
