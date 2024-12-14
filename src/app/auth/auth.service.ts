@@ -9,20 +9,17 @@ import { inject } from '@angular/core';
 import {
   addDoc,
   collection,
-  doc,
-  docData,
   DocumentData,
   DocumentReference,
-  DocumentSnapshot,
   Firestore,
-  getDoc,
   getDocs,
   QuerySnapshot,
+  query,
   where,
   WithFieldValue,
 } from '@angular/fire/firestore';
 import { Router } from '@angular/router';
-import { query } from 'express';
+import { UserService } from '../shared/services/user.service';
 
 @Injectable({
   providedIn: 'root',
@@ -30,9 +27,7 @@ import { query } from 'express';
 export class AuthService {
   private auth = inject(Auth);
   loginStatusChanged = new EventEmitter<boolean>(); // EventEmitter for status changes
-  private user = {};
-
-  constructor(private firestore: Firestore, private router: Router) {}
+  constructor(private firestore: Firestore, private router: Router, private userService: UserService) {}
 
   // Register a new user with email and password
   async register(email: string, password: string) {
@@ -65,6 +60,7 @@ export class AuthService {
   // Sign out the current user
   logout() {
     console.log('Logging out...');
+    this.userService.clearUser();
     localStorage.removeItem('user');
     this.loginStatusChanged.emit(false);
     this.router.navigate(['/login']);
@@ -83,8 +79,10 @@ export class AuthService {
   }
 
   async getUserById(userId: string): Promise<any> {
+
     const colRef = collection(this.firestore, 'users');
-    const querySnapshot: QuerySnapshot<DocumentData> = await getDocs(colRef);
+    const q = query(colRef, where('userId', '==', userId))
+    const querySnapshot: QuerySnapshot<DocumentData> = await getDocs(q);
     return querySnapshot.docs.map((doc) => doc.data());
   }
 

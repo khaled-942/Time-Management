@@ -4,6 +4,7 @@ import { ButtonModule } from 'primeng/button';
 import { AvatarModule } from 'primeng/avatar';
 import { Router } from '@angular/router';
 import { AuthService } from '../../auth/auth.service';
+import { UserService } from '../../shared/services/user.service';
 @Component({
   selector: 'appNavbar',
   imports: [MenuModule, ButtonModule, AvatarModule],
@@ -12,7 +13,17 @@ import { AuthService } from '../../auth/auth.service';
   standalone: true,
 })
 export class NavBarComponent {
-  constructor(private router: Router, private authService: AuthService) {}
+  user: any = null;
+  constructor(private router: Router, private authService: AuthService, private userService: UserService) {
+
+  }
+
+  ngOnInit(): void {
+    this.userService.user$.subscribe(user => {
+      this.user = user; // Update user when the value is emitted
+    });
+
+  }
 
   menuItems = [
     {

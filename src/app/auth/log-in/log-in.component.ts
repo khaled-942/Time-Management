@@ -9,6 +9,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router } from '@angular/router';
+import { UserService } from '../../shared/services/user.service';
 @Component({
   selector: 'app-log-in',
   imports: [FormsModule, ReactiveFormsModule, CommonModule],
@@ -25,7 +26,8 @@ export class LogInComponent {
   constructor(
     private authService: AuthService,
     private router: Router,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private userService: UserService
   ) {
     this.loginForm = this.fb.group({
       username: ['', Validators.required],
@@ -41,7 +43,6 @@ export class LogInComponent {
     try {
       const { username, password } = this.loginForm.value;
       await this.authService.login(username, password).then((res: any) => {
-        console.log('LOG IN', res.user);
 
         if (res._tokenResponse !== undefined) {
           console.log('User logged in');
@@ -52,8 +53,10 @@ export class LogInComponent {
           );
           this.authService
             .getUserById(res.user.uid)
-            .then((res: any) => console.log('user-----------------', res));
-          this.router.navigate(['/home']);
+            .then((res: any) => {
+              this.userService.setUser(res[0]);
+              this.router.navigate(['/home']);
+            });
         } else if (res.code === 'auth/invalid-credential') {
           this.error = 'Invalid credentials';
           console.log('Invalid credential');

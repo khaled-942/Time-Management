@@ -12,6 +12,7 @@ import { NavBarComponent } from './layout/nav-bar/nav-bar.component';
 import { SideBarComponent } from './layout/side-bar/side-bar.component';
 import { AuthService } from './auth/auth.service';
 import { LoaderComponent } from './shared/loader/loader.component';
+import { UserService } from './shared/services/user.service';
 
 @Component({
   selector: 'app-root',
@@ -24,7 +25,7 @@ export class AppComponent implements OnInit {
   title = 'Time-Management';
   isLoggedIn = false;
   isLoading = false;
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(private authService: AuthService, private router: Router, private userService: UserService) {}
 
   ngOnInit() {
     this.router.events.subscribe((event: Event) => {
@@ -44,5 +45,18 @@ export class AppComponent implements OnInit {
       // Subscribe to changes
       this.isLoggedIn = status;
     });
+
+    if(this.isLoggedIn) {
+      const userData = localStorage.getItem('user');
+      if(userData) {
+        let uid: any = JSON.parse(userData).id;
+        this.authService
+        .getUserById(uid)
+        .then((res: any) => {
+          this.userService.setUser(res[0]);
+        });
+      }
+
+    }
   }
 }
