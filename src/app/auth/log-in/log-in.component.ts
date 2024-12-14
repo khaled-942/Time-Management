@@ -44,13 +44,16 @@ export class LogInComponent {
         console.log('LOG IN', res.user);
 
         if (res._tokenResponse !== undefined) {
-          this.router.navigate(['/home']);
           console.log('User logged in');
           this.authService.loginStatusChanged.emit(true);
           localStorage.setItem(
             'user',
             JSON.stringify({ id: res.user.uid, token: res.user.accessToken })
           );
+          this.authService
+            .getUserById(res.user.uid)
+            .then((res: any) => console.log('user-----------------', res));
+          this.router.navigate(['/home']);
         } else if (res.code === 'auth/invalid-credential') {
           this.error = 'Invalid credentials';
           console.log('Invalid credential');

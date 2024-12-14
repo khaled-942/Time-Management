@@ -26,10 +26,8 @@ export class SideBarComponent {
   sidebarItems = [
     { icon: 'pi pi-home', label: 'Dashboard', route: '/dashboard' },
     { icon: 'pi pi-calendar', label: 'Calendar', route: '/home' },
-    { icon: 'pi pi-file', label: 'Report', route: '/report' },
+    // { icon: 'pi pi-file', label: 'Report', route: '/report' },
     { icon: 'pi pi-flag', label: 'National Days', route: '/national-days' },
-    // { icon: 'pi pi-cog', label: 'Settings', route: '/settings' },
-    // { icon: 'pi pi-sign-out', label: 'Logout', route: '/logout' },
   ];
   logout() {
     this.authService.logout();

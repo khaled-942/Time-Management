@@ -9,12 +9,20 @@ import { inject } from '@angular/core';
 import {
   addDoc,
   collection,
+  doc,
+  docData,
   DocumentData,
   DocumentReference,
+  DocumentSnapshot,
   Firestore,
+  getDoc,
+  getDocs,
+  QuerySnapshot,
+  where,
   WithFieldValue,
 } from '@angular/fire/firestore';
 import { Router } from '@angular/router';
+import { query } from 'express';
 
 @Injectable({
   providedIn: 'root',
@@ -22,6 +30,8 @@ import { Router } from '@angular/router';
 export class AuthService {
   private auth = inject(Auth);
   loginStatusChanged = new EventEmitter<boolean>(); // EventEmitter for status changes
+  private user = {};
+
   constructor(private firestore: Firestore, private router: Router) {}
 
   // Register a new user with email and password
@@ -70,6 +80,12 @@ export class AuthService {
     } catch (error) {
       throw error;
     }
+  }
+
+  async getUserById(userId: string): Promise<any> {
+    const colRef = collection(this.firestore, 'users');
+    const querySnapshot: QuerySnapshot<DocumentData> = await getDocs(colRef);
+    return querySnapshot.docs.map((doc) => doc.data());
   }
 
   isLoggedIn() {
