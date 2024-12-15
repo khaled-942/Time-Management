@@ -19,6 +19,22 @@ export const routes: Routes = [
     canActivate: [loggedInFormGuard],
   },
   {
+    path: 'nation-days',
+    loadComponent: () =>
+      import('./layout/nation-days/nation-days.component').then(
+        (c) => c.NationDaysComponent
+      ),
+    canActivate: [loggedInFormGuard],
+  },
+  {
+    path: 'dashboard',
+    loadComponent: () =>
+      import('./layout/time-management-dashboard/time-management-dashboard.component').then(
+        (c) => c.TimeManagementDashboardComponent
+      ),
+    canActivate: [loggedInFormGuard],
+  },
+  {
     path: 'login',
     loadComponent: () =>
       import('./auth/log-in/log-in.component').then((c) => c.LogInComponent),

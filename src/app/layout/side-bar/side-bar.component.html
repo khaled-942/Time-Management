@@ -10,7 +10,7 @@
       <ul>
         @for (item of sidebarItems; track $index) {
         <li>
-          <a [routerLink]="item.route" class="nav-item">
+          <a [routerLink]="item.route" class="nav-item" routerLinkActive="active">
             <i [class]="item.icon"></i>
             <span *ngIf="isExpanded">{{ item.label }}</span>
           </a>
@@ -28,10 +28,6 @@
   </div>
 
   <div class="sidebar-toggle" (click)="toggleSidebar()">
-    <i
-      class="pi"
-      [class.pi-chevron-left]="isExpanded"
-      [class.pi-chevron-right]="!isExpanded"
-    ></i>
+    <i class="pi" [class.pi-chevron-left]="isExpanded" [class.pi-chevron-right]="!isExpanded"></i>
   </div>
 </div>
