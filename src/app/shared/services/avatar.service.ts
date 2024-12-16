@@ -17,7 +17,7 @@ export class AvatarService {
   constructor(private http: HttpClient) {}
 
   // Generate avatars based on different name variations
-  generateAvatars(name: string): Avatar[] {
+  generateAvatars(name: string, first?: boolean): Avatar[] {
     const backgrounds = ['0D8ABC', 'FFA500', '7CB342', 'FF5722', '9C27B0'];
     const names = [
       name,
@@ -28,16 +28,26 @@ export class AvatarService {
         .join(''),
     ];
 
-    console.log(names);
-
-    return names.map((avatarName, index) => ({
-      name: avatarName,
-      url: `${this.uiAvatarsBaseUrl}?name=${encodeURIComponent(
-        avatarName
-      )}&background=${
-        backgrounds[index % backgrounds.length]
-      }&color=fff&size=256`,
-    }));
+    if (first) {
+      names.splice(1, names.length);
+      return names.map((avatarName, index) => ({
+        name: avatarName,
+        url: `${this.uiAvatarsBaseUrl}?name=${encodeURIComponent(
+          avatarName
+        )}&background=${
+          backgrounds[index % backgrounds.length]
+        }&color=fff&size=256`,
+      }));
+    } else {
+      return names.map((avatarName, index) => ({
+        name: avatarName,
+        url: `${this.uiAvatarsBaseUrl}?name=${encodeURIComponent(
+          avatarName
+        )}&background=${
+          backgrounds[index % backgrounds.length]
+        }&color=fff&size=256`,
+      }));
+    }
   }
 
   // Simulate avatar selection (in a real app, this would be a backend call)

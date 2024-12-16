@@ -14,15 +14,17 @@ import { UserService } from '../../shared/services/user.service';
 })
 export class NavBarComponent {
   user: any = null;
-  constructor(private router: Router, private authService: AuthService, private userService: UserService) {
-
-  }
+  constructor(
+    private router: Router,
+    private authService: AuthService,
+    private userService: UserService
+  ) {}
 
   ngOnInit(): void {
-    this.userService.user$.subscribe(user => {
+    this.userService.user$.subscribe((user) => {
       this.user = user; // Update user when the value is emitted
+      console.log(this.user);
     });
-
   }
 
   menuItems = [

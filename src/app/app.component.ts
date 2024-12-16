@@ -25,7 +25,11 @@ export class AppComponent implements OnInit {
   title = 'Time-Management';
   isLoggedIn = false;
   isLoading = false;
-  constructor(private authService: AuthService, private router: Router, private userService: UserService) {}
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private userService: UserService
+  ) {}
 
   ngOnInit() {
     this.router.events.subscribe((event: Event) => {
@@ -46,17 +50,14 @@ export class AppComponent implements OnInit {
       this.isLoggedIn = status;
     });
 
-    if(this.isLoggedIn) {
+    if (this.isLoggedIn) {
       const userData = localStorage.getItem('user');
-      if(userData) {
+      if (userData) {
         let uid: any = JSON.parse(userData).id;
-        this.authService
-        .getUserById(uid)
-        .then((res: any) => {
+        this.authService.getUserById(uid).then((res: any) => {
           this.userService.setUser(res[0]);
         });
       }
-
     }
   }
 }

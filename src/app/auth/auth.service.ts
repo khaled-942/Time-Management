@@ -70,6 +70,7 @@ export class AuthService {
     localStorage.removeItem('user');
     this.loginStatusChanged.emit(false);
     this.router.navigate(['/login']);
+    signOut(this.auth);
   }
 
   saveRegisterdUser<T extends object>(

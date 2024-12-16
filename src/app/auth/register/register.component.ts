@@ -9,6 +9,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { AvatarService } from '../../shared/services/avatar.service';
 
 @Component({
   selector: 'app-register',
@@ -34,7 +35,8 @@ export class RegisterComponent {
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private avatarService: AvatarService
   ) {
     this.registerForm = this.fb.group(
       {
@@ -70,6 +72,10 @@ export class RegisterComponent {
           this.user.userId = res.user.uid;
           this.user.email = email;
           this.user.name = username;
+          this.user.currentAvatar = this.avatarService.generateAvatars(
+            this.user.name,
+            true
+          )[0].url;
           console.log(this.user);
           this.authService
             .saveRegisterdUser('users', this.user)
