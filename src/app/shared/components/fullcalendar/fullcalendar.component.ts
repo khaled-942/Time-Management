@@ -61,6 +61,7 @@ export class FullcalendarComponent {
   isBrowser: boolean;
 
   timing: any[] = [];
+
   // Day Off
   isDayOff: boolean = false;
   // Late and Early Leave flags
@@ -70,10 +71,6 @@ export class FullcalendarComponent {
   // Excuses
   lateExcuse: boolean = false;
   earlyLeaveExcuse: boolean = false;
-  // Standard work timings (can be configured)
-  standardCheckInTime: Date = new Date(2024, 0, 1, 9, 0); // 9:00 AM
-  standardCheckOutTime: Date = new Date(2024, 0, 1, 17, 0); // 5:00 PM
-
 
   calendarOptions: CalendarOptions = {
     plugins: [interactionPlugin, dayGridPlugin, timeGridPlugin, listPlugin],
@@ -149,6 +146,7 @@ export class FullcalendarComponent {
       calendarOptions.hiddenDays = [];
     }
   }
+
   compareDates(date1: Date, date2: Date) {
     date1.setHours(0, 0, 0, 0);
     date2.setHours(0, 0, 0, 0);
@@ -161,6 +159,7 @@ export class FullcalendarComponent {
       return 0;
     }
   }
+
   // Handle date selection in FullCalendar
   handleDateSelect(selectInfo: DateSelectArg) {
     // Store the selected date
@@ -168,31 +167,27 @@ export class FullcalendarComponent {
     const isFriday = new Date(this.selectedDate).getDay() === 5;
     const isTusday = new Date(this.selectedDate).getDay() === 4;
 
-    if (
-      !isFriday &&
-      this.compareDates(new Date(this.selectedDate), new Date()) <= 0
-    ) {
+    if(!isFriday && this.compareDates(new Date(this.selectedDate), new Date()) <= 0) {
       // in Day We can click
-      console.log(this.timing);
       const timeOut = new Date(this.selectedDate);
       const timeIn = new Date(this.selectedDate);
+
       isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
       timeIn.setHours(9, 0, 0, 0);
 
-      let index = this.timing.findIndex(
-        (item) => item.start == this.selectedDate
-      );
+      let index = this.timing.findIndex((item) => item.start == this.selectedDate);
 
-      this.check_Out_time =
-        index == -1 ? timeOut : new Date(this.timing[index].out);
-      this.check_In_time =
-        index == -1 ? timeIn : new Date(this.timing[index].in);
+      this.check_Out_time = index == -1 ? timeOut : new Date(this.timing[index].out);
+      this.check_In_time = index == -1 ? timeIn : new Date(this.timing[index].in);
+
       if (index != -1) {
-        this.isDayOff = this.timing[index].isDayOff
+        this.isDayOff = this.timing[index].isDayOff;
+        this.isLate = this.timing[index].isLate;
+        this.isEarlyLeave = this.timing[index].isEarlyLeave;
+        this.earlyLeaveExcuse = this.timing[index].earlyLeaveExcuse;
+        this.lateExcuse = this.timing[index].lateExcuse;
       }
 
-      console.log(this.check_In_time);
-      console.log(this.check_Out_time);
       this.showDialog();
     }
 
@@ -201,59 +196,54 @@ export class FullcalendarComponent {
   }
 
   setDefaultDayData() {
-    let index = this.timing.findIndex(
-      (item) => item.start == this.selectedDate
-    );
-    if(index!= -1){
 
-      const isTusday = new Date(this.selectedDate).getDay() === 4;
-      const timeOut = new Date(this.selectedDate);
-      const timeIn = new Date(this.selectedDate);
-      isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
-      timeIn.setHours(9, 0, 0, 0);
-      this.check_Out_time = timeOut;
-      this.check_In_time = timeIn;
-    }
+    const isTusday = new Date(this.selectedDate).getDay() === 4;
+    const timeOut = new Date(this.selectedDate);
+    const timeIn = new Date(this.selectedDate);
+    isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
+    timeIn.setHours(9, 0, 0, 0);
+    this.check_Out_time = timeOut;
+    this.check_In_time = timeIn;
   }
-
 
   // Handle Day Off switch
   onDayOffChange() {
     if (this.isDayOff) {
-      this.setDefaultDayData();
       // Reset all time-related fields when day off is selected
+      this.setDefaultDayData();
       this.isLate = false;
       this.isEarlyLeave = false;
       this.lateExcuse = false;
       this.earlyLeaveExcuse = false;
     }
   }
+
   // Validate Check-In Time
   validateCheckIn() {
     if (!this.check_In_time) return;
-
+  // Standard work timings (can be configured)
+    let standardCheckInTime: Date = new Date(2024, 0, 1, 9, 0); // 9:00 AM
     // Compare check-in time with standard check-in time
     const checkInHours = this.check_In_time.getHours();
     const checkInMinutes = this.check_In_time.getMinutes();
-    const standardHours = this.standardCheckInTime.getHours();
-    const standardMinutes = this.standardCheckInTime.getMinutes();
+    const standardHours = standardCheckInTime.getHours();
+    const standardMinutes = standardCheckInTime.getMinutes();
 
-    this.isLate = (checkInHours > standardHours) ||
-      (checkInHours === standardHours && checkInMinutes > standardMinutes);
+    this.isLate = (checkInHours > standardHours) || (checkInHours === standardHours && checkInMinutes > standardMinutes);
   }
 
   // Validate Check-Out Time
   validateCheckOut() {
     if (!this.check_Out_time) return;
-
+    const isTusday = new Date(this.selectedDate).getDay() === 4;
+    let standardCheckOutTime: Date =  isTusday ? new Date(2024, 0, 1, 13, 30) : new Date(2024, 0, 1, 17, 0); // 5:00 PM
     // Compare check-out time with standard check-out time
     const checkOutHours = this.check_Out_time.getHours();
     const checkOutMinutes = this.check_Out_time.getMinutes();
-    const standardHours = this.standardCheckOutTime.getHours();
-    const standardMinutes = this.standardCheckOutTime.getMinutes();
+    const standardHours = standardCheckOutTime.getHours();
+    const standardMinutes = standardCheckOutTime.getMinutes();
 
-    this.isEarlyLeave = (checkOutHours < standardHours) ||
-      (checkOutHours === standardHours && checkOutMinutes < standardMinutes);
+    this.isEarlyLeave = (checkOutHours < standardHours) || (checkOutHours === standardHours && checkOutMinutes < standardMinutes);
   }
 
   // Method to handle dialog submission
@@ -289,25 +279,39 @@ export class FullcalendarComponent {
     console.log(calendarApi.getEvents());
 
     if (this.isDayOff) {
+      // add day off event to calender
       calendarApi.addEvent({
         id: createEventId(),
-        title: 'dayOff', // Customize as needed
-        start: `${this.selectedDate}`,
+        title: 'dayOff',
+        start: this.selectedDate,
       });
-
     } else {
-
+      // add default check-in to calender
       calendarApi.addEvent({
         id: createEventId(),
-        title: 'Check-in', // Customize as needed
+        title: 'Check-in',
         start: `${this.selectedDate}T${checkInTime}`,
+        color: this.isLate ? 'red' : 'default'
       });
 
+      // add default check-out to calender
       calendarApi.addEvent({
         id: createEventId(),
-        title: 'Check-out', // Customize as needed
+        title: 'Check-out',
         start: `${this.selectedDate}T${checkOutTime}`,
+        color: this.isEarlyLeave ? 'red' : 'default'
       });
+
+      // add excuse event to calender
+      if(this.earlyLeaveExcuse || this.lateExcuse) {
+        calendarApi.addEvent({
+          id: createEventId(),
+          title: 'Excuse',
+          start: this.selectedDate,
+          backgroundColor: "red"
+        });
+      }
+
     }
 
 

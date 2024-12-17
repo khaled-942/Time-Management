@@ -54,3 +54,8 @@ b {
   background-color: lightblue; // Or any color you prefer
   // Any other Friday-specific styling
 }
+
+.disabledTime {
+  opacity: 0.4;
+  pointer-events: none;
+}

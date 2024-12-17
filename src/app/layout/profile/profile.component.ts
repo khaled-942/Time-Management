@@ -87,29 +87,31 @@ export class ProfileComponent implements OnInit {
       if (this.user != null) {
         this.loadAvatars();
       }
+      this.initializeForm();
     });
-    this.initializeForm();
   }
 
   initializeForm() {
+    if(this.user != null)
     this.profileForm = this.fb.group({
-      name: ['', [Validators.required, Validators.minLength(2)]],
-      email: ['', [Validators.required, Validators.email]],
-      gender: [''],
-      birthDate: [null],
-      position: [''],
-      salary: [null, [Validators.min(0)]],
-      phone: [''],
-      location: [''],
-      bio: ['', Validators.maxLength(500)],
+      name: [this.user.name, [Validators.required, Validators.minLength(2)]],
+      email: [this.user.email, [Validators.required, Validators.email]],
+      gender: [this.user.gender || ''],
+      birthDate: [this.user.birthDate || null],
+      position: [this.user.position || ''],
+      salary: [this.user.salary || null, [Validators.min(0)]],
+      phone: [this.user.phone || ''],
+      location: [this.user.location || ''],
+      bio: [this.user.bio || '', Validators.maxLength(500)],
     });
   }
 
   handleSubmit() {
-    if (this.profileForm.valid) {
-      const formData = this.profileForm.value;
+    const formData = this.profileForm.value;
+    console.log('Profile Data:', formData);
+    console.log('user Data:', this.user);
+    if (this.profileForm.valid && this.compareObjects(formData, this.user)) {
       console.log('Profile Data:', formData);
-      // Here you would typically send the data to a backend service
     }
   }
 
@@ -128,6 +130,7 @@ export class ProfileComponent implements OnInit {
   showAvatarDialog() {
     this.displayAvatarDialog = true;
   }
+
   selectAvatar(avatar: Avatar) {
     this.isLoading = true;
     this.user.currentAvatar = avatar.url;
@@ -139,4 +142,45 @@ export class ProfileComponent implements OnInit {
     //   detail: 'Avatar updated successfully',
     // });
   }
+
+
+  compareObjects(obj1: any, obj2: any): boolean {
+    // Check if both are objects
+    const isEmpty = (value: any): boolean => value === null || value === undefined || value === '';
+
+    if (typeof obj1 !== 'object' || typeof obj2 !== 'object' || obj1 === null || obj2 === null) {
+      return obj1 === obj2;
+    }
+
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+
+    // Combine all unique keys from both objects
+    const allKeys = new Set([...keys1, ...keys2]);
+
+    for (const key of allKeys) {
+      const value1 = obj1[key];
+      const value2 = obj2[key];
+
+      // Skip keys with empty values in both objects
+      if (isEmpty(value1) && isEmpty(value2)) {
+        continue;
+      }
+
+      // If one value is empty and the other is not, objects are not equal
+      if (isEmpty(value1) !== isEmpty(value2)) {
+        console.log("HERE");
+
+        return false;
+      }
+
+      // Recursive check for nested objects
+      if (!this.compareObjects(value1, value2)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
 }
