@@ -39,22 +39,50 @@
         }
     </div>
 
-    <p-dialog header="Schedule Your Time" [modal]="true" [(visible)]="visible" [style]="{ }">
-        <span class="p-text-secondary block mb-5">Update your day information.</span>
+    <p-dialog header="IN\OUT DATA" [modal]="true" [(visible)]="visible" [style]="{ }">
+        <span class="p-text-secondary block mb-5">Enter your in\out day data </span>
+
+        <!-- Day Off Switch -->
+        <div class="flex align-items-center mb-3">
+            <p-inputSwitch [(ngModel)]="isDayOff" (onChange)="onDayOffChange()"></p-inputSwitch>
+            <label class="ml-2">Day Off</label>
+        </div>
+        @if(!isDayOff){
         <div class="flex align-items-center gap-3 mb-3">
             <div class="flex-auto">
                 <label for="calendar-12h" class="font-bold block mb-2">Check-In</label>
                 <p-calendar inputId="calendar-timeonly" [(ngModel)]="check_In_time" [inline]="true" [timeOnly]="true"
-                    [showTime]="true" />
+                    [showTime]="true" (onSelect)="validateCheckIn()" />
             </div>
             <div class="flex-auto">
                 <label for="calendar-12h" class="font-bold block mb-2">Check-Out</label>
                 <p-calendar inputId="calendar-timeonly" [(ngModel)]="check_Out_time" [inline]="true" [timeOnly]="true"
-                    [showTime]="true" />
+                    [showTime]="true" (onSelect)="validateCheckOut()" />
             </div>
         </div>
+        }
+        @if(isLate){
+        <!-- Late Arrival Warning -->
+        <div class="p-message p-message-warn mb-3">
+            <div class="p-message-wrapper">
+                <span class="p-message-icon pi pi-exclamation-triangle"></span>
+                <span class="p-message-text">You arrived late!</span>
+                <p-checkbox [(ngModel)]="lateExcuse" label="Have an excuse?"></p-checkbox>
+            </div>
+        </div>
+        }
+        @if(isEarlyLeave){
+        <!-- Early Departure Warning -->
+        <div class="p-message p-message-warn mb-3">
+            <div class="p-message-wrapper">
+                <span class="p-message-icon pi pi-exclamation-triangle"></span>
+                <span class="p-message-text">You left earlier than scheduled!</span>
+                <p-checkbox [(ngModel)]="earlyLeaveExcuse" label="Have an excuse?"></p-checkbox>
+            </div>
+        </div>
+        }
         <div class="flex justify-content-end gap-2">
-            <p-button label="Cancel" severity="secondary" (onClick)="visible = false" />
+            <p-button label="Cancel" severity="secondary" (onClick)="cancelDialog()" />
             <p-button label="Save" (onClick)="onDialogSubmit()" />
         </div>
     </p-dialog>

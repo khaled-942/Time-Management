@@ -27,6 +27,8 @@ import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { CalendarModule } from 'primeng/calendar';
+import { CheckboxModule } from 'primeng/checkbox';
+
 import { log } from 'console';
 
 @Component({
@@ -39,6 +41,8 @@ import { log } from 'console';
     ButtonModule,
     InputTextModule,
     CalendarModule,
+    CheckboxModule,
+
   ],
   templateUrl: './fullcalendar.component.html',
   styleUrl: './fullcalendar.component.scss',
@@ -57,6 +61,19 @@ export class FullcalendarComponent {
   isBrowser: boolean;
 
   timing: any[] = [];
+  // Day Off
+  isDayOff: boolean = false;
+  // Late and Early Leave flags
+  isLate: boolean = false;
+  isEarlyLeave: boolean = false;
+
+  // Excuses
+  lateExcuse: boolean = false;
+  earlyLeaveExcuse: boolean = false;
+  // Standard work timings (can be configured)
+  standardCheckInTime: Date = new Date(2024, 0, 1, 9, 0); // 9:00 AM
+  standardCheckOutTime: Date = new Date(2024, 0, 1, 17, 0); // 5:00 PM
+
 
   calendarOptions: CalendarOptions = {
     plugins: [interactionPlugin, dayGridPlugin, timeGridPlugin, listPlugin],
@@ -99,6 +116,60 @@ export class FullcalendarComponent {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 
+
+  // Handle Day Off switch
+  onDayOffChange() {
+    if (this.isDayOff) {
+      // Reset all time-related fields when day off is selected
+      this.check_In_time = null;
+      this.check_Out_time = null;
+      this.isLate = false;
+      this.isEarlyLeave = false;
+      this.lateExcuse = false;
+      this.earlyLeaveExcuse = false;
+    }
+  }
+  // Validate Check-In Time
+  validateCheckIn() {
+    if (!this.check_In_time) return;
+
+    // Compare check-in time with standard check-in time
+    const checkInHours = this.check_In_time.getHours();
+    const checkInMinutes = this.check_In_time.getMinutes();
+    const standardHours = this.standardCheckInTime.getHours();
+    const standardMinutes = this.standardCheckInTime.getMinutes();
+
+    this.isLate = (checkInHours > standardHours) ||
+      (checkInHours === standardHours && checkInMinutes > standardMinutes);
+  }
+
+  // Validate Check-Out Time
+  validateCheckOut() {
+    if (!this.check_Out_time) return;
+
+    // Compare check-out time with standard check-out time
+    const checkOutHours = this.check_Out_time.getHours();
+    const checkOutMinutes = this.check_Out_time.getMinutes();
+    const standardHours = this.standardCheckOutTime.getHours();
+    const standardMinutes = this.standardCheckOutTime.getMinutes();
+
+    this.isEarlyLeave = (checkOutHours < standardHours) ||
+      (checkOutHours === standardHours && checkOutMinutes < standardMinutes);
+  }
+  // Check if submission is allowed
+  canSubmit(): boolean {
+    // If day off, always allow submission
+    if (this.isDayOff) return true;
+
+    // If late, require an excuse
+    if (this.isLate && !this.lateExcuse) return false;
+
+    // If left early, require an excuse
+    if (this.isEarlyLeave && !this.earlyLeaveExcuse) return false;
+
+    // Require both check-in and check-out times
+    return !!this.check_In_time && !!this.check_Out_time;
+  }
   // Function to generate background events for all Fridays
   generateFridays(start: Date, end: Date) {
     const events = [];
@@ -177,6 +248,21 @@ export class FullcalendarComponent {
 
   // Method to handle dialog submission
   onDialogSubmit() {
+    // ggg
+    if (this.canSubmit()) {
+      // Perform submission logic here
+      console.log('Submission Data:', {
+        isDayOff: this.isDayOff,
+        checkInTime: this.check_In_time,
+        checkOutTime: this.check_Out_time,
+        isLate: this.isLate,
+        isEarlyLeave: this.isEarlyLeave,
+        lateExcuse: this.lateExcuse,
+        earlyLeaveExcuse: this.earlyLeaveExcuse
+      });
+      this.visible = false;
+    }
+
     if (!this.check_In_time || !this.check_Out_time) {
       console.error('Please select both check-in and check-out times');
       return;
@@ -261,7 +347,22 @@ export class FullcalendarComponent {
     this.currentEvents = events;
     this.changeDetector.detectChanges();
   }
+  cancelDialog() {
+    this.visible = false;
+    // Reset all fields
+    this.resetFields();
+  }
 
+  // Reset all fields
+  private resetFields() {
+    this.isDayOff = false;
+    this.check_In_time = null;
+    this.check_Out_time = null;
+    this.isLate = false;
+    this.isEarlyLeave = false;
+    this.lateExcuse = false;
+    this.earlyLeaveExcuse = false;
+  }
   showDialog() {
     this.visible = true;
   }
