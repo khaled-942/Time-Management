@@ -15,7 +15,6 @@ import { InputMaskModule } from 'primeng/inputmask';
 import { InputTextareaModule } from 'primeng/inputtextarea';
 import {
   FormBuilder,
-  FormControl,
   FormGroup,
   FormsModule,
   ReactiveFormsModule,
@@ -24,7 +23,6 @@ import {
 import { InputTextModule } from 'primeng/inputtext';
 import { LoaderComponent } from "../../shared/loader/loader.component";
 import { AuthService } from '../../auth/auth.service';
-import { response } from 'express';
 
 @Component({
   selector: 'app-user-profile',
@@ -91,12 +89,13 @@ export class ProfileComponent implements OnInit {
   ngOnInit() {
     this.isLoading = true;
     this.userService.user$.subscribe((user) => {
-      this.user = user; // Update user when the value is emitted
+      this.user = user; // Update user when the value is emittedthis.user.birthDate
       if (this.user != null) {
+        this.user.birthDate = this.user.birthDate;
         this.loadAvatars();
         this.isLoading = false;
+        this.initializeForm();
       }
-      this.initializeForm();
     });
   }
 
@@ -123,11 +122,6 @@ export class ProfileComponent implements OnInit {
     this.displayAvatarDialog = false;
     this.isLoading = false;
     this.isSubmitValid(this.profileForm.value);
-    // this.messageService.add({
-    //   severity: 'success',
-    //   summary: 'Success',
-    //   detail: 'Avatar updated successfully',
-    // });
   }
 
   initializeForm() {
@@ -148,6 +142,8 @@ export class ProfileComponent implements OnInit {
 
     if(this.profileForm.valid && !this.compareObjects(this.profileForm.value, this.user)) this.submitBtn = true;
     this.profileForm.valueChanges.subscribe(value => {
+      console.log(value);
+
       this.isSubmitValid(value)
     });
   }
@@ -169,6 +165,7 @@ export class ProfileComponent implements OnInit {
         if(onfulfilled.val) {
           this.userService.setUser(formData);
           this.initializeForm();
+          this.submitBtn = false;
           this.isLoading = false;
           this.messageService.add({
             severity: 'success',
@@ -176,6 +173,7 @@ export class ProfileComponent implements OnInit {
             detail: onfulfilled.msg,
           });
         } else {
+          this.submitBtn = false;
           this.isLoading = false;
           this.messageService.add({
             severity: 'error',
@@ -199,9 +197,10 @@ export class ProfileComponent implements OnInit {
     const allKeys = new Set([...keys1, ...keys2]);
 
     for (const key of allKeys) {
+      const value1 = key=='birthDate' ? obj1[key].toString() : obj1[key];
+      const value2 = key=='birthDate' ? obj2[key].toString() : obj2[key];
 
-      const value1 = obj1[key];
-      const value2 = obj2[key];
+
       if (isEmpty(value1) && isEmpty(value2)) continue;
       if (isEmpty(value1) !== isEmpty(value2)) return false;
       if (!this.compareObjects(value1, value2)) return false;
