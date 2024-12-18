@@ -161,7 +161,7 @@ export class ProfileComponent implements OnInit {
     const formData = this.profileForm.value;
     formData.currentAvatar = this.user.currentAvatar;
     formData.userId = this.user.userId;
-    if (this.profileForm.valid && !this.compareObjects(formData, this.user)) {
+    if (this.profileForm.valid && (!this.compareObjects(formData, this.user) || this.oldAvatar != this.user.currentAvatar)) {
       console.log('Profile Data that will be change ====> ', formData);
       this.isLoading = true;
       this.authService.updateUserById(this.user.userId, formData).then(onfulfilled => {
