@@ -22,6 +22,9 @@ import {
   Validators,
 } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
+import { LoaderComponent } from "../../shared/loader/loader.component";
+import { AuthService } from '../../auth/auth.service';
+import { response } from 'express';
 
 @Component({
   selector: 'app-user-profile',
@@ -40,7 +43,8 @@ import { InputTextModule } from 'primeng/inputtext';
     InputTextModule,
     InputMaskModule,
     InputTextareaModule,
-  ],
+    LoaderComponent
+],
   providers: [MessageService],
   templateUrl: './profile.component.html',
   styleUrls: ['./profile.component.scss'],
@@ -49,11 +53,13 @@ export class ProfileComponent implements OnInit {
   profileForm: FormGroup;
   date: Date | undefined;
   user: any = {
-    id: '',
+    userId: '',
     name: '',
     email: '',
     currentAvatar: '',
   };
+  submitBtn = false;
+  oldAvatar: any;
   avatars: Avatar[] = [];
   displayAvatarDialog = false;
   isLoading = false;
@@ -63,6 +69,7 @@ export class ProfileComponent implements OnInit {
   ];
 
   constructor(
+    private authService: AuthService,
     private avatarService: AvatarService,
     private messageService: MessageService,
     private userService: UserService,
@@ -82,13 +89,45 @@ export class ProfileComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.isLoading = true;
     this.userService.user$.subscribe((user) => {
       this.user = user; // Update user when the value is emitted
       if (this.user != null) {
         this.loadAvatars();
+        this.isLoading = false;
       }
       this.initializeForm();
     });
+  }
+
+  loadAvatars() {
+    // Generate avatars based on user's name
+    this.avatars = this.avatarService.generateAvatars(this.user?.name);
+
+    // Set default avatar to the first generated avatar
+    if (this.avatars.length > 0) {
+      this.user.currentAvatar === ''
+        ? (this.user.currentAvatar = this.avatars[0].url)
+        : (this.user.currentAvatar = this.user.currentAvatar);
+    }
+    this.oldAvatar = this.user.currentAvatar;
+  }
+
+  showAvatarDialog() {
+    this.displayAvatarDialog = true;
+  }
+
+  selectAvatar(avatar: Avatar) {
+    this.isLoading = true;
+    this.user.currentAvatar = avatar.url;
+    this.displayAvatarDialog = false;
+    this.isLoading = false;
+    this.isSubmitValid(this.profileForm.value);
+    // this.messageService.add({
+    //   severity: 'success',
+    //   summary: 'Success',
+    //   detail: 'Avatar updated successfully',
+    // });
   }
 
   initializeForm() {
@@ -103,81 +142,70 @@ export class ProfileComponent implements OnInit {
       phone: [this.user.phone || ''],
       location: [this.user.location || ''],
       bio: [this.user.bio || '', Validators.maxLength(500)],
+      currentAvatar: this.user.currentAvatar,
+      userId: this.user.userId,
     });
+
+    if(this.profileForm.valid && !this.compareObjects(this.profileForm.value, this.user)) this.submitBtn = true;
+    this.profileForm.valueChanges.subscribe(value => {
+      this.isSubmitValid(value)
+    });
+  }
+
+  isSubmitValid(val: any) {
+    if(this.profileForm.valid && (!this.compareObjects(val, this.user) || this.oldAvatar != this.user.currentAvatar)) this.submitBtn = true;
+    else this.submitBtn = false;
   }
 
   handleSubmit() {
     const formData = this.profileForm.value;
-    console.log('Profile Data:', formData);
-    console.log('user Data:', this.user);
-    if (this.profileForm.valid && this.compareObjects(formData, this.user)) {
-      console.log('Profile Data:', formData);
+    formData.currentAvatar = this.user.currentAvatar;
+    formData.userId = this.user.userId;
+    if (this.profileForm.valid && !this.compareObjects(formData, this.user)) {
+      console.log('Profile Data that will be change ====> ', formData);
+      this.isLoading = true;
+      this.authService.updateUserById(this.user.userId, formData).then(onfulfilled => {
+        console.log(onfulfilled);
+        if(onfulfilled.val) {
+          this.userService.setUser(formData);
+          this.initializeForm();
+          this.isLoading = false;
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: onfulfilled.msg,
+          });
+        } else {
+          this.isLoading = false;
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: "Something went wrong, Please try again later.",
+          });
+        }
+      })
     }
   }
-
-  loadAvatars() {
-    // Generate avatars based on user's name
-    this.avatars = this.avatarService.generateAvatars(this.user?.name);
-
-    // Set default avatar to the first generated avatar
-    if (this.avatars.length > 0) {
-      this.user.currentAvatar === ''
-        ? (this.user.currentAvatar = this.avatars[0].url)
-        : (this.user.currentAvatar = this.user.currentAvatar);
-    }
-  }
-
-  showAvatarDialog() {
-    this.displayAvatarDialog = true;
-  }
-
-  selectAvatar(avatar: Avatar) {
-    this.isLoading = true;
-    this.user.currentAvatar = avatar.url;
-    this.displayAvatarDialog = false;
-    this.isLoading = false;
-    // this.messageService.add({
-    //   severity: 'success',
-    //   summary: 'Success',
-    //   detail: 'Avatar updated successfully',
-    // });
-  }
-
 
   compareObjects(obj1: any, obj2: any): boolean {
-    // Check if both are objects
+
     const isEmpty = (value: any): boolean => value === null || value === undefined || value === '';
 
-    if (typeof obj1 !== 'object' || typeof obj2 !== 'object' || obj1 === null || obj2 === null) {
-      return obj1 === obj2;
-    }
+    if (typeof obj1 !== 'object' || typeof obj2 !== 'object' || obj1 === null || obj2 === null) return obj1 === obj2;
 
     const keys1 = Object.keys(obj1);
     const keys2 = Object.keys(obj2);
 
-    // Combine all unique keys from both objects
     const allKeys = new Set([...keys1, ...keys2]);
 
     for (const key of allKeys) {
+
       const value1 = obj1[key];
       const value2 = obj2[key];
+      if (isEmpty(value1) && isEmpty(value2)) continue;
+      if (isEmpty(value1) !== isEmpty(value2)) return false;
+      if (!this.compareObjects(value1, value2)) return false;
 
-      // Skip keys with empty values in both objects
-      if (isEmpty(value1) && isEmpty(value2)) {
-        continue;
-      }
-
-      // If one value is empty and the other is not, objects are not equal
-      if (isEmpty(value1) !== isEmpty(value2)) {
-        console.log("HERE");
-
-        return false;
-      }
-
-      // Recursive check for nested objects
-      if (!this.compareObjects(value1, value2)) {
-        return false;
-      }
     }
 
     return true;

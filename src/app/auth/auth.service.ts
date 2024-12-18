@@ -17,6 +17,8 @@ import {
   query,
   where,
   WithFieldValue,
+  doc,
+  updateDoc,
 } from '@angular/fire/firestore';
 import { Router } from '@angular/router';
 import { UserService } from '../shared/services/user.service';
@@ -63,6 +65,14 @@ export class AuthService {
     }
   }
 
+  isLoggedIn() {
+    if (isPlatformBrowser(this.platformId)) {
+      let user = localStorage.getItem('user');
+      return !!user;
+    }
+    return false; // Return false if not in browser context
+  }
+
   // Sign out the current user
   logout() {
     console.log('Logging out...');
@@ -92,11 +102,37 @@ export class AuthService {
     return querySnapshot.docs.map((doc) => doc.data());
   }
 
-  isLoggedIn() {
-    if (isPlatformBrowser(this.platformId)) {
-      let user = localStorage.getItem('user');
-      return !!user;
+
+  async updateUserById(userId: string, updatedData: Partial<any>): Promise<any> {
+    try {
+      // Reference to the 'users' collection
+      const usersCollectionRef = collection(this.firestore, 'users');
+
+      // Query the collection to find the document with matching userId
+      const userQuery = query(usersCollectionRef, where('userId', '==', userId));
+      const querySnapshot = await getDocs(userQuery);
+
+      if (querySnapshot.empty) {
+        throw new Error('User not found');
+      }
+
+      // Assuming userId is unique, take the first matched document
+      const userDoc = querySnapshot.docs[0];
+      const userDocRef = doc(this.firestore, `users/${userDoc.id}`);
+
+      // Update the document
+      await updateDoc(userDocRef, updatedData);
+      return {
+        val: 1,
+        msg: 'User updated successfully',
+      };
+    } catch (error) {
+      return {
+        val: 0,
+        msg: error,
+      }
     }
-    return false; // Return false if not in browser context
   }
+
+
 }
