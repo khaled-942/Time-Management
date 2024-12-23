@@ -29,9 +29,15 @@ export const routes: Routes = [
   {
     path: 'dashboard',
     loadComponent: () =>
-      import('./layout/time-management-dashboard/time-management-dashboard.component').then(
-        (c) => c.TimeManagementDashboardComponent
-      ),
+      import(
+        './layout/time-management-dashboard/time-management-dashboard.component'
+      ).then((c) => c.TimeManagementDashboardComponent),
+    canActivate: [loggedInFormGuard],
+  },
+  {
+    path: 'admin',
+    loadComponent: () =>
+      import('./layout/admin/admin.component').then((c) => c.AdminComponent),
     canActivate: [loggedInFormGuard],
   },
   {

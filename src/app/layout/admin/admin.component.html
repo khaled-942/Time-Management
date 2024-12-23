@@ -1,0 +1,116 @@
+<div class="container mx-auto p-4">
+  <h1 class="text-3xl mb-6">Admin Dashboard</h1>
+
+  <div class="mt-4 flex flex-column g:flex-row sm:flex-column gap-4">
+    <div class="p-4">
+      <div class="grid formgrid p-fluid">
+        <div class="col-12 md:col-6">
+          <label for="holidayDate">Date</label>
+          <p-calendar
+            [(ngModel)]="newHoliday.date"
+            [showIcon]="true"
+            inputId="holidayDate"
+          ></p-calendar>
+        </div>
+
+        <div class="col-12 md:col-6">
+          <label for="holidayName">Holiday Name</label>
+          <input
+            pInputText
+            id="holidayName"
+            [(ngModel)]="newHoliday.name"
+            placeholder="Enter holiday name"
+          />
+        </div>
+
+        <div class="col-12">
+          <label for="holidayTags">Tags</label>
+          <p-dropdown
+            [options]="holidayTags"
+            [(ngModel)]="selectedTags"
+            multiple
+            optionLabel="name"
+            optionValue="value"
+            placeholder="Select Tags"
+          ></p-dropdown>
+        </div>
+
+        <div class="col-12">
+          <p-button label="Add Holiday" (onClick)="addHoliday()"></p-button>
+        </div>
+      </div>
+
+      <p-table
+        [value]="holidays"
+        [paginator]="true"
+        [rows]="10"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} holidays"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Date</th>
+            <th>Name</th>
+            <th>Tags</th>
+            <th>Actions</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-holiday>
+          <tr>
+            <td>{{ holiday.date | date : "mediumDate" }}</td>
+            <td>{{ holiday.name }}</td>
+            <td>{{ holiday.tags.join(", ") }}</td>
+            <td>
+              <p-button
+                icon="pi pi-trash"
+                styleClass="p-button-danger p-button-text"
+                (onClick)="deleteHoliday(holiday)"
+              ></p-button>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+    <div class="p-4">
+      <h2 class="text-2xl mb-4">User Management</h2>
+
+      <p-table
+        [value]="users"
+        [paginator]="true"
+        [rows]="10"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} users"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Verified</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Actions</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-user>
+          <tr>
+            <td>
+              <p-checkbox
+                [binary]="true"
+                [(ngModel)]="user.isVerified"
+              ></p-checkbox>
+            </td>
+            <td>{{ user.name }}</td>
+            <td>{{ user.email }}</td>
+            <td>{{ user.phone }}</td>
+            <td>
+              <p-button
+                label="Download CSV"
+                icon="pi pi-download"
+                (onClick)="downloadUserData(user)"
+              ></p-button>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+</div>
