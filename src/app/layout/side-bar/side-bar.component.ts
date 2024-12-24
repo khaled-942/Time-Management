@@ -15,7 +15,7 @@ import { AuthService } from '../../auth/auth.service';
 })
 export class SideBarComponent {
   isExpanded = false;
-  constructor(private router: Router, private authService: AuthService) { }
+  constructor(private router: Router, private authService: AuthService) {}
 
   // Toggle sidebar expansion
   toggleSidebar() {
@@ -26,7 +26,7 @@ export class SideBarComponent {
   sidebarItems = [
     { icon: 'pi pi-home', label: 'Dashboard', route: '/dashboard' },
     { icon: 'pi pi-calendar', label: 'Calendar', route: '/home' },
-    // { icon: 'pi pi-file', label: 'Report', route: '/report' },
+    { icon: 'pi pi-file', label: 'Admin', route: '/admin' },
     { icon: 'pi pi-flag', label: 'National Days', route: '/nation-days' },
   ];
   logout() {

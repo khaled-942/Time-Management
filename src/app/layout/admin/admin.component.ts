@@ -7,6 +7,7 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { TableModule } from 'primeng/table';
+import { HttpRequestsService } from '../../shared/services/http-requests.service';
 
 interface NationalHoliday {
   id?: number;
@@ -73,8 +74,10 @@ export class AdminComponent implements OnInit {
     },
   ];
 
+  constructor(private httpRequestsService: HttpRequestsService) {}
   ngOnInit(): void {
     // Load existing holidays from a service in a real app
+    this.holidays = this.httpRequestsService.getHolidays();
   }
 
   addHoliday() {
@@ -85,7 +88,7 @@ export class AdminComponent implements OnInit {
         tags: this.selectedTags,
       };
 
-      this.holidays.push(holiday);
+      this.holidays = this.httpRequestsService.addHoliday(holiday);
 
       // Reset form
       this.newHoliday = {
@@ -98,7 +101,7 @@ export class AdminComponent implements OnInit {
   }
 
   deleteHoliday(holiday: NationalHoliday) {
-    this.holidays = this.holidays.filter((h) => h !== holiday);
+    this.holidays = this.httpRequestsService.deleteHoliday(holiday);
   }
 
   downloadUserData(user: User) {
