@@ -1,4 +1,11 @@
 import { Injectable } from '@angular/core';
+import {
+  collection,
+  DocumentData,
+  Firestore,
+  getDocs,
+  QuerySnapshot,
+} from '@angular/fire/firestore';
 
 @Injectable({
   providedIn: 'root',
@@ -19,7 +26,7 @@ export class HttpRequestsService {
     },
   ];
 
-  constructor() {}
+  constructor(private firestore: Firestore) {}
 
   getHolidays(): any {
     return this.holidays;
@@ -38,5 +45,11 @@ export class HttpRequestsService {
   updateHoliday(holiday: any): void {
     const index = this.holidays.findIndex((h) => h.id === holiday.id);
     this.holidays[index] = holiday;
+  }
+
+  async getAllUsers(): Promise<any> {
+    const colRef = collection(this.firestore, 'users');
+    const querySnapshot: QuerySnapshot<DocumentData> = await getDocs(colRef);
+    return querySnapshot.docs.map((doc) => doc.data());
   }
 }

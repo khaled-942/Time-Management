@@ -16,13 +16,13 @@ interface NationalHoliday {
   tags: string[];
 }
 
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  isVerified: boolean;
-}
+// interface User {
+//   id: number;
+//   name: string;
+//   email: string;
+//   phone: string;
+//   isVerified: boolean;
+// }
 
 @Component({
   selector: 'app-admin',
@@ -57,27 +57,21 @@ export class AdminComponent implements OnInit {
 
   selectedTags: string[] = [];
 
-  users: User[] = [
-    {
-      id: 1,
-      name: 'John Doe',
-      email: 'john.doe@example.com',
-      phone: '+1234567890',
-      isVerified: false,
-    },
-    {
-      id: 2,
-      name: 'Jane Smith',
-      email: 'jane.smith@example.com',
-      phone: '+0987654321',
-      isVerified: true,
-    },
-  ];
+  users: any[] = [];
 
   constructor(private httpRequestsService: HttpRequestsService) {}
   ngOnInit(): void {
     // Load existing holidays from a service in a real app
     this.holidays = this.httpRequestsService.getHolidays();
+    this.httpRequestsService
+      .getAllUsers()
+      .then((users) => {
+        this.users = users;
+        console.log(this.users);
+      })
+      .catch((error) => {
+        console.error('Error fetching users', error);
+      });
   }
 
   addHoliday() {
@@ -104,7 +98,7 @@ export class AdminComponent implements OnInit {
     this.holidays = this.httpRequestsService.deleteHoliday(holiday);
   }
 
-  downloadUserData(user: User) {
+  downloadUserData(user: any) {
     // In a real app, this would fetch user's time tracking data
     const userData = [
       ['Date', 'Check In', 'Check Out', 'Days Off'],

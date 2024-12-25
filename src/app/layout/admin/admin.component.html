@@ -1,11 +1,18 @@
-<div class="container mx-auto p-4">
-  <h1 class="text-3xl mb-6">Admin Dashboard</h1>
+<div class="flex flex-column gap-4 p-4">
+  <h1 class="text-3xl font-bold mb-6 text-left">Admin Dashboard</h1>
 
-  <div class="mt-4 flex flex-column g:flex-row sm:flex-column gap-4">
-    <div class="p-4">
-      <div class="grid formgrid p-fluid">
-        <div class="col-12 md:col-6">
-          <label for="holidayDate">Date</label>
+  <div class="flex flex-wrap gap-4 justify-center">
+    <div class="w-full md:w-1/2 p-4 bg-white shadow-lg rounded-lg card">
+      <h2 class="text-2xl font-bold mb-4 text-center mb-4 text-left">
+        Hoilydays Management
+      </h2>
+      <div
+        class="grid grid-cols-1 md:grid-cols-2 gap-4 align-items-end mb-4 justify-content-evenly"
+      >
+        <div>
+          <label for="holidayDate" class="block text-gray-700 font-bold mb-2"
+            >Date</label
+          >
           <p-calendar
             [(ngModel)]="newHoliday.date"
             [showIcon]="true"
@@ -13,8 +20,10 @@
           ></p-calendar>
         </div>
 
-        <div class="col-12 md:col-6">
-          <label for="holidayName">Holiday Name</label>
+        <div>
+          <label for="holidayName" class="block text-gray-700 font-bold mb-2"
+            >Holiday Name</label
+          >
           <input
             pInputText
             id="holidayName"
@@ -23,8 +32,10 @@
           />
         </div>
 
-        <div class="col-12">
-          <label for="holidayTags">Tags</label>
+        <div>
+          <label for="holidayTags" class="block text-gray-700 font-bold mb-2"
+            >Tags</label
+          >
           <p-dropdown
             [options]="holidayTags"
             [(ngModel)]="selectedTags"
@@ -35,11 +46,14 @@
           ></p-dropdown>
         </div>
 
-        <div class="col-12">
-          <p-button label="Add Holiday" (onClick)="addHoliday()"></p-button>
+        <div>
+          <p-button
+            label="Add Holiday"
+            (onClick)="addHoliday()"
+            class="w-full"
+          ></p-button>
         </div>
       </div>
-
       <p-table
         [value]="holidays"
         [paginator]="true"
@@ -56,7 +70,7 @@
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-holiday>
-          <tr>
+          <tr class="hover:bg-gray-100">
             <td>{{ holiday.date | date : "mediumDate" }}</td>
             <td>{{ holiday.name }}</td>
             <td>{{ holiday.tags.join(", ") }}</td>
@@ -71,9 +85,11 @@
         </ng-template>
       </p-table>
     </div>
-    <div class="p-4">
-      <h2 class="text-2xl mb-4">User Management</h2>
 
+    <div class="w-full md:w-1/2 p-4 shadow-lg rounded-lg card">
+      <h2 class="text-2xl font-bold mb-4 text-center mb-4 text-left">
+        User Management
+      </h2>
       <p-table
         [value]="users"
         [paginator]="true"
@@ -91,7 +107,7 @@
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-user>
-          <tr>
+          <tr class="hover:bg-gray-100">
             <td>
               <p-checkbox
                 [binary]="true"
