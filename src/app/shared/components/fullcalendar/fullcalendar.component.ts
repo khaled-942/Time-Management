@@ -30,6 +30,8 @@ import { CalendarModule } from 'primeng/calendar';
 import { CheckboxModule } from 'primeng/checkbox';
 
 import { log } from 'console';
+import { HttpRequestsService } from '../../services/http-requests.service';
+import { title } from 'process';
 
 @Component({
   selector: 'app-fullcalendar',
@@ -59,6 +61,8 @@ export class FullcalendarComponent {
   calendarVisible = true;
   visible: boolean = false;
   isBrowser: boolean;
+
+  nationalDays: any[] = [];
 
   timing: any[] = [];
 
@@ -98,9 +102,24 @@ export class FullcalendarComponent {
     eventsSet: this.handleEvents.bind(this),
     hiddenDays: [],
     firstDay: 6,
-    events: (info, successCallback, failureCallback) => {
-      const events = this.generateFridays(info.start, info.end);
-      successCallback(events);
+    events: async (info, successCallback, failureCallback) => {
+      try {
+        const fridayEvents = this.generateFridays(info.start, info.end);
+
+        // Then, get the national holidays events asynchronously
+        const nationalDays = await this.getNationalDays();  // Wait for the holidays to load
+        console.log(nationalDays);
+
+        // Combine both the Friday and national days events
+        const events = [...fridayEvents, ...nationalDays];
+
+        successCallback(events);
+
+      } catch (error: any) {
+        // Handle error if any
+        failureCallback(error);
+      }
+
     },
   };
 
@@ -108,11 +127,45 @@ export class FullcalendarComponent {
 
   constructor(
     private changeDetector: ChangeDetectorRef,
+    private httpRequestsService: HttpRequestsService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 
+  getNationalDays(): Promise<any[]> {
+    const events: any[] = [];
+    return this.httpRequestsService.getHolidays().then((holidays) => {
+
+      this.nationalDays = holidays.map((item: any) => {
+        return {
+          date: item.date.toDate(), // Assuming item.date is a Firestore Timestamp object
+          name: item.name,
+          type: item.tags,
+          id: item.id,
+        };
+      });
+
+      // Loop through nationalDays and create events for the calendar
+      this.nationalDays.forEach((day: any) => {
+        events.push({
+          start: day.date.getFullYear().toString() + (day.date.getMonth()+1).toString().padStart(2, '0') + day.date.getDate().toString().padStart(2, '0'), // Format as YYYY-MM-DD
+          display: 'background',
+          backgroundColor: 'lightcoral',
+          title: `${day.name}`,
+          textColor: 'black',
+          borderColor: 'red'
+
+        })
+      })
+
+      return events;
+    }).catch((error) => {
+
+      console.error('Error fetching users', error);
+      return events;
+    });
+  }
 
   // Function to generate background events for all Fridays
   generateFridays(start: Date, end: Date) {
@@ -167,7 +220,7 @@ export class FullcalendarComponent {
     const isFriday = new Date(this.selectedDate).getDay() === 5;
     const isTusday = new Date(this.selectedDate).getDay() === 4;
 
-    if(!isFriday && this.compareDates(new Date(this.selectedDate), new Date()) <= 0) {
+    if (!isFriday && this.compareDates(new Date(this.selectedDate), new Date()) <= 0) {
       // in Day We can click
       const timeOut = new Date(this.selectedDate);
       const timeIn = new Date(this.selectedDate);
@@ -221,7 +274,7 @@ export class FullcalendarComponent {
   // Validate Check-In Time
   validateCheckIn() {
     if (!this.check_In_time) return;
-  // Standard work timings (can be configured)
+    // Standard work timings (can be configured)
     let standardCheckInTime: Date = new Date(2024, 0, 1, 9, 0); // 9:00 AM
     // Compare check-in time with standard check-in time
     const checkInHours = this.check_In_time.getHours();
@@ -236,7 +289,7 @@ export class FullcalendarComponent {
   validateCheckOut() {
     if (!this.check_Out_time) return;
     const isTusday = new Date(this.selectedDate).getDay() === 4;
-    let standardCheckOutTime: Date =  isTusday ? new Date(2024, 0, 1, 13, 30) : new Date(2024, 0, 1, 17, 0); // 5:00 PM
+    let standardCheckOutTime: Date = isTusday ? new Date(2024, 0, 1, 13, 30) : new Date(2024, 0, 1, 17, 0); // 5:00 PM
     // Compare check-out time with standard check-out time
     const checkOutHours = this.check_Out_time.getHours();
     const checkOutMinutes = this.check_Out_time.getMinutes();
@@ -303,7 +356,7 @@ export class FullcalendarComponent {
       });
 
       // add excuse event to calender
-      if(this.earlyLeaveExcuse || this.lateExcuse) {
+      if (this.earlyLeaveExcuse || this.lateExcuse) {
         calendarApi.addEvent({
           id: createEventId(),
           title: 'Excuse',
@@ -378,6 +431,7 @@ export class FullcalendarComponent {
     this.currentEvents = events;
     this.changeDetector.detectChanges();
   }
+
   cancelDialog() {
     this.visible = false;
     // Reset all fields

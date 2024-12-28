@@ -1,3 +1,6 @@
+@if (isLoading) {
+  <app-loader></app-loader>
+}
 <!-- sidebar.component.html -->
 <div class="sidebar" [class.collapsed]="!isExpanded">
   <div class="sidebar-content">
@@ -9,7 +12,7 @@
     <nav class="sidebar-nav" [class.small]="!isExpanded">
       <ul>
         @for (item of sidebarItems; track $index) {
-        <li>
+        <li [class.item-hide]="item.label == 'Admin' && !isAdmin">
           <a [routerLink]="item.route" class="nav-item" routerLinkActive="active">
             <i [class]="item.icon"></i>
             <span *ngIf="isExpanded">{{ item.label }}</span>

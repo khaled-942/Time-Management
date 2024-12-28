@@ -73,7 +73,7 @@
           <tr class="hover:bg-gray-100">
             <td>{{ holiday.date | date : "mediumDate" }}</td>
             <td>{{ holiday.name }}</td>
-            <td>{{ holiday.tags.join(", ") }}</td>
+            <td>{{ holiday.tags }}</td>
             <td>
               <p-button
                 icon="pi pi-trash"
@@ -111,7 +111,7 @@
             <td>
               <p-checkbox
                 [binary]="true"
-                [(ngModel)]="user.isVerified"
+                [(ngModel)]="user.verified"
               ></p-checkbox>
             </td>
             <td>{{ user.name }}</td>

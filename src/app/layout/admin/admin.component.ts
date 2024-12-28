@@ -9,12 +9,12 @@ import { InputTextModule } from 'primeng/inputtext';
 import { TableModule } from 'primeng/table';
 import { HttpRequestsService } from '../../shared/services/http-requests.service';
 
-interface NationalHoliday {
-  id?: number;
-  date: Date;
-  name: string;
-  tags: string[];
-}
+// interface NationalHoliday {
+//   id?: number;
+//   date: Date;
+//   name: string;
+//   tags: string[];
+// }
 
 // interface User {
 //   id: number;
@@ -41,8 +41,8 @@ interface NationalHoliday {
   styleUrl: './admin.component.scss',
 })
 export class AdminComponent implements OnInit {
-  holidays: NationalHoliday[] = [];
-  newHoliday: NationalHoliday = {
+  holidays: any = [];
+  newHoliday: any = {
     date: new Date(),
     name: '',
     tags: [],
@@ -62,27 +62,53 @@ export class AdminComponent implements OnInit {
   constructor(private httpRequestsService: HttpRequestsService) {}
   ngOnInit(): void {
     // Load existing holidays from a service in a real app
-    this.holidays = this.httpRequestsService.getHolidays();
-    this.httpRequestsService
-      .getAllUsers()
-      .then((users) => {
+
+    this.httpRequestsService.getHolidays().then((holidays) => {
+
+      holidays.forEach((element: any) => {
+       element.date.toDate();
+      });
+
+      this.holidays = holidays.map((item: any)=> {return {date: item.date.toDate(), name: item.name, tags: item.tags, id: item.id}});
+      console.log("holydays", this.holidays);
+
+    }).catch((error) => {
+      console.error('Error fetching users', error);
+    });
+
+
+    this.httpRequestsService.getAllUsers().then((users) => {
         this.users = users;
-        console.log(this.users);
-      })
-      .catch((error) => {
+        console.log("users", this.users);
+      }).catch((error) => {
         console.error('Error fetching users', error);
       });
   }
 
   addHoliday() {
     if (this.newHoliday.name && this.newHoliday.date) {
-      const holiday: NationalHoliday = {
+      const holiday = {
         date: this.newHoliday.date,
         name: this.newHoliday.name,
         tags: this.selectedTags,
       };
 
-      this.holidays = this.httpRequestsService.addHoliday(holiday);
+      this.httpRequestsService.addHoliday(holiday).then((res)=> {
+          if(res.id) {
+            this.holidays.push(holiday);
+            this.httpRequestsService.getHolidays().then((holidays) => {
+
+              holidays.forEach((element: any) => {
+              element.date.toDate();
+              });
+
+              this.holidays = holidays.map((item: any)=> {return {date: item.date.toDate(), name: item.name, tags: item.tags, id: item.id}});
+
+            })
+          }
+      }).catch((error) => {
+        console.error('Error fetching users', error);
+      });
 
       // Reset form
       this.newHoliday = {
@@ -94,8 +120,15 @@ export class AdminComponent implements OnInit {
     }
   }
 
-  deleteHoliday(holiday: NationalHoliday) {
-    this.holidays = this.httpRequestsService.deleteHoliday(holiday);
+  deleteHoliday(holiday: any) {
+    this.httpRequestsService.deleteHoliday(holiday.id).then((res: any) => {
+      console.log(res);
+      if(res.id) {
+        this.holidays = this.holidays.filter((h: any) => h.id !== holiday.id);
+      }
+    }).catch((error) => {
+      console.error('Error fetching users', error);
+    });
   }
 
   downloadUserData(user: any) {

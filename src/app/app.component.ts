@@ -56,7 +56,7 @@ export class AppComponent implements OnInit {
         let uid: any = JSON.parse(userData).id;
         this.authService.getUserById(uid).then((res: any) => {
           // convert timestamp to Data <<<<0_0>>>>
-          res[0].birthDate = res[0].birthDate.toDate();
+          res[0].birthDate = res[0].birthDate?.toDate();
           this.userService.setUser(res[0]);
         });
       }

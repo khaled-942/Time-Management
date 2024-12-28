@@ -1,55 +1,58 @@
 import { Injectable } from '@angular/core';
 import {
+  addDoc,
   collection,
+  deleteDoc,
+  doc,
   DocumentData,
+  DocumentReference,
   Firestore,
   getDocs,
   QuerySnapshot,
+  WithFieldValue,
 } from '@angular/fire/firestore';
 
 @Injectable({
   providedIn: 'root',
 })
 export class HttpRequestsService {
-  holidays = [
-    {
-      id: 1,
-      date: new Date('2024-01-01'),
-      name: 'New Year',
-      tags: ['NATIONAL'],
-    },
-    {
-      id: 2,
-      date: new Date('2024-01-14'),
-      name: 'Pongal',
-      tags: ['NATIONAL', 'CULTURAL'],
-    },
-  ];
-
   constructor(private firestore: Firestore) {}
-
-  getHolidays(): any {
-    return this.holidays;
-  }
-
-  addHoliday(holiday: any): any {
-    this.holidays.push(holiday);
-    return this.holidays;
-  }
-
-  deleteHoliday(holiday: any): any {
-    this.holidays = this.holidays.filter((h) => h.id !== holiday.id);
-    return this.holidays;
-  }
-
-  updateHoliday(holiday: any): void {
-    const index = this.holidays.findIndex((h) => h.id === holiday.id);
-    this.holidays[index] = holiday;
-  }
 
   async getAllUsers(): Promise<any> {
     const colRef = collection(this.firestore, 'users');
     const querySnapshot: QuerySnapshot<DocumentData> = await getDocs(colRef);
     return querySnapshot.docs.map((doc) => doc.data());
   }
+
+  async getHolidays(): Promise<any> {
+    const colRef = collection(this.firestore, 'holidays');
+    const querySnapshot: QuerySnapshot<DocumentData> = await getDocs(colRef);
+    return querySnapshot.docs.map((doc) =>{
+      const data = doc.data();  // Get the document data
+      const id = doc.id;         // Get the document ID
+      return { id, ...data };
+    });
+  }
+
+ // add a holiday
+  async addHoliday(holiday: any): Promise<any> {
+    try {
+      const colRef = collection(this.firestore, 'holidays');
+      return addDoc(colRef, holiday);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+ // Delete a holiday by its document ID
+ async deleteHoliday(id: string): Promise<any> {
+  const docRef = doc(this.firestore, 'holidays', id); // Get the document reference by ID
+  try {
+    await deleteDoc(docRef);  // Delete the document
+    return {messege: `Holiday with ID ${id} has been deleted.`, id: id};
+  } catch (error) {
+    console.error('Error deleting document:', error);
+  }
+}
+
 }

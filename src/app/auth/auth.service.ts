@@ -138,4 +138,14 @@ export class AuthService {
       };
     }
   }
+
+  async disableUser(userId: string): Promise<any> {
+    // if we need to disable users we should have backend to communicate with firebase without restrictions
+    try {
+
+    } catch (error) {
+
+    }
+  }
+
 }
