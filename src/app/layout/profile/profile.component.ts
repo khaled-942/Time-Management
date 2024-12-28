@@ -91,7 +91,9 @@ export class ProfileComponent implements OnInit {
     this.userService.user$.subscribe((user) => {
       this.user = user; // Update user when the value is emittedthis.user.birthDate
       if (this.user != null) {
-        this.user.birthDate = this.user.birthDate;
+        // remove unnecessary values to compare
+        delete this.user['isAdmin'];
+        delete this.user['verified'];
         this.loadAvatars();
         this.isLoading = false;
         this.initializeForm();
@@ -197,12 +199,13 @@ export class ProfileComponent implements OnInit {
     const allKeys = new Set([...keys1, ...keys2]);
 
     for (const key of allKeys) {
-      const value1 = key=='birthDate' ? obj1[key].toString() : obj1[key];
-      const value2 = key=='birthDate' ? obj2[key].toString() : obj2[key];
-
+      let value1 = obj1[key];
+      let value2 = obj2[key];
 
       if (isEmpty(value1) && isEmpty(value2)) continue;
       if (isEmpty(value1) !== isEmpty(value2)) return false;
+      value1 = key=='birthDate' ? obj1[key].toString() : obj1[key];
+      value2 = key=='birthDate' ? obj2[key].toString() : obj2[key];
       if (!this.compareObjects(value1, value2)) return false;
 
     }

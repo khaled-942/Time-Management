@@ -28,6 +28,7 @@ export class RegisterComponent {
     email: '',
     name: '',
     currentAvatar: '',
+    verified: true
   };
 
   // private authService = inject(AuthService);

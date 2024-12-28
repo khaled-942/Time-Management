@@ -102,14 +102,19 @@ export class AuthService {
     return querySnapshot.docs.map((doc) => doc.data());
   }
 
-
-  async updateUserById(userId: string, updatedData: Partial<any>): Promise<any> {
+  async updateUserById(
+    userId: string,
+    updatedData: Partial<any>
+  ): Promise<any> {
     try {
       // Reference to the 'users' collection
       const usersCollectionRef = collection(this.firestore, 'users');
 
       // Query the collection to find the document with matching userId
-      const userQuery = query(usersCollectionRef, where('userId', '==', userId));
+      const userQuery = query(
+        usersCollectionRef,
+        where('userId', '==', userId)
+      );
       const querySnapshot = await getDocs(userQuery);
 
       if (querySnapshot.empty) {
@@ -130,9 +135,17 @@ export class AuthService {
       return {
         val: 0,
         msg: error,
-      }
+      };
     }
   }
 
+  async disableUser(userId: string): Promise<any> {
+    // if we need to disable users we should have backend to communicate with firebase without restrictions
+    try {
+
+    } catch (error) {
+
+    }
+  }
 
 }
