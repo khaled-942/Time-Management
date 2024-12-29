@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { loggedInFormGuard } from './shared/guards/logged-in-form.guard';
 import { allowedGuard } from './shared/guards/allowed.guard';
+import { adminGuard } from './shared/guards/admin.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -38,7 +39,7 @@ export const routes: Routes = [
     path: 'admin',
     loadComponent: () =>
       import('./layout/admin/admin.component').then((c) => c.AdminComponent),
-    canActivate: [loggedInFormGuard],
+    canActivate: [adminGuard],
   },
   {
     path: 'login',

@@ -31,7 +31,8 @@ export class SideBarComponent {
 
     this.userService.user$.subscribe((user) => {
       this.user = user; // Update user when the value is emitted
-      this.isAdmin = this.user?.isAdmin;
+      this.isAdmin = this.user?.isAdmin ? this.user?.isAdmin : false;
+      localStorage.setItem('isAdmin', JSON.stringify(this.isAdmin));
       this.isLoading = false
     });
   }

@@ -78,6 +78,7 @@ export class AuthService {
     console.log('Logging out...');
     this.userService.clearUser();
     localStorage.removeItem('user');
+    localStorage.removeItem('isAdmin');
     this.loginStatusChanged.emit(false);
     this.router.navigate(['/login']);
     signOut(this.auth);

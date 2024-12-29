@@ -146,16 +146,20 @@ export class FullcalendarComponent {
         };
       });
 
+
+
       // Loop through nationalDays and create events for the calendar
       this.nationalDays.forEach((day: any) => {
         events.push({
           start: day.date.getFullYear().toString() + (day.date.getMonth()+1).toString().padStart(2, '0') + day.date.getDate().toString().padStart(2, '0'), // Format as YYYY-MM-DD
           display: 'background',
-          backgroundColor: 'lightcoral',
-          title: `${day.name}`,
+          title: `${day.type}`,
+        })
+        events.push({
+          title: day.name,
+          start: day.date.getFullYear().toString() + (day.date.getMonth()+1).toString().padStart(2, '0') + day.date.getDate().toString().padStart(2, '0'),
+          color: '#8fdf82',
           textColor: 'black',
-          borderColor: 'red'
-
         })
       })
 
@@ -220,7 +224,9 @@ export class FullcalendarComponent {
     const isFriday = new Date(this.selectedDate).getDay() === 5;
     const isTusday = new Date(this.selectedDate).getDay() === 4;
 
-    if (!isFriday && this.compareDates(new Date(this.selectedDate), new Date()) <= 0) {
+    const notNationalDay = this.nationalDays.findIndex((item) => this.compareDates(new Date(this.selectedDate), new Date(item.date)) == 0) == -1;
+
+    if (!isFriday && notNationalDay && this.compareDates(new Date(this.selectedDate), new Date()) <= 0) {
       // in Day We can click
       const timeOut = new Date(this.selectedDate);
       const timeIn = new Date(this.selectedDate);
@@ -451,4 +457,5 @@ export class FullcalendarComponent {
   showDialog() {
     this.visible = true;
   }
+
 }
