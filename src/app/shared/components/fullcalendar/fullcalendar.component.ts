@@ -32,6 +32,8 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { log } from 'console';
 import { HttpRequestsService } from '../../services/http-requests.service';
 import { title } from 'process';
+import { UserService } from '../../services/user.service';
+import { LoaderComponent } from "../../loader/loader.component";
 
 @Component({
   selector: 'app-fullcalendar',
@@ -44,15 +46,16 @@ import { title } from 'process';
     InputTextModule,
     CalendarModule,
     CheckboxModule,
-
-  ],
+    LoaderComponent
+],
   templateUrl: './fullcalendar.component.html',
   styleUrl: './fullcalendar.component.scss',
   standalone: true,
 })
 export class FullcalendarComponent {
   @ViewChild(FullCalendarComponent) calendarComponent?: FullCalendarComponent;
-
+  isLoading = false;
+  userId: any;
   check_In_time: Date | null = null;
   check_Out_time: Date | null = null;
   checked: boolean = false;
@@ -108,10 +111,12 @@ export class FullcalendarComponent {
 
         // Then, get the national holidays events asynchronously
         const nationalDays = await this.getNationalDays();  // Wait for the holidays to load
-        console.log(nationalDays);
+        console.log("Holidays", nationalDays);
+
+        const userEvents = this.getUserEvents();
 
         // Combine both the Friday and national days events
-        const events = [...fridayEvents, ...nationalDays];
+        const events = [...fridayEvents, ...nationalDays, ...userEvents];
 
         successCallback(events);
 
@@ -128,9 +133,69 @@ export class FullcalendarComponent {
   constructor(
     private changeDetector: ChangeDetectorRef,
     private httpRequestsService: HttpRequestsService,
+    private userService: UserService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
+  }
+
+  ngOnInit() {
+    this.isLoading = true;
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      this.userId = JSON.parse(userData).id;
+      this.httpRequestsService.getUserDays(this.userId).then((res: any) => {
+        this.timing = res;
+        console.log("User Days", this.timing);
+        this.isLoading = false;
+      }).catch(err=> {
+        console.log("Something went wrong.", err);
+        this.isLoading = false;
+      })
+    }
+  }
+
+  getUserEvents() {
+    const events: any[] = [];
+    this.timing.forEach(day => {
+      if (day.isDayOff) {
+        // add day off event to calender
+        events.push({
+          id: day.id,
+          title: 'dayOff',
+          start: day.start,
+        });
+      } else {
+        // add default check-in to calender
+        events.push({
+          id: day.id + 'IN',
+          title: 'Check-in',
+          start: day.in,
+          color: day.isLate ? 'red' : 'default'
+        });
+
+        // add default check-out to calender
+        events.push({
+          id: day.id + 'OUT',
+          title: 'Check-out',
+          start: day.out,
+          color: day.isEarlyLeave ? 'red' : 'default'
+        });
+
+        // add excuse event to calender
+        if (day.earlyLeaveExcuse || day.lateExcuse) {
+          events.push({
+            id: day.id + 'Excuse',
+            title: 'Excuse',
+            start: day.start,
+            backgroundColor: "red"
+          });
+        }
+
+      }
+
+    })
+    return events;
   }
 
   getNationalDays(): Promise<any[]> {
@@ -156,8 +221,8 @@ export class FullcalendarComponent {
           title: `${day.type}`,
         })
         events.push({
-          title: day.name,
           start: day.date.getFullYear().toString() + (day.date.getMonth()+1).toString().padStart(2, '0') + day.date.getDate().toString().padStart(2, '0'),
+          title: day.name,
           color: '#8fdf82',
           textColor: 'black',
         })
@@ -306,11 +371,10 @@ export class FullcalendarComponent {
   }
 
   // Method to handle dialog submission
-  onDialogSubmit() {
+  async onDialogSubmit() {
 
     // Perform submission logic here
     this.visible = false;
-
 
     if (!this.check_In_time || !this.check_Out_time) {
       console.error('Please select both check-in and check-out times');
@@ -330,24 +394,21 @@ export class FullcalendarComponent {
     const checkOutTime = this.convertTime(this.check_Out_time);
     // Add event to calendar
 
-    calendarApi
-      .getEvents()
-      .filter((i) => i.startStr.split('T')[0] == this.selectedDate)
-      .forEach((event) => event.remove());
+    calendarApi.getEvents().filter((i) => i.startStr.split('T')[0] == this.selectedDate).forEach((event) => event.remove());
 
-    console.log(calendarApi.getEvents());
+    let eventID = createEventId();
 
     if (this.isDayOff) {
       // add day off event to calender
       calendarApi.addEvent({
-        id: createEventId(),
+        id: eventID,
         title: 'dayOff',
         start: this.selectedDate,
       });
     } else {
       // add default check-in to calender
       calendarApi.addEvent({
-        id: createEventId(),
+        id: eventID + 'IN',
         title: 'Check-in',
         start: `${this.selectedDate}T${checkInTime}`,
         color: this.isLate ? 'red' : 'default'
@@ -355,7 +416,7 @@ export class FullcalendarComponent {
 
       // add default check-out to calender
       calendarApi.addEvent({
-        id: createEventId(),
+        id: eventID + 'OUT',
         title: 'Check-out',
         start: `${this.selectedDate}T${checkOutTime}`,
         color: this.isEarlyLeave ? 'red' : 'default'
@@ -364,7 +425,7 @@ export class FullcalendarComponent {
       // add excuse event to calender
       if (this.earlyLeaveExcuse || this.lateExcuse) {
         calendarApi.addEvent({
-          id: createEventId(),
+          id: eventID + 'Excuse',
           title: 'Excuse',
           start: this.selectedDate,
           backgroundColor: "red"
@@ -373,42 +434,39 @@ export class FullcalendarComponent {
 
     }
 
-
-
-    let index = this.timing.findIndex(
-      (item) => item.start == this.selectedDate
-    );
+    let index = this.timing.findIndex((item) => item.start == this.selectedDate);
 
     // Add to timing array
+    let eventData = {
+      id: eventID,
+      title: 'Day Event',
+      start: this.selectedDate,
+      in: `${this.selectedDate}T${checkInTime}`,
+      out: `${this.selectedDate}T${checkOutTime}`,
+      isDayOff: this.isDayOff,
+      isLate: this.isLate,
+      isEarlyLeave: this.isEarlyLeave,
+      lateExcuse: this.lateExcuse,
+      earlyLeaveExcuse: this.earlyLeaveExcuse
+    };
     if (index == -1) {
-      this.timing.push({
-        id: createEventId(),
-        title: 'Check-in Event',
-        start: this.selectedDate,
-        in: `${this.selectedDate}T${checkInTime}`,
-        out: `${this.selectedDate}T${checkOutTime}`,
-        isDayOff: this.isDayOff,
-        isLate: this.isLate,
-        isEarlyLeave: this.isEarlyLeave,
-        lateExcuse: this.lateExcuse,
-        earlyLeaveExcuse: this.earlyLeaveExcuse
-      });
+      this.timing.push(eventData);
     } else {
-      this.timing[index] = {
-        id: createEventId(),
-        title: 'Check-in Event',
-        start: this.selectedDate,
-        in: `${this.selectedDate}T${checkInTime}`,
-        out: `${this.selectedDate}T${checkOutTime}`,
-        isDayOff: this.isDayOff,
-        isLate: this.isLate,
-        isEarlyLeave: this.isEarlyLeave,
-        lateExcuse: this.lateExcuse,
-        earlyLeaveExcuse: this.earlyLeaveExcuse
-      };
+      this.timing[index] = eventData;
     }
 
-    console.log(this.timing);
+    try {
+      console.log(this.userId);
+
+      await this.httpRequestsService.saveDayEvent(this.userId, this.selectedDate, eventData);
+      console.log('Event saved successfully!');
+    } catch (error) {
+      console.error('Error saving event:', error);
+    }
+
+    console.log("Timing List", this.timing);
+
+    console.log("Events List", calendarApi.getEvents());
 
 
     // Close the dialog and reset times
@@ -425,13 +483,6 @@ export class FullcalendarComponent {
       hour12: false,
     }).format(time);
   }
-
-  // Other existing methods remain the same
-  // handleEventClick(clickInfo: EventClickArg) {
-  //   if (confirm(`Are you sure you want to delete the event '${clickInfo.event.title}'`)) {
-  //     clickInfo.event.remove();
-  //   }
-  // }
 
   handleEvents(events: EventApi[]) {
     this.currentEvents = events;

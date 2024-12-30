@@ -91,6 +91,8 @@ export class ProfileComponent implements OnInit {
     this.userService.user$.subscribe((user) => {
       this.user = user; // Update user when the value is emittedthis.user.birthDate
       if (this.user != null) {
+        console.log(this.user);
+
         // remove unnecessary values to compare
         delete this.user['isAdmin'];
         delete this.user['verified'];

@@ -79,7 +79,7 @@ export class RegisterComponent {
           )[0].url;
           console.log(this.user);
           this.authService
-            .saveRegisterdUser('users', this.user)
+            .saveRegisterdUser('users', this.user, this.user.userId)
             .then((result: any) => {
               this.router.navigate(['/login']);
               console.log(result);

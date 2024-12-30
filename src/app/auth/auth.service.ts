@@ -19,6 +19,7 @@ import {
   WithFieldValue,
   doc,
   updateDoc,
+  setDoc,
 } from '@angular/fire/firestore';
 import { Router } from '@angular/router';
 import { UserService } from '../shared/services/user.service';
@@ -84,13 +85,14 @@ export class AuthService {
     signOut(this.auth);
   }
 
-  saveRegisterdUser<T extends object>(
-    collectionName: string,
-    data: WithFieldValue<T>
-  ): Promise<DocumentReference<DocumentData, DocumentData>> {
+  async saveRegisterdUser<T extends object>(collectionName: string, data: WithFieldValue<T>, userId: string): Promise<DocumentReference<DocumentData, DocumentData> | void> {
     try {
       const colRef = collection(this.firestore, collectionName);
-      return addDoc(colRef, data);
+      // return addDoc(colRef, data);
+      const docRef = doc(this.firestore, collectionName, userId);
+      await setDoc(docRef, data);
+      console.log(`Document with ID '${userId}' saved successfully.`);
+      return;
     } catch (error) {
       throw error;
     }
