@@ -42,13 +42,20 @@
         }
     </div>
 
-    <p-dialog header="IN\OUT DATA" [modal]="true" [(visible)]="visible" [style]="{ }" closable="false">
+    <p-dialog [header]="selectedDate" [modal]="true" [(visible)]="visible" closable="false">
         <span class="p-text-secondary block mb-5">Enter your in\out day data </span>
 
         <!-- Day Off Switch -->
-        <div class="flex align-items-center mb-3">
+        <div class="flex align-items-center justify-content-between mb-3">
+          <div class="flex align-items-center">
             <p-inputSwitch [(ngModel)]="isDayOff" (onChange)="onDayOffChange()"></p-inputSwitch>
             <label class="ml-2">Day Off</label>
+          </div>
+          @if (isDayOff) {
+            <div class="flex align-items-center">
+              <p-dropdown [options]="dayOffTags" [(ngModel)]="selectedTags" optionLabel="name" optionValue="value" placeholder="Select Type"></p-dropdown>
+            </div>
+          }
         </div>
 
         <div class="flex align-items-center gap-3 mb-3" [class.disabledTime]="isDayOff">

@@ -28,10 +28,8 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { CalendarModule } from 'primeng/calendar';
 import { CheckboxModule } from 'primeng/checkbox';
-
-import { log } from 'console';
+import { DropdownModule } from 'primeng/dropdown';
 import { HttpRequestsService } from '../../services/http-requests.service';
-import { title } from 'process';
 import { UserService } from '../../services/user.service';
 import { LoaderComponent } from "../../loader/loader.component";
 
@@ -43,6 +41,7 @@ import { LoaderComponent } from "../../loader/loader.component";
     FormsModule,
     DialogModule,
     ButtonModule,
+    DropdownModule,
     InputTextModule,
     CalendarModule,
     CheckboxModule,
@@ -71,6 +70,14 @@ export class FullcalendarComponent {
 
   // Day Off
   isDayOff: boolean = false;
+  dayOffName = '';
+  dayOffTags = [
+    { name: 'Paid', value: 0 },
+    { name: 'Apsent', value: -1 },
+    { name: 'Task', value: 1 },
+  ];
+  selectedTags: number = 0;
+
   // Late and Early Leave flags
   isLate: boolean = false;
   isEarlyLeave: boolean = false;
@@ -162,8 +169,9 @@ export class FullcalendarComponent {
         // add day off event to calender
         events.push({
           id: day.id,
-          title: 'dayOff',
+          title: day.dayOffType == -1 ? 'Absent' : 'dayOff',
           start: day.start,
+          backgroundColor: day.dayOffType == -1 ? 'red' : day.dayOffType == 1 ? '#8fdf82' : '',
         });
       } else {
         // add default check-in to calender
@@ -306,6 +314,7 @@ export class FullcalendarComponent {
 
       if (index != -1) {
         this.isDayOff = this.timing[index].isDayOff;
+        if(this.isDayOff) this.selectedTags = this.timing[index].dayOffType;
         this.isLate = this.timing[index].isLate;
         this.isEarlyLeave = this.timing[index].isEarlyLeave;
         this.earlyLeaveExcuse = this.timing[index].earlyLeaveExcuse;
@@ -402,8 +411,9 @@ export class FullcalendarComponent {
       // add day off event to calender
       calendarApi.addEvent({
         id: eventID,
-        title: 'dayOff',
+        title: this.selectedTags == -1 ? 'Absent' : 'dayOff',
         start: this.selectedDate,
+        backgroundColor: this.selectedTags == -1 ? 'red' : this.selectedTags == 1 ? '#8fdf82' : ''
       });
     } else {
       // add default check-in to calender
@@ -437,7 +447,7 @@ export class FullcalendarComponent {
     let index = this.timing.findIndex((item) => item.start == this.selectedDate);
 
     // Add to timing array
-    let eventData = {
+    let eventData: any = {
       id: eventID,
       title: 'Day Event',
       start: this.selectedDate,
@@ -449,6 +459,9 @@ export class FullcalendarComponent {
       lateExcuse: this.lateExcuse,
       earlyLeaveExcuse: this.earlyLeaveExcuse
     };
+    if(this.isDayOff) {
+      eventData.dayOffType = this.selectedTags;
+    }
     if (index == -1) {
       this.timing.push(eventData);
     } else {
@@ -498,11 +511,11 @@ export class FullcalendarComponent {
   // Reset all fields
   private resetFields() {
     this.isDayOff = false;
+    this.selectedTags = 0;
     this.isLate = false;
     this.isEarlyLeave = false;
     this.lateExcuse = false;
     this.earlyLeaveExcuse = false;
-
   }
 
   showDialog() {

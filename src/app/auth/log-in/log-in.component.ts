@@ -48,7 +48,7 @@ export class LogInComponent {
           this.authService.loginStatusChanged.emit(true);
           localStorage.setItem(
             'user',
-            JSON.stringify({ id: res.user.uid, token: res.user.accessToken })
+            JSON.stringify({ id: res.user.uid, token: res.user.accessToken, date: new Date() })
           );
           this.authService.getUserById(res.user.uid).then((res: any) => {
             this.userService.setUser(res[0]);
