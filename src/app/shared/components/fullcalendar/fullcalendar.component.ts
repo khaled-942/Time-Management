@@ -12,7 +12,7 @@ import {
 import {
   CalendarOptions,
   DateSelectArg,
-  EventClickArg,
+  DatesSetArg,
   EventApi,
 } from '@fullcalendar/core';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -46,7 +46,7 @@ import { LoaderComponent } from "../../loader/loader.component";
     CalendarModule,
     CheckboxModule,
     LoaderComponent
-],
+  ],
   templateUrl: './fullcalendar.component.html',
   styleUrl: './fullcalendar.component.scss',
   standalone: true,
@@ -93,25 +93,20 @@ export class FullcalendarComponent {
       center: 'title',
       right: '',
     },
-    // validRange: {
-    //   end: new Date(),
-    // },
     initialView: 'dayGridMonth',
     initialEvents: this.timing,
     weekends: true,
-
     editable: false,
     selectable: true,
     selectMirror: true,
     dayMaxEvents: true,
+    hiddenDays: [],
+    firstDay: 6,
     dateClick: (info) => {
       this.selectedDate = info.dateStr;
     },
     select: this.handleDateSelect.bind(this),
-
     eventsSet: this.handleEvents.bind(this),
-    hiddenDays: [],
-    firstDay: 6,
     events: async (info, successCallback, failureCallback) => {
       try {
         const fridayEvents = this.generateFridays(info.start, info.end);
@@ -124,9 +119,7 @@ export class FullcalendarComponent {
 
         // Combine both the Friday and national days events
         const events = [...fridayEvents, ...nationalDays, ...userEvents];
-
         successCallback(events);
-
       } catch (error: any) {
         // Handle error if any
         failureCallback(error);
@@ -151,18 +144,27 @@ export class FullcalendarComponent {
     const userData = localStorage.getItem('user');
     if (userData) {
       this.userId = JSON.parse(userData).id;
+
       this.httpRequestsService.getUserDays(this.userId).then((res: any) => {
         this.timing = res;
         console.log("User Days", this.timing);
         this.isLoading = false;
-      }).catch(err=> {
+      }).catch(err => {
         console.log("Something went wrong.", err);
         this.isLoading = false;
       })
     }
   }
 
+
+  getUserDays(date: Date) {
+
+  }
+
+
   getUserEvents() {
+    console.log(this.timing);
+
     const events: any[] = [];
     this.timing.forEach(day => {
       if (day.isDayOff) {
@@ -224,12 +226,12 @@ export class FullcalendarComponent {
       // Loop through nationalDays and create events for the calendar
       this.nationalDays.forEach((day: any) => {
         events.push({
-          start: day.date.getFullYear().toString() + (day.date.getMonth()+1).toString().padStart(2, '0') + day.date.getDate().toString().padStart(2, '0'), // Format as YYYY-MM-DD
+          start: day.date.getFullYear().toString() + (day.date.getMonth() + 1).toString().padStart(2, '0') + day.date.getDate().toString().padStart(2, '0'), // Format as YYYY-MM-DD
           display: 'background',
           title: `${day.type}`,
         })
         events.push({
-          start: day.date.getFullYear().toString() + (day.date.getMonth()+1).toString().padStart(2, '0') + day.date.getDate().toString().padStart(2, '0'),
+          start: day.date.getFullYear().toString() + (day.date.getMonth() + 1).toString().padStart(2, '0') + day.date.getDate().toString().padStart(2, '0'),
           title: day.name,
           color: '#8fdf82',
           textColor: 'black',
@@ -277,6 +279,14 @@ export class FullcalendarComponent {
     }
   }
 
+  getCurrentDate(): any {
+    if (this.calendarComponent) {
+      const calendarApi = this.calendarComponent.getApi();
+      const currentDate = calendarApi.getDate(); // Get current date
+      return currentDate // Log current date
+    }
+  }
+
   compareDates(date1: Date, date2: Date) {
     date1.setHours(0, 0, 0, 0);
     date2.setHours(0, 0, 0, 0);
@@ -314,7 +324,7 @@ export class FullcalendarComponent {
 
       if (index != -1) {
         this.isDayOff = this.timing[index].isDayOff;
-        if(this.isDayOff) this.selectedTags = this.timing[index].dayOffType;
+        if (this.isDayOff) this.selectedTags = this.timing[index].dayOffType;
         this.isLate = this.timing[index].isLate;
         this.isEarlyLeave = this.timing[index].isEarlyLeave;
         this.earlyLeaveExcuse = this.timing[index].earlyLeaveExcuse;
@@ -459,7 +469,7 @@ export class FullcalendarComponent {
       lateExcuse: this.lateExcuse,
       earlyLeaveExcuse: this.earlyLeaveExcuse
     };
-    if(this.isDayOff) {
+    if (this.isDayOff) {
       eventData.dayOffType = this.selectedTags;
     }
     if (index == -1) {

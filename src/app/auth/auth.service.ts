@@ -70,7 +70,7 @@ export class AuthService {
     if (isPlatformBrowser(this.platformId)) {
       let user = localStorage.getItem('user');
       // we need to check about expiration
-      console.log(new Date(JSON.parse(user ? user : '').date));
+      // console.log(new Date(JSON.parse(user ? user : '').date));
       return !!user;
     }
     return false; // Return false if not in browser context

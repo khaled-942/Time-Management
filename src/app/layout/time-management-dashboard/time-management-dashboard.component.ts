@@ -5,10 +5,11 @@ import { ChartModule } from 'primeng/chart';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
-import Chart from 'chart.js/auto'; // Explicit import
+import Chart, { scales } from 'chart.js/auto'; // Explicit import
 import { HttpRequestsService } from '../../shared/services/http-requests.service';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import * as moment from 'moment';
+import { LoaderComponent } from "../../shared/loader/loader.component";
 
 interface AttendanceRecord {
   date: Date;
@@ -23,7 +24,7 @@ interface AttendanceRecord {
     | 'Day Off'
     | 'Absent'
     | 'Task'
-    | 'Late Arrival';
+    | 'Late';
 }
 
 interface StatisticCard {
@@ -44,14 +45,19 @@ interface StatisticCard {
     ButtonModule,
     DialogModule,
     ProgressSpinnerModule,
-  ],
+    LoaderComponent
+],
   templateUrl: './time-management-dashboard.component.html',
   styleUrls: ['./time-management-dashboard.component.scss'],
 })
 export class TimeManagementDashboardComponent implements OnInit {
+  Months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
   // Attendance Records
   attendanceRecords: AttendanceRecord[] = [];
   allRecords: AttendanceRecord[] = [];
+
+  allDaysOff: any = [];
 
   // Statistics Cards
   statisticCards: StatisticCard[] = [];
@@ -72,14 +78,14 @@ export class TimeManagementDashboardComponent implements OnInit {
   attendanceChartOptions: any;
 
   // Bar Chart Data
-  workHoursChartData: any;
-  workHoursChartOptions: any;
+  daysOffChartData: any;
+  daysOffChartOptions: any;
 
   constructor(private httpService: HttpRequestsService) {}
 
   async ngOnInit(): Promise<void> {
     await this.getAllData();
-    console.log(this.formatHours(this.totalExcuseHours));
+    await this.getDaysOff();
 
     this.statisticCards = [
       {
@@ -102,12 +108,6 @@ export class TimeManagementDashboardComponent implements OnInit {
         color: 'bg-red-500',
       },
       {
-        title: 'Remaining Days Off',
-        value: this.remainingOffDays.toString(),
-        icon: 'pi pi-calendar',
-        color: 'bg-blue-500',
-      },
-      {
         title: 'Remaining Excuse Hours',
         value: this.formatHours(this.remainingExcuseHours),
         icon: 'pi pi-clock',
@@ -115,8 +115,8 @@ export class TimeManagementDashboardComponent implements OnInit {
       },
     ];
 
-    this.initializeAttendanceChart();
-    this.initializeWorkHoursChart();
+    await this.initializeAttendanceChart();
+    await this.initializeDaysOffChart();
   }
 
   async getAllData() {
@@ -125,10 +125,8 @@ export class TimeManagementDashboardComponent implements OnInit {
     if (userData) {
       this.userId = JSON.parse(userData).id;
       await this.httpService
-        .getUserDays(this.userId)
+        .getUserMonthDays(this.userId, new Date())
         .then((res: any) => {
-          console.log(res);
-
           res.forEach((record: any) => {
             this.allRecords.push({
               date: new Date(record.start),
@@ -138,7 +136,6 @@ export class TimeManagementDashboardComponent implements OnInit {
             });
           });
           this.isLoading = false;
-          console.log(this.attendanceRecords);
         })
         .catch((err) => {
           console.log('Something went wrong.', err);
@@ -167,7 +164,7 @@ export class TimeManagementDashboardComponent implements OnInit {
       (record) => record.status == 'Day Off'
     ).length;
     this.totalLatearrival = this.allRecords.filter(
-      (record) => record.status == 'Late Arrival'
+      (record) => record.status == 'Late'
     ).length;
     this.totalEarlyLeaves = this.allRecords.filter(
       (record) => record.status == 'Early Leave'
@@ -205,7 +202,7 @@ export class TimeManagementDashboardComponent implements OnInit {
     } else if (record.earlyLeaveExcuse) {
       return 'Early Excused';
     } else if (record.isLate) {
-      return 'Late Arrival';
+      return 'Late';
     } else if (record.isEarlyLeave) {
       return 'Early Leave';
     }
@@ -219,10 +216,11 @@ export class TimeManagementDashboardComponent implements OnInit {
         record.status == 'Late Excused' ||
         record.status == 'Early Excused'
     );
-    console.log(totalExcusedays);
     let totalExcuseHours = 0;
     totalExcusedays.forEach((record) => {
       const isThrusday = moment.default(record.date).day() === 4;
+      console.log("HERE",isThrusday);
+
       if (record.status == 'Late & Early Excused') {
         const checkOut = moment.default(record.checkOut, 'hh:mm').toDate();
         const checkIn = moment.default(record.checkIn, 'hh:mm').toDate();
@@ -246,8 +244,10 @@ export class TimeManagementDashboardComponent implements OnInit {
           totalExcuseHours += workinHours - diff;
         } else {
           const checkOut = moment.default('17:00', 'hh:mm').toDate();
+          console.log(checkOut.getTime());
+
           const diff = checkOut.getTime() - checkIn.getTime();
-          const workinHours = 4.5 * 60 * 60 * 1000;
+          const workinHours = 8 * 60 * 60 * 1000;
 
           totalExcuseHours += workinHours - diff;
         }
@@ -280,7 +280,6 @@ export class TimeManagementDashboardComponent implements OnInit {
     // Format as HH:MM
     const formattedHours = hours < 10 ? '0' + hours : hours.toString();
     const formattedMinutes = minutes < 10 ? '0' + minutes : minutes.toString();
-    console.log(formattedHours + ':' + formattedMinutes);
 
     return formattedHours + ':' + formattedMinutes;
   };
@@ -292,24 +291,26 @@ export class TimeManagementDashboardComponent implements OnInit {
     this.attendanceChartData = {
       labels: [
         'Normal',
-        'Late',
-        'Early Leave',
-        'Late & Early Excused',
         'Late Excused',
         'Early Excused',
-        'Day Off',
+        'Late    ',
+        'Early Leave    ',
         'Absent',
+        'Day Off',
         'Task',
-        'Late Arrival',
       ],
       datasets: [
         {
-          data: [18, 4, 2, 1],
+          data: this.getAttendanceChartData(),
           backgroundColor: [
             documentStyle.getPropertyValue('--green-500'),
-            documentStyle.getPropertyValue('--yellow-500'),
-            documentStyle.getPropertyValue('--orange-500'),
+            documentStyle.getPropertyValue('--green-500'),
+            documentStyle.getPropertyValue('--green-500'),
             documentStyle.getPropertyValue('--red-500'),
+            documentStyle.getPropertyValue('--red-500'),
+            documentStyle.getPropertyValue('--red-600'),
+            documentStyle.getPropertyValue('--blue-500'),
+            documentStyle.getPropertyValue('--blue-500'),
           ],
         },
       ],
@@ -326,29 +327,46 @@ export class TimeManagementDashboardComponent implements OnInit {
     };
   }
 
+  getAttendanceChartData(): number[] {
+    const data: any = [];
+    data.push(this.allRecords.filter(day => (day.status == 'Normal')).length);
+    data.push(this.allRecords.filter(day => (day.status == 'Late Excused')).length);
+    data.push(this.allRecords.filter(day => (day.status == 'Early Leave')).length);
+    data.push(this.allRecords.filter(day => (day.status == 'Late')).length);
+    data.push(this.allRecords.filter(day => (day.status == 'Early Excused')).length);
+    data.push(this.allRecords.filter(day => (day.status == 'Absent')).length);
+    data.push(this.allRecords.filter(day => (day.status == 'Day Off')).length);
+    data.push(this.allRecords.filter(day => (day.status == 'Task')).length);
+
+    return data;
+  }
+
   // Initialize Work Hours Bar Chart
-  initializeWorkHoursChart() {
+  initializeDaysOffChart() {
     const documentStyle = getComputedStyle(document.documentElement);
 
-    this.workHoursChartData = {
-      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+    this.daysOffChartData = {
+      labels: this.getMonthsLabels(),
       datasets: [
         {
-          label: 'Work Hours',
-          data: [42, 45, 38, 40],
+          label: 'No Days off',
+          data: this.getDaysOffNo(),
           backgroundColor: documentStyle.getPropertyValue('--blue-500'),
         },
       ],
     };
 
-    this.workHoursChartOptions = {
+    this.daysOffChartOptions = {
       scales: {
         y: {
           beginAtZero: true,
           title: {
             display: true,
-            text: 'Hours',
+            text: 'Days',
           },
+          ticks: {
+            stepSize: 1,
+          }
         },
       },
       plugins: {
@@ -358,6 +376,48 @@ export class TimeManagementDashboardComponent implements OnInit {
       },
     };
   }
+
+  getMonthsLabels(): string[] {
+    let data: string[] = [];
+    let curentDay = new Date();
+    for (let index = 1; index <= 11; index++) {
+      const element: any = this.Months[(Math.abs(curentDay.getMonth()+index)%this.Months.length)]
+      data.push(element);
+    }
+    data.push(this.Months[curentDay.getMonth()]);
+
+    return data;
+  }
+
+  getDaysOffNo(): number[] {
+    let data: number[] = [];
+    let months = this.getMonthsLabels();
+    months.forEach(month => {
+      // we need to handle the year of this day off.
+      data.push(this.allDaysOff.filter((item:any) => item.month == month).length)
+    })
+    return data;
+  }
+
+
+
+  async getDaysOff() {
+
+    await this.httpService.getUserDaysOffDays(this.userId).then((res: any) => {
+      res.forEach((day: any) => {
+        let d = new Date(day.start);
+        this.allDaysOff.push({
+          date: d,
+          month: this.Months[d.getMonth()],
+          year: d.getFullYear()
+        });
+      });
+    }).catch((err) => {
+      console.log('Something went wrong.', err);
+    });
+
+  }
+
   formatTime12Hour(time24: string): string {
     const [hours, minutes] = time24.split(':').map(Number);
     let period = 'AM';
@@ -383,9 +443,9 @@ export class TimeManagementDashboardComponent implements OnInit {
     switch (status) {
       case 'Normal':
         return 'text-green-600';
-      case 'Early Excused':
-        return 'text-yellow-600';
-      case 'Early Excused':
+      case 'Early Leave':
+        return 'text-red-600';
+      case 'Late':
         return 'text-red-600';
       default:
         return 'text-gray-600';
@@ -395,13 +455,15 @@ export class TimeManagementDashboardComponent implements OnInit {
   getStatusRowClass(status: string): string {
     switch (status) {
       case 'Early Leave':
-        return 'bg-yellow-100';
-      case 'Late Arrival':
-        return 'bg-red-200';
+        return 'bg-red-100';
+      case 'Late':
+        return 'bg-red-100';
       case 'Late & Early Excused':
-        return 'bg-yellow-200';
+        return 'bg-gren-200';
       case 'Late Excused':
-        return 'bg-red-200';
+        return 'bg-green-200';
+      case 'Early Excused':
+        return 'bg-green-200';
       default:
         return '';
     }
