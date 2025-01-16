@@ -5,6 +5,8 @@ import { ChartModule } from 'primeng/chart';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
+import { DropdownModule } from 'primeng/dropdown';
+import { FormsModule } from '@angular/forms';
 import Chart, { scales } from 'chart.js/auto'; // Explicit import
 import { HttpRequestsService } from '../../shared/services/http-requests.service';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
@@ -44,6 +46,8 @@ interface StatisticCard {
     TableModule,
     ButtonModule,
     DialogModule,
+    DropdownModule,
+    FormsModule,
     ProgressSpinnerModule,
     LoaderComponent
 ],
@@ -52,7 +56,7 @@ interface StatisticCard {
 })
 export class TimeManagementDashboardComponent implements OnInit {
   Months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
+  selectedMonth: any;
   // Attendance Records
   attendanceRecords: AttendanceRecord[] = [];
   allRecords: AttendanceRecord[] = [];
@@ -84,48 +88,23 @@ export class TimeManagementDashboardComponent implements OnInit {
   constructor(private httpService: HttpRequestsService) {}
 
   async ngOnInit(): Promise<void> {
-    await this.getAllData();
+    let day = new Date();
+    console.log("HERE =============> ", this.Months[day.getMonth()]);
+    console.log(day.getDate());
+    day.getDate()>10 ? this.selectedMonth = this.Months[day.getMonth()+1] : this.selectedMonth = this.Months[day.getMonth()];
+    await this.getAllData(new Date());
     await this.getDaysOff();
-
-    this.statisticCards = [
-      {
-        title: 'Work days',
-        value: ` ${this.toatlWorkDays}`,
-        icon: 'pi pi-clock',
-        color: 'bg-blue-500',
-      },
-      {
-        title: 'Total Days Off',
-        value: this.totalOffDays.toString(),
-        icon: 'pi pi-calendar',
-        color: 'bg-green-500',
-      },
-
-      {
-        title: 'Total Excused Days',
-        value: this.totalExcusedDays.toString(),
-        icon: 'pi pi-clock',
-        color: 'bg-red-500',
-      },
-      {
-        title: 'Remaining Excuse Hours',
-        value: this.formatHours(this.remainingExcuseHours),
-        icon: 'pi pi-clock',
-        color: 'bg-green-500',
-      },
-    ];
-
     await this.initializeAttendanceChart();
     await this.initializeDaysOffChart();
   }
 
-  async getAllData() {
+  async getAllData(date: Date) {
     this.isLoading = true;
     const userData = localStorage.getItem('user');
     if (userData) {
       this.userId = JSON.parse(userData).id;
       await this.httpService
-        .getUserMonthDays(this.userId, new Date())
+        .getUserMonthDays(this.userId, date)
         .then((res: any) => {
           res.forEach((record: any) => {
             this.allRecords.push({
@@ -184,6 +163,35 @@ export class TimeManagementDashboardComponent implements OnInit {
     this.totalExcuseHours = this.calaulateExcuseHours();
 
     this.remainingExcuseHours = 4 * 60 * 60 * 1000 - this.totalExcuseHours;
+
+
+    this.statisticCards = [
+      {
+        title: 'Work days',
+        value: ` ${this.toatlWorkDays}`,
+        icon: 'pi pi-clock',
+        color: 'bg-blue-500',
+      },
+      {
+        title: 'Total Days Off',
+        value: this.totalOffDays.toString(),
+        icon: 'pi pi-calendar',
+        color: 'bg-green-500',
+      },
+
+      {
+        title: 'Total Excused Days',
+        value: this.totalExcusedDays.toString(),
+        icon: 'pi pi-clock',
+        color: 'bg-red-500',
+      },
+      {
+        title: 'Remaining Excuse Hours',
+        value: this.formatHours(this.remainingExcuseHours),
+        icon: 'pi pi-clock',
+        color: 'bg-green-500',
+      },
+    ];
   }
 
   whatTheStatusShouldBe(record: any) {
@@ -207,6 +215,28 @@ export class TimeManagementDashboardComponent implements OnInit {
       return 'Early Leave';
     }
     return 'Normal';
+  }
+
+
+  async onMonthChange(event: any) {
+    const selectedMonth = event.value;
+    this.selectedMonth = selectedMonth;
+    console.log('Selected Month:', selectedMonth);
+    this.attendanceRecords = [];
+    this.allRecords = [];
+    this.toatlWorkDays = 0;
+    this.totalExcusedDays = 0;
+    this.totalExcuseHours = 0;
+    this.totalOffDays = 0;
+    this.totalLatearrival = 0;
+    this.totalEarlyLeaves = 0;
+    this.remainingOffDays = 0;
+    this.remainingExcuseHours = 0;
+    this.totallateExcuse = 0;
+    this.totalerlyExcuse = 0;
+    await this.getAllData(new Date(2025, this.Months.findIndex(item=> item == this.selectedMonth), 1));
+    await this.initializeAttendanceChart();
+    await this.initializeDaysOffChart();
   }
 
   calaulateExcuseHours = () => {

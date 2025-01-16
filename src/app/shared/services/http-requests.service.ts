@@ -82,6 +82,10 @@ export class HttpRequestsService {
   async getUserMonthDays(userId: string, date: Date): Promise<any> {
     let year = date.getFullYear();
     let month = date.getMonth();
+    let day = date.getDate();
+    if(day>10) {
+      month = month+1;
+    }
     const startOfMonth = `${month==0?year-1:year}-${String(month==0?12:month).padStart(2, '0')}-11`;
     const endOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-10`;
     // console.log(startOfMonth, endOfMonth);

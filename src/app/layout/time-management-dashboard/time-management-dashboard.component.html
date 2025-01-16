@@ -34,7 +34,7 @@
     <!-- Attendance Breakdown Chart -->
 
     <!-- Attendance Records Table -->
-    <p-card header="Attendance Records" [styleClass]="'col-span-full shadow-2 border-round-xl'">
+    <p-card header="Attendance Records"  [styleClass]="'col-span-full shadow-2 border-round-xl'">
       <p-table [value]="attendanceRecords" [rows]="10" [scrollable]="true" [tableStyle]="{ 'min-width': '50rem' }">
         <ng-template pTemplate="header">
           <tr>
@@ -62,11 +62,15 @@
     </p-card>
 
     <div class="flex flex-column gap-6">
-      <p-card header="Attendance Breakdown" [styleClass]="'shadow-2 border-round-xl'">
+      <p-card [styleClass]="'shadow-2 border-round-xl'">
+        <label for="holidayTags" class="block text-gray-700 font-bold mb-2">Month:</label>
+        <p-dropdown id="monthSelector" [options]="Months" [(ngModel)]="selectedMonth" (onChange)="onMonthChange($event)" placeholder="Select a month" [styleClass]="'w-full md:w-20rem'"></p-dropdown>
+      </p-card >
+
+      <p-card header="Attendance Breakdown" >
         <p-chart type="pie" [data]="attendanceChartData" [options]="attendanceChartOptions"></p-chart>
       </p-card>
 
-      <!-- Work Hours by Week Chart -->
       <p-card header="Monthly Days Off" [styleClass]="'shadow-2 border-round-xl'">
         <p-chart type="bar" [data]="daysOffChartData" [options]="daysOffChartOptions"></p-chart>
       </p-card>
