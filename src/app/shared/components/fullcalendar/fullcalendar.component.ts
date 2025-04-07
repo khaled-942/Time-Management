@@ -397,7 +397,14 @@ export class FullcalendarComponent {
   validateCheckOut() {
     if (!this.check_Out_time) return;
     const isTusday = new Date(this.selectedDate).getDay() === 4;
-    let standardCheckOutTime: Date = isTusday ? new Date(2024, 0, 1, 13, 30) : new Date(2024, 0, 1, 17, 0); // 5:00 PM
+    const isSaturday = new Date(this.selectedDate).getDay() === 6;
+    const AfterApril25 = new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3;
+    let standardCheckOutTime: Date;
+    if(AfterApril25) {
+      standardCheckOutTime = isSaturday ? new Date(2024, 0, 1, 13, 30) : new Date(2024, 0, 1, 17, 0); // 5:00 PM
+    } else {
+      standardCheckOutTime = isTusday ? new Date(2024, 0, 1, 13, 30) : new Date(2024, 0, 1, 17, 0); // 5:00 PM
+    }
     // Compare check-out time with standard check-out time
     const checkOutHours = this.check_Out_time.getHours();
     const checkOutMinutes = this.check_Out_time.getMinutes();
