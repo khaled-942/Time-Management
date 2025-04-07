@@ -32,6 +32,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { HttpRequestsService } from '../../services/http-requests.service';
 import { UserService } from '../../services/user.service';
 import { LoaderComponent } from "../../loader/loader.component";
+import { log } from 'node:console';
 
 @Component({
   selector: 'app-fullcalendar',
@@ -113,7 +114,7 @@ export class FullcalendarComponent {
 
         // Then, get the national holidays events asynchronously
         const nationalDays = await this.getNationalDays();  // Wait for the holidays to load
-        console.log("Holidays", nationalDays);
+        // console.log("Holidays", nationalDays);
 
         const userEvents = this.getUserEvents();
 
@@ -147,10 +148,10 @@ export class FullcalendarComponent {
 
       this.httpRequestsService.getUserDays(this.userId).then((res: any) => {
         this.timing = res;
-        console.log("User Days", this.timing);
+        // console.log("User Days", this.timing);
         this.isLoading = false;
       }).catch(err => {
-        console.log("Something went wrong.", err);
+        // console.log("Something went wrong.", err);
         this.isLoading = false;
       })
     }
@@ -163,7 +164,7 @@ export class FullcalendarComponent {
 
 
   getUserEvents() {
-    console.log(this.timing);
+    // console.log(this.timing);
 
     const events: any[] = [];
     this.timing.forEach(day => {
@@ -304,8 +305,12 @@ export class FullcalendarComponent {
   handleDateSelect(selectInfo: DateSelectArg) {
     // Store the selected date
     this.selectedDate = selectInfo.startStr;
+
     const isFriday = new Date(this.selectedDate).getDay() === 5;
     const isTusday = new Date(this.selectedDate).getDay() === 4;
+    const isSaturday = new Date(this.selectedDate).getDay() === 6;
+    const AfterApril25 = new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3;
+
 
     const notNationalDay = this.nationalDays.findIndex((item) => this.compareDates(new Date(this.selectedDate), new Date(item.date)) == 0) == -1;
 
@@ -314,8 +319,15 @@ export class FullcalendarComponent {
       const timeOut = new Date(this.selectedDate);
       const timeIn = new Date(this.selectedDate);
 
-      isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
+
+      if(AfterApril25) {
+        isSaturday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
+      } else {
+        isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
+      }
+
       timeIn.setHours(9, 0, 0, 0);
+
 
       let index = this.timing.findIndex((item) => item.start == this.selectedDate);
 
@@ -341,9 +353,15 @@ export class FullcalendarComponent {
   setDefaultDayData() {
 
     const isTusday = new Date(this.selectedDate).getDay() === 4;
+    const isSaturday = new Date(this.selectedDate).getDay() === 6;
+    const AfterApril25 = new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3;
     const timeOut = new Date(this.selectedDate);
     const timeIn = new Date(this.selectedDate);
-    isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
+    if(AfterApril25) {
+      isSaturday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
+    } else {
+      isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
+    }
     timeIn.setHours(9, 0, 0, 0);
     this.check_Out_time = timeOut;
     this.check_In_time = timeIn;
@@ -479,7 +497,7 @@ export class FullcalendarComponent {
     }
 
     try {
-      console.log(this.userId);
+      // console.log(this.userId);
 
       await this.httpRequestsService.saveDayEvent(this.userId, this.selectedDate, eventData);
       console.log('Event saved successfully!');
@@ -502,7 +520,6 @@ export class FullcalendarComponent {
     return new Intl.DateTimeFormat('en-US', {
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'Europe/Helsinki',
       hour12: false,
     }).format(time);
   }
