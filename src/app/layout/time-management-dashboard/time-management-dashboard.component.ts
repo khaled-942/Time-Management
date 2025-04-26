@@ -361,9 +361,9 @@ export class TimeManagementDashboardComponent implements OnInit {
     const data: any = [];
     data.push(this.allRecords.filter(day => (day.status == 'Normal')).length);
     data.push(this.allRecords.filter(day => (day.status == 'Late Excused')).length);
-    data.push(this.allRecords.filter(day => (day.status == 'Early Leave')).length);
-    data.push(this.allRecords.filter(day => (day.status == 'Late')).length);
     data.push(this.allRecords.filter(day => (day.status == 'Early Excused')).length);
+    data.push(this.allRecords.filter(day => (day.status == 'Late')).length);
+    data.push(this.allRecords.filter(day => (day.status == 'Early Leave')).length);
     data.push(this.allRecords.filter(day => (day.status == 'Absent')).length);
     data.push(this.allRecords.filter(day => (day.status == 'Day Off')).length);
     data.push(this.allRecords.filter(day => (day.status == 'Task')).length);
