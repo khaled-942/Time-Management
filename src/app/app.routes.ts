@@ -56,6 +56,11 @@ export const routes: Routes = [
     canActivate: [allowedGuard],
   },
   {
+    path: 'salary',
+    loadChildren: () =>
+      import('./salary/salary.module').then((m) => m.SalaryModule),
+  },
+  {
     path: '**',
     loadComponent: () =>
       import('./shared/components/not-found/not-found.component').then(

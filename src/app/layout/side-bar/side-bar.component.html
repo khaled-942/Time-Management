@@ -1,5 +1,5 @@
 @if (isLoading) {
-  <app-loader></app-loader>
+<app-loader></app-loader>
 }
 <!-- sidebar.component.html -->
 <div class="sidebar" [class.collapsed]="!isExpanded">
@@ -21,7 +21,13 @@
         }
       </ul>
     </nav>
+
+    <!-- <div class="nav-item" routerLink="/salary/calculator" routerLinkActive="active">
+      <i class="fas fa-calculator"></i>
+      <span>Salary Calculator</span>
+    </div> -->
   </div>
+
 
   <div class="logout">
     <div class="nav-item" (click)="logout()">

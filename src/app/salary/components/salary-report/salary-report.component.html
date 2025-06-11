@@ -1,0 +1,55 @@
+<div class="salary-report">
+    <div class="report-header">
+        <h2>Salary Report</h2>
+        <div class="period-selector">
+            <label>Period:</label>
+            <select [(ngModel)]="selectedPeriod">
+                <option value="week">Weekly</option>
+                <option value="month">Monthly</option>
+                <option value="year">Yearly</option>
+            </select>
+            <button (click)="exportReport()" class="export-btn">
+                <i class="fas fa-download"></i> Export Report
+            </button>
+        </div>
+    </div>
+
+    <div class="report-content">
+        @if (calculations.length > 0) {
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th>Period</th>
+                    <th>Regular Hours</th>
+                    <th>Overtime Hours</th>
+                    <th>Regular Pay</th>
+                    <th>Overtime Pay</th>
+                    <th>Total Pay</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (calc of calculations; track calc.periodStart) {
+                <tr>
+                    <td>{{calc.periodStart | date}} - {{calc.periodEnd | date}}</td>
+                    <td>{{calc.totalRegularHours}}</td>
+                    <td>{{calc.totalOvertimeHours}}</td>
+                    <td>${{calc.regularPay | number:'1.2-2'}}</td>
+                    <td>${{calc.overtimePay | number:'1.2-2'}}</td>
+                    <td>${{calc.totalPay | number:'1.2-2'}}</td>
+                </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5">Total</td>
+                    <td>${{calculations | sum:'totalPay' | number:'1.2-2'}}</td>
+                </tr>
+            </tfoot>
+        </table>
+        } @else {
+        <div class="no-data">
+            <p>No salary calculations found for the selected period.</p>
+        </div>
+        }
+    </div>
+</div>

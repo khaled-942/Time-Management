@@ -8,6 +8,12 @@ import { AuthService } from '../../auth/auth.service';
 import { UserService } from '../../shared/services/user.service';
 import { LoaderComponent } from "../../shared/loader/loader.component";
 
+interface SidebarItem {
+  label: string;
+  route: string;
+  icon: string;
+}
+
 @Component({
   selector: 'app-side-bar',
   imports: [MenuModule, ButtonModule, CommonModule, RouterModule, LoaderComponent],
@@ -23,9 +29,9 @@ export class SideBarComponent {
 
   constructor(
     private router: Router,
-              private authService: AuthService,
-              private userService: UserService
-    ) {}
+    private authService: AuthService,
+    private userService: UserService
+  ) { }
 
   ngOnInit(): void {
 
@@ -44,11 +50,12 @@ export class SideBarComponent {
   }
 
   // Navigation items
-  sidebarItems = [
+  sidebarItems: SidebarItem[] = [
     { icon: 'pi pi-home', label: 'Dashboard', route: '/dashboard' },
     { icon: 'pi pi-calendar', label: 'Calendar', route: '/home' },
     { icon: 'pi pi-file', label: 'Admin', route: '/admin' },
     { icon: 'pi pi-flag', label: 'National Days', route: '/nation-days' },
+    { icon: 'pi pi-calculator', label: 'Salary Calculator', route: '/salary/calculator' },
   ];
   logout() {
     this.authService.logout();

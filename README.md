@@ -1,27 +1,86 @@
-# TimeManagement
+# Time Management Application
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.2.6.
+A comprehensive time management and scheduling application built with Angular 18. This application helps users manage their time efficiently with features like calendar management, user authentication, and administrative controls.
 
-## Development server
+## Features
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+- User Authentication (Login/Register)
+- Interactive Calendar Management
+- User Profile Management
+- Administrative Dashboard
+- National Days Overview
+- Responsive Layout with Side Navigation
+- Time Management Dashboard
+- Salary Calculator Based on Working Hours
 
-## Code scaffolding
+## Prerequisites
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+- Node.js (v18 or higher)
+- npm (v9 or higher)
+- Angular CLI (v18.2.6)
 
-## Build
+## Installation
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Running unit tests
+## Development
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+Run the development server:
 
-## Running end-to-end tests
+```bash
+npm start
+```
 
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
+Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
 
-## Further help
+## Project Structure
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+```
+src/
+├── app/
+│   ├── auth/           # Authentication components and services
+│   ├── layout/         # Layout components (nav-bar, side-bar, etc.)
+│   └── shared/         # Shared components, services, and utilities
+```
+
+## Main Components
+
+- **Authentication**: Handles user login and registration
+- **Calendar**: Full calendar implementation for event management
+- **Profile**: User profile management
+- **Admin Dashboard**: Administrative controls and overview
+- **Time Management Dashboard**: Main interface for time management features
+
+## Testing
+
+Run unit tests:
+
+```bash
+npm test
+```
+
+## Building for Production
+
+Build the project:
+
+```bash
+npm run build
+```
+
+Build artifacts will be stored in the `dist/` directory.
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## License
+
+This project is licensed under the MIT License.
