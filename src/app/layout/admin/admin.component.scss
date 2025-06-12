@@ -10,3 +10,209 @@
   box-shadow: 0 0 13px -2px rgba(0, 0, 0, 0.1);
   border-radius: 12px;
 }
+
+.admin-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  min-height: 100vh;
+  background-color: var(--surface-ground);
+}
+
+.header-section {
+  margin-bottom: 2rem;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.management-card {
+  :host ::ng-deep .p-card {
+    border-radius: 1rem;
+    box-shadow: var(--card-shadow);
+
+    .p-card-header {
+      padding-bottom: 0;
+    }
+  }
+}
+
+.card-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--surface-border);
+  margin-bottom: 1.5rem;
+}
+
+.admin-content {
+  :host ::ng-deep {
+    .p-tabview {
+      .p-tabview-nav {
+        border: none;
+        background: transparent;
+
+        li {
+          .p-tabview-nav-link {
+            border: none;
+            background: transparent;
+            border-radius: 0.5rem;
+            margin-right: 0.5rem;
+            transition: all 0.2s;
+
+            &:not(.p-disabled):focus {
+              box-shadow: none;
+            }
+
+            &:hover {
+              background: var(--surface-hover);
+            }
+          }
+
+          &.p-highlight .p-tabview-nav-link {
+            background: var(--primary-50);
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+          }
+        }
+      }
+
+      .p-tabview-panels {
+        padding: 1.5rem 0;
+      }
+    }
+
+    .p-card {
+      border-radius: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+  }
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+
+  .form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-color-secondary);
+    font-weight: 500;
+  }
+
+  input,
+  textarea {
+    width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 1px var(--primary-color);
+    }
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.table-container {
+  margin-top: 1.5rem;
+
+  :host ::ng-deep {
+    .p-datatable {
+      .p-datatable-header {
+        background: transparent;
+        border: none;
+      }
+
+      th {
+        background: var(--surface-section);
+        padding: 1rem;
+        font-weight: 600;
+        color: var(--text-700);
+      }
+
+      td {
+        padding: 1rem;
+      }
+
+      tr {
+        transition: background-color 0.2s;
+
+        &:hover {
+          background-color: var(--surface-hover);
+        }
+      }
+
+      .p-checkbox {
+        width: 1.5rem;
+        height: 1.5rem;
+      }
+    }
+  }
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag-badge {
+  background: var(--primary-50);
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  color: var(--primary-600);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.verification-checkbox {
+  :host ::ng-deep .p-checkbox {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+:host ::ng-deep {
+  .p-button {
+    &.p-button-text {
+      &:enabled:hover {
+        background: var(--red-50);
+      }
+    }
+  }
+
+  .p-calendar,
+  .p-dropdown {
+    width: 100%;
+  }
+}
+
+// Responsive adjustments
+@media screen and (min-width: 992px) {
+  .admin-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .admin-container {
+    padding: 1rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}

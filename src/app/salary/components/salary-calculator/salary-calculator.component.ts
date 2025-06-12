@@ -41,6 +41,7 @@ export class SalaryCalculatorComponent implements OnInit {
             this.configForm.patchValue(config, { emitEvent: false });
         });
 
+
         // Initial calculation
         this.onPeriodChange();
     }
@@ -53,7 +54,10 @@ export class SalaryCalculatorComponent implements OnInit {
         }
     }
 
+
     async onPeriodChange() {
+        console.log(localStorage.getItem('user'));
+
         if (this.periodStart && this.periodEnd) {
             try {
                 const user = localStorage.getItem('user');

@@ -1,133 +1,223 @@
-<div class="salary-calculator">
-    <div class="config-section">
-        <h2>Salary Configuration</h2>
-        <form [formGroup]="configForm" (ngSubmit)="onConfigSubmit()">
-            <div class="form-group">
-                <label for="monthlyBaseSalary">Monthly Base Salary ($)</label>
-                <input type="number" id="monthlyBaseSalary" formControlName="monthlyBaseSalary" pInputText>
-            </div>
+<div class="salary-calculator-container">
+    <div class="calculator-grid">
+        <!-- Configuration Section -->
+        <div class="config-card">
+            <p-card>
+                <ng-template pTemplate="header">
+                    <div class="card-header">
+                        <h2 class="text-xl font-semibold text-900">Salary Configuration</h2>
+                    </div>
+                </ng-template>
+                <form [formGroup]="configForm" (ngSubmit)="onConfigSubmit()" class="config-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="monthlyBaseSalary" class="form-label">Monthly Base Salary ($)</label>
+                            <input type="number" id="monthlyBaseSalary" formControlName="monthlyBaseSalary" pInputText
+                                class="w-full">
+                        </div>
 
-            <div class="form-group">
-                <label for="hourlyRate">Hourly Rate ($)</label>
-                <input type="number" id="hourlyRate" formControlName="hourlyRate" pInputText>
-            </div>
+                        <div class="form-group">
+                            <label for="hourlyRate" class="form-label">Hourly Rate ($)</label>
+                            <input type="number" id="hourlyRate" formControlName="hourlyRate" pInputText class="w-full">
+                        </div>
 
-            <div class="form-group">
-                <label for="overtimeRate">Overtime Rate (multiplier)</label>
-                <input type="number" id="overtimeRate" formControlName="overtimeRate" step="0.1" pInputText>
-            </div>
+                        <div class="form-group">
+                            <label for="overtimeRate" class="form-label">Overtime Rate (multiplier)</label>
+                            <input type="number" id="overtimeRate" formControlName="overtimeRate" step="0.1" pInputText
+                                class="w-full">
+                        </div>
 
-            <div class="form-group">
-                <label for="regularHours">Regular Hours per Day</label>
-                <input type="number" id="regularHours" formControlName="regularHours" pInputText>
-            </div>
+                        <div class="form-group">
+                            <label for="regularHours" class="form-label">Regular Hours per Day</label>
+                            <input type="number" id="regularHours" formControlName="regularHours" pInputText
+                                class="w-full">
+                        </div>
+                    </div>
 
-            <button type="submit" pButton [disabled]="!configForm.valid" label="Save Configuration"></button>
-        </form>
-    </div>
+                    <div class="form-actions">
+                        <button type="submit" pButton [disabled]="!configForm.valid" label="Save Configuration"
+                            icon="pi pi-save" class="p-button-primary"></button>
+                    </div>
+                </form>
+            </p-card>
+        </div>
 
-    <div class="period-selection">
-        <h3>Select Period</h3>
-        <div class="period-inputs">
-            <div class="form-group">
-                <label>Start Date</label>
-                <p-calendar [(ngModel)]="periodStart" (onSelect)="onPeriodChange()" [showIcon]="true"></p-calendar>
-            </div>
-            <div class="form-group">
-                <label>End Date</label>
-                <p-calendar [(ngModel)]="periodEnd" (onSelect)="onPeriodChange()" [showIcon]="true"></p-calendar>
-            </div>
+        <!-- Period Selection -->
+        <div class="period-card">
+            <p-card>
+                <ng-template pTemplate="header">
+                    <div class="card-header">
+                        <h2 class="text-xl font-semibold text-900">Select Period</h2>
+                    </div>
+                </ng-template>
+                <div class="period-inputs">
+                    <div class="form-group">
+                        <label class="form-label">Start Date</label>
+                        <p-calendar [(ngModel)]="periodStart" (onSelect)="onPeriodChange()" [showIcon]="true"
+                            styleClass="w-full"></p-calendar>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Date</label>
+                        <p-calendar [(ngModel)]="periodEnd" (onSelect)="onPeriodChange()" [showIcon]="true"
+                            styleClass="w-full"></p-calendar>
+                    </div>
+                </div>
+            </p-card>
         </div>
     </div>
 
-    <div class="calculation-results" *ngIf="calculation">
-        <h2>Salary Calculation Results</h2>
+    <div class="results-section" *ngIf="calculation">
+        <!-- Violations Summary -->
+        <div class="summary-grid">
+            <div class="violations-card">
+                <p-card>
+                    <ng-template pTemplate="header">
+                        <div class="card-header">
+                            <h3 class="text-xl font-semibold text-900">Attendance Violations</h3>
+                        </div>
+                    </ng-template>
+                    <div class="violations-grid">
+                        <div class="violation-item" [class.warning]="calculation.violations.under15Minutes > 0">
+                            <i class="pi pi-clock text-yellow-500"></i>
+                            <div class="violation-content">
+                                <label>Late (Under 15 min)</label>
+                                <span class="violation-count">{{calculation.violations.under15Minutes}}</span>
+                            </div>
+                        </div>
+                        <div class="violation-item" [class.warning]="calculation.violations.between15And60Minutes > 0">
+                            <i class="pi pi-exclamation-circle text-orange-500"></i>
+                            <div class="violation-content">
+                                <label>Late (15-60 min)</label>
+                                <span class="violation-count">{{calculation.violations.between15And60Minutes}}</span>
+                            </div>
+                        </div>
+                        <div class="violation-item" [class.severe]="calculation.violations.over60Minutes > 0">
+                            <i class="pi pi-times-circle text-red-500"></i>
+                            <div class="violation-content">
+                                <label>Late (Over 60 min)</label>
+                                <span class="violation-count">{{calculation.violations.over60Minutes}}</span>
+                            </div>
+                        </div>
+                    </div>
+                </p-card>
+            </div>
 
-        <div class="violations-summary" *ngIf="calculation.violations">
-            <h3>Attendance Violations</h3>
-            <div class="violations-grid">
-                <div class="violation-item">
-                    <label>Late (Under 15 min):</label>
-                    <span>{{calculation.violations.under15Minutes}}</span>
-                </div>
-                <div class="violation-item">
-                    <label>Late (15-60 min):</label>
-                    <span>{{calculation.violations.between15And60Minutes}}</span>
-                </div>
-                <div class="violation-item">
-                    <label>Late (Over 60 min):</label>
-                    <span>{{calculation.violations.over60Minutes}}</span>
-                </div>
+            <!-- Deductions Summary -->
+            <div class="deductions-card">
+                <p-card>
+                    <ng-template pTemplate="header">
+                        <div class="card-header">
+                            <h3 class="text-xl font-semibold text-900">Salary Deductions</h3>
+                        </div>
+                    </ng-template>
+                    <div class="deductions-grid">
+                        <div class="deduction-item">
+                            <i class="pi pi-clock-fill text-blue-500"></i>
+                            <div class="deduction-content">
+                                <label>Late Arrival</label>
+                                <span class="deduction-amount">${{calculation.deductions.lateDeductions |
+                                    number:'1.2-2'}}</span>
+                            </div>
+                        </div>
+                        <div class="deduction-item">
+                            <i class="pi pi-calendar-times text-purple-500"></i>
+                            <div class="deduction-content">
+                                <label>Absences</label>
+                                <span class="deduction-amount">${{calculation.deductions.absenceDeductions |
+                                    number:'1.2-2'}}</span>
+                            </div>
+                        </div>
+                        <div class="deduction-item total">
+                            <i class="pi pi-wallet text-green-500"></i>
+                            <div class="deduction-content">
+                                <label>Total Deductions</label>
+                                <span class="deduction-amount">${{calculation.deductions.totalDeductions |
+                                    number:'1.2-2'}}</span>
+                            </div>
+                        </div>
+                    </div>
+                </p-card>
             </div>
         </div>
 
-        <div class="deductions-summary" *ngIf="calculation.deductions">
-            <h3>Salary Deductions</h3>
-            <div class="deductions-grid">
-                <div class="deduction-item">
-                    <label>Late Arrival Deductions:</label>
-                    <span>${{calculation.deductions.lateDeductions | number:'1.2-2'}}</span>
+        <!-- Payment Summary -->
+        <div class="payment-card">
+            <p-card>
+                <ng-template pTemplate="header">
+                    <div class="card-header">
+                        <h3 class="text-xl font-semibold text-900">Payment Details</h3>
+                    </div>
+                </ng-template>
+                <div class="payment-grid">
+                    <div class="payment-item">
+                        <label>Regular Hours</label>
+                        <span>{{calculation.totalRegularHours | number:'1.1-1'}}</span>
+                    </div>
+                    <div class="payment-item">
+                        <label>Overtime Hours</label>
+                        <span>{{calculation.totalOvertimeHours | number:'1.1-1'}}</span>
+                    </div>
+                    <div class="payment-item">
+                        <label>Regular Pay</label>
+                        <span>${{calculation.regularPay | number:'1.2-2'}}</span>
+                    </div>
+                    <div class="payment-item">
+                        <label>Overtime Pay</label>
+                        <span>${{calculation.overtimePay | number:'1.2-2'}}</span>
+                    </div>
+                    <div class="payment-item total">
+                        <label>Total Pay</label>
+                        <span>${{calculation.totalPay | number:'1.2-2'}}</span>
+                    </div>
                 </div>
-                <div class="deduction-item">
-                    <label>Absence Deductions:</label>
-                    <span>${{calculation.deductions.absenceDeductions | number:'1.2-2'}}</span>
-                </div>
-                <div class="deduction-item total">
-                    <label>Total Deductions:</label>
-                    <span>${{calculation.deductions.totalDeductions | number:'1.2-2'}}</span>
-                </div>
-            </div>
+            </p-card>
         </div>
 
-        <div class="results-grid">
-            <div class="result-item">
-                <label>Regular Hours:</label>
-                <span>{{calculation.totalRegularHours | number:'1.1-1'}}</span>
-            </div>
-            <div class="result-item">
-                <label>Overtime Hours:</label>
-                <span>{{calculation.totalOvertimeHours | number:'1.1-1'}}</span>
-            </div>
-            <div class="result-item">
-                <label>Regular Pay:</label>
-                <span>${{calculation.regularPay | number:'1.2-2'}}</span>
-            </div>
-            <div class="result-item">
-                <label>Overtime Pay:</label>
-                <span>${{calculation.overtimePay | number:'1.2-2'}}</span>
-            </div>
-            <div class="result-item total">
-                <label>Total Pay:</label>
-                <span>${{calculation.totalPay | number:'1.2-2'}}</span>
-            </div>
-        </div>
-
-        <div class="work-days-details">
-            <h3>Period Details</h3>
-            <table class="work-days-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Check In</th>
-                        <th>Check Out</th>
-                        <th>Hours Worked</th>
-                        <th>Late (min)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr *ngFor="let day of calculation.workDays" [class.holiday]="day.isHoliday"
-                        [class.weekend]="day.isWeekend" [class.late]="day.attendance && day.attendance.lateMinutes > 0"
-                        [class.absent]="day.attendance && day.attendance.isAbsent">
-                        <td>{{day.date | date}}</td>
-                        <td>{{day.description}}</td>
-                        <td>{{day.attendance?.checkInTime | date:'HH:mm:ss'}}</td>
-                        <td>{{day.attendance?.checkOutTime | date:'HH:mm:ss'}}</td>
-                        <td>{{day.hoursWorked | number:'1.1-1'}}</td>
-                        <td>{{day.attendance?.lateMinutes | number:'1.0-0'}}</td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- Period Details Table -->
+        <div class="details-card">
+            <p-card>
+                <ng-template pTemplate="header">
+                    <div class="card-header">
+                        <h3 class="text-xl font-semibold text-900">Period Details</h3>
+                    </div>
+                </ng-template>
+                <p-table [value]="calculation.workDays" [scrollable]="true" [rows]="10" [paginator]="true"
+                    styleClass="p-datatable-gridlines">
+                    <ng-template pTemplate="header">
+                        <tr>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Hours</th>
+                            <th>Late (min)</th>
+                        </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-day>
+                        <tr [ngClass]="{
+              'holiday-row': day.isHoliday,
+              'weekend-row': day.isWeekend,
+              'late-row': day.attendance?.lateMinutes > 0,
+              'absent-row': day.attendance?.isAbsent
+            }">
+                            <td>{{day.date | date}}</td>
+                            <td>
+                                <span class="status-badge" [ngClass]="{
+                  'status-normal': day.description === 'Present',
+                  'status-holiday': day.isHoliday,
+                  'status-weekend': day.isWeekend,
+                  'status-late': day.attendance?.lateMinutes > 0,
+                  'status-absent': day.attendance?.isAbsent
+                }">{{day.description}}</span>
+                            </td>
+                            <td>{{day.attendance?.checkInTime | date:'HH:mm:ss'}}</td>
+                            <td>{{day.attendance?.checkOutTime | date:'HH:mm:ss'}}</td>
+                            <td>{{day.hoursWorked | number:'1.1-1'}}</td>
+                            <td>{{day.attendance?.lateMinutes | number:'1.0-0'}}</td>
+                        </tr>
+                    </ng-template>
+                </p-table>
+            </p-card>
         </div>
     </div>
 </div>

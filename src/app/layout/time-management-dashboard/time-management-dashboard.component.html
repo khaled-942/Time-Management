@@ -1,78 +1,88 @@
 @if (isLoading) {
-  <!-- <div class="flex justify-content-center align-items-center w-full h-full">
-    <p-progressSpinner></p-progressSpinner>
-  </div> -->
-  <app-loader></app-loader>
+<app-loader></app-loader>
 }
-<div class="container mx-auto p-6 flex flex-column justify-content-between w-9">
-  <div class="flex flex-wrap justify-content-between mb-4 w-full p-4 gap-3">
-    @for (card of statisticCards; track $index) {
-    <div class="col-12 lg:col-4 xl:w-18rem border-round-xl shadow-2 border-200 border-1">
-      <div class="card mb-0 p-2">
-        <div class="flex justify-content-between mb-3">
-          <div>
-            <span class="block text-500 font-medium mb-3">{{
-              card.title
-              }}</span>
-            <span class="text-900 font-medium text-2xl">{{ card.value }}</span>
+
+<div class="dashboard-container">
+  <!-- Month Selector -->
+  <div class="month-selector mb-4">
+    <p-card [styleClass]="'shadow-2 border-round-xl'">
+      <div class="flex align-items-center justify-content-between">
+        <label for="monthSelector" class="text-xl font-semibold text-900">Select Month</label>
+        <p-dropdown id="monthSelector" [options]="Months" [(ngModel)]="selectedMonth" (onChange)="onMonthChange($event)"
+          [styleClass]="'w-full md:w-15rem'">
+        </p-dropdown>
+      </div>
+    </p-card>
+  </div>
+
+  <!-- Statistics Cards Grid -->
+  <div class="statistics-grid">
+    @for (card of statisticCards; track card.title) {
+    <div class="stat-card" [class.violation-card]="card.title.includes('Late')">
+      <div class="card-content">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="block text-500 text-lg mb-2">{{ card.title }}</span>
+            <span class="block text-900 text-4xl font-bold">{{ card.value }}</span>
           </div>
-          <div [class]="
-              card.color +
-              ' flex align-items-center justify-content-center border-round text-white'
-            " style="width: 2.5rem; height: 2.5rem">
+          <div [class]="card.color + ' icon-container'">
             <i [class]="card.icon + ' text-2xl'"></i>
           </div>
         </div>
-        <span class="text-green-500 font-medium">+5</span>
-        <span class="text-500">since last month</span>
+        @if (card.trend !== undefined) {
+        <div class="trend-indicator">
+          <i [class]="card.trend > 0 ? 'pi pi-arrow-up text-green-500' : 'pi pi-arrow-down text-red-500'"></i>
+          <span [class]="card.trend > 0 ? 'text-green-500' : 'text-red-500'" class="font-medium ml-2">{{ card.trend > 0
+            ? '+' : '' }}{{ card.trend }}%</span>
+          <span class="text-500 ml-2">since last month</span>
+        </div>
+        }
       </div>
     </div>
     }
   </div>
 
-  <div class="flex flex-wrap justify-content-between p-4">
-    <!-- Attendance Breakdown Chart -->
+  <!-- Charts and Table Section -->
+  <div class="content-grid">
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <p-card header="Attendance Records" [styleClass]="'shadow-2 border-round-xl h-full'">
+        <p-table [value]="attendanceRecords" [rows]="10" [paginator]="true" [scrollable]="true"
+          [tableStyle]="{ 'min-width': '50rem' }" [rowHover]="true" styleClass="p-datatable-gridlines">
+          <ng-template pTemplate="header">
+            <tr>
+              <th class="text-left font-semibold">Date</th>
+              <th class="text-left font-semibold">Check In</th>
+              <th class="text-left font-semibold">Check Out</th>
+              <th class="text-left font-semibold">Status</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-record>
+            <tr [ngClass]="getStatusRowClass(record.status)">
+              <td>{{ record.date | date : "mediumDate" }}</td>
+              <td>{{ formatTime12Hour(record.checkIn) }}</td>
+              <td>{{ formatTime12Hour(record.checkOut) }}</td>
+              <td>
+                <span [ngClass]="getStatusClass(record.status)" class="status-badge">
+                  {{ record.status }}
+                </span>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+    </div>
 
-    <!-- Attendance Records Table -->
-    <p-card header="Attendance Records"  [styleClass]="'col-span-full shadow-2 border-round-xl'">
-      <p-table [value]="attendanceRecords" [rows]="10" [scrollable]="true" [tableStyle]="{ 'min-width': '50rem' }">
-        <ng-template pTemplate="header">
-          <tr>
-            <th>Date</th>
-            <th>Check In</th>
-            <th>Check Out</th>
-            <th>Status</th>
-            <!-- <th>Work Hours</th> -->
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="body" let-record>
-          <tr [ngClass]="getStatusRowClass(record.status)">
-            <td>{{ record.date | date : "mediumDate" }}</td>
-            <td>{{ formatTime12Hour(record.checkIn) }}</td>
-            <td>{{ formatTime12Hour(record.checkOut) }}</td>
-            <td>
-              <span [ngClass]="getStatusClass(record.status)" class="font-bold">
-                {{ record.status }}
-              </span>
-            </td>
-            <!-- <td>hrs</td> -->
-          </tr>
-        </ng-template>
-      </p-table>
-    </p-card>
-
-    <div class="flex flex-column gap-6">
-      <p-card [styleClass]="'shadow-2 border-round-xl'">
-        <label for="holidayTags" class="block text-gray-700 font-bold mb-2">Month:</label>
-        <p-dropdown id="monthSelector" [options]="Months" [(ngModel)]="selectedMonth" (onChange)="onMonthChange($event)" placeholder="Select a month" [styleClass]="'w-full md:w-20rem'"></p-dropdown>
-      </p-card >
-
-      <p-card header="Attendance Breakdown" >
-        <p-chart type="pie" [data]="attendanceChartData" [options]="attendanceChartOptions"></p-chart>
+    <!-- Charts Section -->
+    <div class="charts-section">
+      <p-card header="Attendance Overview" [styleClass]="'shadow-2 border-round-xl mb-4'">
+        <p-chart type="pie" [data]="attendanceChartData" [options]="attendanceChartOptions" class="attendance-chart">
+        </p-chart>
       </p-card>
 
-      <p-card header="Monthly Days Off" [styleClass]="'shadow-2 border-round-xl'">
-        <p-chart type="bar" [data]="daysOffChartData" [options]="daysOffChartOptions"></p-chart>
+      <p-card header="Monthly Days Off Trend" [styleClass]="'shadow-2 border-round-xl'">
+        <p-chart type="bar" [data]="daysOffChartData" [options]="daysOffChartOptions" class="days-off-chart">
+        </p-chart>
       </p-card>
     </div>
   </div>

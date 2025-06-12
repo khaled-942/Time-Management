@@ -16,3 +16,106 @@
 }
 
 /* Additional custom styles can be added here */
+
+.national-days-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  min-height: 100vh;
+  background-color: var(--surface-ground);
+}
+
+.header-card {
+  margin-bottom: 1.5rem;
+}
+
+.card-header {
+  padding: 1.5rem;
+  
+  h1 {
+    margin: 0;
+    color: var(--text-900);
+  }
+
+  p {
+    margin: 0.5rem 0 0 0;
+    line-height: 1.6;
+  }
+}
+
+.calendar-card {
+  :host ::ng-deep {
+    .p-card {
+      border-radius: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .p-datatable {
+      .p-datatable-header {
+        background: transparent;
+        border: none;
+      }
+
+      th {
+        background: var(--surface-section);
+        padding: 1rem;
+        font-weight: 600;
+        color: var(--text-700);
+
+        .p-sortable-column-icon {
+          margin-left: 0.5rem;
+        }
+      }
+
+      td {
+        padding: 1rem;
+      }
+
+      tr {
+        transition: background-color 0.2s;
+
+        &:hover {
+          background-color: var(--surface-hover);
+        }
+      }
+
+      .p-paginator {
+        border-radius: 0 0 1rem 1rem;
+        border-top: 1px solid var(--surface-border);
+      }
+    }
+  }
+}
+
+.type-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+
+  &.national {
+    background: var(--blue-50);
+    color: var(--blue-600);
+  }
+
+  &.religious {
+    background: var(--green-50);
+    color: var(--green-600);
+  }
+
+  &.cultural {
+    background: var(--purple-50);
+    color: var(--purple-600);
+  }
+}
+
+// Responsive adjustments
+@media screen and (max-width: 768px) {
+  .national-days-container {
+    padding: 1rem;
+  }
+
+  .card-header {
+    padding: 1rem;
+  }
+}

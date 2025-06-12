@@ -1,231 +1,292 @@
-.salary-calculator {
-    padding: 20px;
-    max-width: 1200px;
-    margin: 0 auto;
+.salary-calculator-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  min-height: 100vh;
+  background-color: var(--surface-ground);
+}
 
-    h2, h3 {
-        color: #333;
-        margin-bottom: 20px;
+.calculator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.card-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--surface-border);
+  margin-bottom: 1rem;
+
+  h2, h3 {
+    margin: 0;
+    color: var(--text-900);
+  }
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+
+  .form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-color-secondary);
+    font-weight: 500;
+  }
+
+  input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 0.375rem;
+    transition: border-color 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid var(--surface-border);
+
+  button {
+    transition: background-color 0.2s;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.period-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.results-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.violations-grid,
+.deductions-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.violation-item,
+.deduction-item {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  background: var(--surface-card);
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+
+  i {
+    font-size: 1.5rem;
+    margin-right: 1rem;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow);
+  }
+
+  &.warning {
+    border-left: 4px solid var(--yellow-500);
+  }
+
+  &.severe {
+    border-left: 4px solid var(--red-500);
+  }
+
+  .violation-content,
+  .deduction-content {
+    flex: 1;
+
+    label {
+      display: block;
+      color: var(--text-color-secondary);
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
     }
 
-    .config-section {
-        background: #f5f5f5;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 30px;
+    .violation-count,
+    .deduction-amount {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-900);
+    }
+  }
 
-        h2 {
-            margin-bottom: 20px;
-            color: #333;
-        }
+  &.total {
+    background: var(--primary-50);
+    border-left: 4px solid var(--primary-500);
 
-        .form-group {
-            margin-bottom: 15px;
+    .deduction-amount {
+      color: var(--primary-700);
+    }
+  }
+}
 
-            label {
-                display: block;
-                margin-bottom: 5px;
-                font-weight: 500;
-            }
+.payment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
 
-            input {
-                width: 100%;
-                padding: 8px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                
-                &:focus {
-                    outline: none;
-                    border-color: #007bff;
-                }
-            }
-        }
+.payment-item {
+  text-align: center;
+  padding: 1rem;
+  background: var(--surface-card);
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow);
+  }
+
+  label {
+    display: block;
+    color: var(--text-color-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  span {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-900);
+  }
+
+  &.total {
+    grid-column: 1 / -1;
+    background: var(--primary-50);
+    border-left: 4px solid var(--primary-500);
+
+    span {
+      color: var(--primary-700);
+      font-size: 1.5rem;
+    }
+  }
+}
+
+.details-card {
+  :host ::ng-deep .p-datatable {
+    .p-datatable-header {
+      background: transparent;
+      border: none;
     }
 
-    .period-selection {
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        margin-bottom: 30px;
-
-        .period-inputs {
-            display: flex;
-            gap: 20px;
-        }
+    th {
+      background: var(--surface-section);
+      padding: 1rem;
+      font-weight: 600;
+      color: var(--text-700);
     }
 
-    .violations-summary,
-    .deductions-summary {
-        background-color: #f8f9fa;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-
-        h3 {
-            margin-top: 0;
-            margin-bottom: 15px;
-            color: #495057;
-        }
+    td {
+      padding: 1rem;
     }
 
-    .violations-grid,
-    .deductions-grid,
-    .results-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
+    tr {
+      transition: background-color 0.2s;
+
+      &:hover {
+        background-color: var(--surface-hover);
+      }
+
+      &.holiday-row {
+        background-color: var(--blue-50);
+      }
+
+      &.weekend-row {
+        background-color: var(--surface-100);
+      }
+
+      &.late-row {
+        background-color: var(--yellow-50);
+      }
+
+      &.absent-row {
+        background-color: var(--red-50);
+      }
     }
+  }
+}
 
-    .violation-item,
-    .deduction-item,
-    .result-item {
-        background-color: white;
-        padding: 15px;
-        border-radius: 6px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+.status-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-size: 0.875rem;
+  font-weight: 600;
 
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #6c757d;
-            font-size: 0.9em;
-        }
+  &.status-normal {
+    background: var(--green-50);
+    color: var(--green-600);
+  }
 
-        span {
-            font-size: 1.1em;
-            font-weight: 500;
-            color: #212529;
-        }
+  &.status-holiday {
+    background: var(--blue-50);
+    color: var(--blue-600);
+  }
 
-        &.total {
-            background-color: #e9ecef;
-            border: 1px solid #dee2e6;
+  &.status-weekend {
+    background: var(--surface-200);
+    color: var(--surface-700);
+  }
 
-            label {
-                color: #495057;
-                font-weight: 500;
-            }
+  &.status-late {
+    background: var(--yellow-50);
+    color: var(--yellow-600);
+  }
 
-            span {
-                color: #0d6efd;
-                font-weight: 600;
-            }
-        }
-    }
+  &.status-absent {
+    background: var(--red-50);
+    color: var(--red-600);
+  }
+}
 
-    .work-days-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
+// Responsive adjustments
+@media screen and (max-width: 768px) {
+  .salary-calculator-container {
+    padding: 1rem;
+  }
 
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #dee2e6;
-        }
+  .calculator-grid,
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
 
-        th {
-            background-color: #f8f9fa;
-            font-weight: 500;
-            color: #495057;
-        }
+  .form-grid,
+  .payment-grid {
+    grid-template-columns: 1fr;
+  }
 
-        tr {
-            &.holiday {
-                background-color: #e8f4ff;
-            }
-
-            &.weekend {
-                background-color: #f8f9fa;
-            }
-
-            &.late {
-                background-color: #fff3cd;
-            }
-
-            &.absent {
-                background-color: #f8d7da;
-            }
-        }
-    }
-
-    button {
-        background: #007bff;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 4px;
-        cursor: pointer;
-
-        &:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        &:hover:not(:disabled) {
-            background: #0056b3;
-        }
-    }
-
-    .calculation-results {
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-
-        h2 {
-            margin-bottom: 20px;
-            color: #333;
-        }
-    }
-
-    .results-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
-    }
-
-    .result-item {
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 4px;
-
-        label {
-            display: block;
-            color: #666;
-            margin-bottom: 5px;
-            font-size: 0.9em;
-        }
-
-        span {
-            font-size: 1.2em;
-            font-weight: 500;
-            color: #333;
-        }
-
-        &.total {
-            background: #e3f2fd;
-            grid-column: 1 / -1;
-
-            label {
-                color: #1976d2;
-            }
-
-            span {
-                color: #1976d2;
-                font-size: 1.4em;
-            }
-        }
-    }
-
-    .period-info {
-        text-align: center;
-        color: #666;
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid #eee;
-    }
+  .period-inputs {
+    grid-template-columns: 1fr;
+  }
 }

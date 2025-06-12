@@ -18,15 +18,15 @@ interface AttendanceRecord {
   checkIn: string;
   checkOut: string;
   status:
-    | 'Normal'
-    | 'Early Leave'
-    | 'Late & Early Excused'
-    | 'Late Excused'
-    | 'Early Excused'
-    | 'Day Off'
-    | 'Absent'
-    | 'Task'
-    | 'Late';
+  | 'Normal'
+  | 'Early Leave'
+  | 'Late & Early Excused'
+  | 'Late Excused'
+  | 'Early Excused'
+  | 'Day Off'
+  | 'Absent'
+  | 'Task'
+  | 'Late';
 }
 
 interface StatisticCard {
@@ -34,6 +34,13 @@ interface StatisticCard {
   value: string;
   icon: string;
   color: string;
+  trend?: number;  // percentage change from last month
+}
+
+interface AttendanceViolations {
+  under15Minutes: number;
+  between15And60Minutes: number;
+  over60Minutes: number;
 }
 
 @Component({
@@ -50,7 +57,7 @@ interface StatisticCard {
     FormsModule,
     ProgressSpinnerModule,
     LoaderComponent
-],
+  ],
   templateUrl: './time-management-dashboard.component.html',
   styleUrls: ['./time-management-dashboard.component.scss'],
 })
@@ -85,13 +92,19 @@ export class TimeManagementDashboardComponent implements OnInit {
   daysOffChartData: any;
   daysOffChartOptions: any;
 
-  constructor(private httpService: HttpRequestsService) {}
+  attendanceViolations: AttendanceViolations = {
+    under15Minutes: 0,
+    between15And60Minutes: 0,
+    over60Minutes: 0
+  };
+
+  constructor(private httpService: HttpRequestsService) { }
 
   async ngOnInit(): Promise<void> {
     let day = new Date();
     console.log("HERE =============> ", this.Months[day.getMonth()]);
     console.log(day.getDate());
-    day.getDate()>10 ? this.selectedMonth = this.Months[day.getMonth()+1] : this.selectedMonth = this.Months[day.getMonth()];
+    day.getDate() > 10 ? this.selectedMonth = this.Months[day.getMonth() + 1] : this.selectedMonth = this.Months[day.getMonth()];
     await this.getAllData(new Date());
     await this.getDaysOff();
     await this.initializeAttendanceChart();
@@ -115,6 +128,7 @@ export class TimeManagementDashboardComponent implements OnInit {
             });
           });
           this.isLoading = false;
+          this.calculateViolations();
         })
         .catch((err) => {
           console.log('Something went wrong.', err);
@@ -124,8 +138,8 @@ export class TimeManagementDashboardComponent implements OnInit {
     this.attendanceRecords = this.allRecords.filter(
       (record) =>
         record.status != 'Task' &&
-        record.status != 'Absent' &&
-        record.status != 'Day Off'
+        record.status != 'Absent'
+      // record.status != 'Day Off'
     );
     this.toatlWorkDays = this.allRecords.filter(
       (record) =>
@@ -165,32 +179,58 @@ export class TimeManagementDashboardComponent implements OnInit {
     this.remainingExcuseHours = 4 * 60 * 60 * 1000 - this.totalExcuseHours;
 
 
+    // Calculate trends by comparing with last month's data
+    const lastMonthDate = new Date(date);
+    lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+    const lastMonthData = await this.getMonthData(lastMonthDate);
+
     this.statisticCards = [
       {
         title: 'Work days',
-        value: ` ${this.toatlWorkDays}`,
+        value: `${this.toatlWorkDays}`,
         icon: 'pi pi-clock',
         color: 'bg-blue-500',
+        trend: this.calculateTrend(this.toatlWorkDays, lastMonthData.workDays)
       },
       {
         title: 'Total Days Off',
         value: this.totalOffDays.toString(),
         icon: 'pi pi-calendar',
         color: 'bg-green-500',
+        trend: this.calculateTrend(this.totalOffDays, lastMonthData.daysOff)
       },
-
       {
         title: 'Total Excused Days',
         value: this.totalExcusedDays.toString(),
         icon: 'pi pi-clock',
         color: 'bg-red-500',
+        trend: this.calculateTrend(this.totalExcusedDays, lastMonthData.excusedDays)
       },
       {
         title: 'Remaining Excuse Hours',
         value: this.formatHours(this.remainingExcuseHours),
         icon: 'pi pi-clock',
         color: 'bg-green-500',
+        trend: this.calculateTrend(this.remainingExcuseHours, lastMonthData.remainingExcuseHours)
       },
+      {
+        title: 'Late (Under 15 min)',
+        value: this.attendanceViolations.under15Minutes.toString(),
+        icon: 'pi pi-clock',
+        color: 'bg-yellow-500',
+      },
+      {
+        title: 'Late (15-60 min)',
+        value: this.attendanceViolations.between15And60Minutes.toString(),
+        icon: 'pi pi-exclamation-triangle',
+        color: 'bg-orange-500',
+      },
+      {
+        title: 'Late (Over 60 min)',
+        value: this.attendanceViolations.over60Minutes.toString(),
+        icon: 'pi pi-times-circle',
+        color: 'bg-red-500',
+      }
     ];
   }
 
@@ -234,7 +274,7 @@ export class TimeManagementDashboardComponent implements OnInit {
     this.remainingExcuseHours = 0;
     this.totallateExcuse = 0;
     this.totalerlyExcuse = 0;
-    await this.getAllData(new Date(2025, this.Months.findIndex(item=> item == this.selectedMonth), 1));
+    await this.getAllData(new Date(2025, this.Months.findIndex(item => item == this.selectedMonth), 1));
     await this.initializeAttendanceChart();
     await this.initializeDaysOffChart();
   }
@@ -249,7 +289,7 @@ export class TimeManagementDashboardComponent implements OnInit {
     let totalExcuseHours = 0;
     totalExcusedays.forEach((record) => {
       const isThrusday = moment.default(record.date).day() === 4;
-      console.log("HERE",isThrusday);
+      console.log("HERE", isThrusday);
 
       if (record.status == 'Late & Early Excused') {
         const checkOut = moment.default(record.checkOut, 'hh:mm').toDate();
@@ -411,7 +451,7 @@ export class TimeManagementDashboardComponent implements OnInit {
     let data: string[] = [];
     let curentDay = new Date();
     for (let index = 1; index <= 11; index++) {
-      const element: any = this.Months[(Math.abs(curentDay.getMonth()+index)%this.Months.length)]
+      const element: any = this.Months[(Math.abs(curentDay.getMonth() + index) % this.Months.length)]
       data.push(element);
     }
     data.push(this.Months[curentDay.getMonth()]);
@@ -424,7 +464,7 @@ export class TimeManagementDashboardComponent implements OnInit {
     let months = this.getMonthsLabels();
     months.forEach(month => {
       // we need to handle the year of this day off.
-      data.push(this.allDaysOff.filter((item:any) => item.month == month).length)
+      data.push(this.allDaysOff.filter((item: any) => item.month == month).length)
     })
     return data;
   }
@@ -497,5 +537,99 @@ export class TimeManagementDashboardComponent implements OnInit {
       default:
         return '';
     }
+  }
+
+  private calculateTrend(currentValue: number, previousValue: number): number {
+    if (previousValue === 0) return 0;
+    return Math.round(((currentValue - previousValue) / previousValue) * 100);
+  }
+
+  private async getMonthData(date: Date) {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const userId = JSON.parse(userData).id;
+
+      return await this.httpService
+        .getUserMonthDays(userId, date)
+        .then((res: any) => {
+          const allRecords = res.map((record: any) => ({
+            date: new Date(record.start),
+            checkIn: record.in.split('T')[1],
+            checkOut: record.out.split('T')[1],
+            status: this.whatTheStatusShouldBe(record),
+          }));
+
+          const workDays = allRecords.filter(
+            (record: any) =>
+              record.status != 'Absent' &&
+              record.status != 'Task' &&
+              record.status != 'Day Off'
+          ).length;
+
+          const daysOff = allRecords.filter(
+            (record: any) => record.status == 'Day Off'
+          ).length;
+
+          const excusedDays = allRecords.filter(
+            (record: any) =>
+              record.status == 'Late & Early Excused' ||
+              record.status == 'Late Excused' ||
+              record.status == 'Early Excused'
+          ).length;
+
+          const totalExcuseHours = this.calaulateExcuseHours();
+          const remainingExcuseHours = 4 * 60 * 60 * 1000 - totalExcuseHours;
+
+          return {
+            workDays,
+            daysOff,
+            excusedDays,
+            remainingExcuseHours,
+          };
+        })
+        .catch((err) => {
+          console.log('Something went wrong.', err);
+          return {
+            workDays: 0,
+            daysOff: 0,
+            excusedDays: 0,
+            remainingExcuseHours: 0,
+          };
+        });
+    }
+
+    return {
+      workDays: 0,
+      daysOff: 0,
+      excusedDays: 0,
+      remainingExcuseHours: 0,
+    };
+  }
+
+  private calculateViolations() {
+    const violations: AttendanceViolations = {
+      under15Minutes: 0,
+      between15And60Minutes: 0,
+      over60Minutes: 0
+    };
+
+    this.allRecords.forEach(record => {
+      if (record.status === 'Late') {
+        const checkIn = moment.default(record.checkIn, 'hh:mm').toDate();
+        const scheduledStart = moment.default('09:00', 'hh:mm').toDate();
+        const lateMinutes = Math.max(0, (checkIn.getTime() - scheduledStart.getTime()) / (1000 * 60));
+
+        if (lateMinutes > 60) {
+          violations.over60Minutes++;
+        } else if (lateMinutes > 15) {
+          violations.between15And60Minutes++;
+        } else if (lateMinutes > 0) {
+          violations.under15Minutes++;
+        }
+      }
+    });
+
+    this.attendanceViolations = violations;
+    return violations;
   }
 }

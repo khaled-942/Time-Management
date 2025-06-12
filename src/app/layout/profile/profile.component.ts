@@ -23,6 +23,7 @@ import {
 import { InputTextModule } from 'primeng/inputtext';
 import { LoaderComponent } from "../../shared/loader/loader.component";
 import { AuthService } from '../../auth/auth.service';
+import { CardModule } from 'primeng/card';
 
 @Component({
   selector: 'app-user-profile',
@@ -41,8 +42,9 @@ import { AuthService } from '../../auth/auth.service';
     InputTextModule,
     InputMaskModule,
     InputTextareaModule,
-    LoaderComponent
-],
+    LoaderComponent,
+    CardModule
+  ],
   providers: [MessageService],
   templateUrl: './profile.component.html',
   styleUrls: ['./profile.component.scss'],
@@ -129,22 +131,22 @@ export class ProfileComponent implements OnInit {
   }
 
   initializeForm() {
-    if(this.user != null)
-    this.profileForm = this.fb.group({
-      name: [this.user.name, [Validators.required, Validators.minLength(2)]],
-      email: [this.user.email, [Validators.required, Validators.email]],
-      gender: [this.user.gender || ''],
-      birthDate: [this.user.birthDate || null],
-      position: [this.user.position || ''],
-      salary: [this.user.salary || null, [Validators.min(0)]],
-      phone: [this.user.phone || ''],
-      location: [this.user.location || ''],
-      bio: [this.user.bio || '', Validators.maxLength(500)],
-      currentAvatar: this.user.currentAvatar,
-      userId: this.user.userId,
-    });
+    if (this.user != null)
+      this.profileForm = this.fb.group({
+        name: [this.user.name, [Validators.required, Validators.minLength(2)]],
+        email: [this.user.email, [Validators.required, Validators.email]],
+        gender: [this.user.gender || ''],
+        birthDate: [this.user.birthDate || null],
+        position: [this.user.position || ''],
+        salary: [this.user.salary || null, [Validators.min(0)]],
+        phone: [this.user.phone || ''],
+        location: [this.user.location || ''],
+        bio: [this.user.bio || '', Validators.maxLength(500)],
+        currentAvatar: this.user.currentAvatar,
+        userId: this.user.userId,
+      });
 
-    if(this.profileForm.valid && !this.compareObjects(this.profileForm.value, this.user)) this.submitBtn = true;
+    if (this.profileForm.valid && !this.compareObjects(this.profileForm.value, this.user)) this.submitBtn = true;
     this.profileForm.valueChanges.subscribe(value => {
       console.log(value);
 
@@ -153,7 +155,7 @@ export class ProfileComponent implements OnInit {
   }
 
   isSubmitValid(val: any) {
-    if(this.profileForm.valid && (!this.compareObjects(val, this.user) || this.oldAvatar != this.user.currentAvatar)) this.submitBtn = true;
+    if (this.profileForm.valid && (!this.compareObjects(val, this.user) || this.oldAvatar != this.user.currentAvatar)) this.submitBtn = true;
     else this.submitBtn = false;
   }
 
@@ -166,7 +168,7 @@ export class ProfileComponent implements OnInit {
       this.isLoading = true;
       this.authService.updateUserById(this.user.userId, formData).then(onfulfilled => {
         console.log(onfulfilled);
-        if(onfulfilled.val) {
+        if (onfulfilled.val) {
           this.userService.setUser(formData);
           this.initializeForm();
           this.submitBtn = false;
@@ -206,8 +208,8 @@ export class ProfileComponent implements OnInit {
 
       if (isEmpty(value1) && isEmpty(value2)) continue;
       if (isEmpty(value1) !== isEmpty(value2)) return false;
-      value1 = key=='birthDate' ? obj1[key].toString() : obj1[key];
-      value2 = key=='birthDate' ? obj2[key].toString() : obj2[key];
+      value1 = key == 'birthDate' ? obj1[key].toString() : obj1[key];
+      value2 = key == 'birthDate' ? obj2[key].toString() : obj2[key];
       if (!this.compareObjects(value1, value2)) return false;
 
     }

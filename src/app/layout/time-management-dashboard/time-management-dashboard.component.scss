@@ -1,0 +1,246 @@
+.icon-container {
+  width: 2.5rem;
+  height: 2.5rem;
+  transition: transform 0.2s ease-in-out;
+}
+
+.card:hover .icon-container {
+  transform: scale(1.1);
+}
+
+:host ::ng-deep {
+  .p-card {
+    border-radius: 1rem;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  // Violation card specific styles
+  .bg-yellow-500 {
+    background-color: #ffc107;
+  }
+
+  .bg-orange-500 {
+    background-color: #ff9800;
+  }
+
+  .bg-red-500 {
+    background-color: #f44336;
+  }
+
+  // Add hover effects for violation cards
+  .violation-card {
+    &:hover {
+      transform: translateY(-2px);
+    }
+
+    .pi-clock, .pi-exclamation-triangle, .pi-times-circle {
+      font-size: 1.5rem;
+    }
+  }
+
+  .p-datatable {
+    .p-datatable-header {
+      border-top-left-radius: 1rem;
+      border-top-right-radius: 1rem;
+    }
+
+    .p-datatable-footer {
+      border-bottom-left-radius: 1rem;
+      border-bottom-right-radius: 1rem;
+    }
+
+    .p-paginator {
+      border-radius: 1rem;
+      margin-top: 0.5rem;
+    }
+  }
+
+  .p-dropdown {
+    width: 100%;
+    border-radius: 0.5rem;
+  }
+
+  .p-chart {
+    min-height: 300px;
+  }
+}
+
+// Responsive adjustments
+@media screen and (max-width: 768px) {
+  :host ::ng-deep .p-chart {
+    min-height: 250px;
+  }
+}
+
+.dashboard-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  min-height: 100vh;
+  background-color: var(--surface-ground);
+}
+
+.month-selector {
+  max-width: 100%;
+  transition: all 0.3s ease;
+
+  .p-card {
+    background: var(--surface-card);
+  }
+}
+
+.statistics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: var(--surface-card);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: var(--card-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  }
+
+  &.violation-card {
+    border-left: 4px solid var(--danger-color);
+  }
+
+  .card-content {
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .card-title {
+      flex-grow: 1;
+    }
+  }
+
+  .icon-container {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    
+    i {
+      font-size: 1.5rem;
+    }
+  }
+
+  .trend-indicator {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+  }
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-top: 2rem;
+
+  @media (min-width: 1024px) {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.main-content {
+  .p-card {
+    height: 100%;
+  }
+
+  .p-datatable {
+    .p-datatable-header {
+      background: transparent;
+      border: none;
+      padding: 1rem 0;
+    }
+
+    th {
+      background: var(--surface-section);
+      padding: 1rem;
+      font-weight: 600;
+    }
+
+    td {
+      padding: 1rem;
+    }
+
+    tr:hover {
+      background: var(--surface-hover);
+    }
+  }
+}
+
+.charts-section {
+  .p-card {
+    background: var(--surface-card);
+  }
+
+  .attendance-chart, 
+  .days-off-chart {
+    height: 300px;
+    margin: 1rem 0;
+  }
+}
+
+.status-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  
+  &.text-green-600 {
+    background: var(--green-50);
+    color: var(--green-600);
+  }
+  
+  &.text-red-600 {
+    background: var(--red-50);
+    color: var(--red-600);
+  }
+  
+  &.text-gray-600 {
+    background: var(--surface-200);
+    color: var(--surface-700);
+  }
+}
+
+// Responsive adjustments
+@media screen and (max-width: 768px) {
+  .dashboard-container {
+    padding: 1rem;
+  }
+
+  .statistics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .charts-section {
+    .attendance-chart, 
+    .days-off-chart {
+      height: 250px;
+    }
+  }
+}
