@@ -1,4 +1,3 @@
-
 import { Injectable } from '@angular/core';
 import {
   addDoc,
@@ -83,14 +82,14 @@ export class HttpRequestsService {
     let year = date.getFullYear();
     let month = date.getMonth();
     let day = date.getDate();
-    if(day>10) {
-      month = month+1;
+    if (day > 10) {
+      month = month + 1;
     }
-    const startOfMonth = `${month==0?year-1:year}-${String(month==0?12:month).padStart(2, '0')}-11`;
+    const startOfMonth = `${month == 0 ? year - 1 : year}-${String(month == 0 ? 12 : month).padStart(2, '0')}-11`;
     const endOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-10`;
     // console.log(startOfMonth, endOfMonth);
     const colRef = collection(this.firestore, `users/${userId}/days`);
-    const daysQuery = query(colRef, orderBy('start'), where('start', '>=', startOfMonth),  where('start', '<', endOfMonth));
+    const daysQuery = query(colRef, orderBy('start'), where('start', '>=', startOfMonth), where('start', '<', endOfMonth));
     const querySnapshot: QuerySnapshot<DocumentData> = await getDocs(daysQuery);
     return querySnapshot.docs.map((doc) => doc.data());
   }
@@ -104,5 +103,21 @@ export class HttpRequestsService {
     return querySnapshot.docs.map((doc) => doc.data());
   }
 
+  async getUserProfile(userId: string): Promise<any> {
+    try {
+      const colRef = collection(this.firestore, 'users');
+      const userQuery = query(colRef, where('userId', '==', userId));
+      const querySnapshot = await getDocs(userQuery);
+
+      if (querySnapshot.empty) {
+        throw new Error('User not found');
+      }
+
+      return querySnapshot.docs[0].data();
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      throw error;
+    }
+  }
 
 }

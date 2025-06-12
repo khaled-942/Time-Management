@@ -12,6 +12,8 @@ import { HttpRequestsService } from '../../shared/services/http-requests.service
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import * as moment from 'moment';
 import { LoaderComponent } from "../../shared/loader/loader.component";
+import { SalaryService } from '../../salary/services/salary.service';
+import { RouterModule } from '@angular/router';
 
 interface AttendanceRecord {
   date: Date;
@@ -56,7 +58,8 @@ interface AttendanceViolations {
     DropdownModule,
     FormsModule,
     ProgressSpinnerModule,
-    LoaderComponent
+    LoaderComponent,
+    RouterModule
   ],
   templateUrl: './time-management-dashboard.component.html',
   styleUrls: ['./time-management-dashboard.component.scss'],
@@ -98,7 +101,20 @@ export class TimeManagementDashboardComponent implements OnInit {
     over60Minutes: 0
   };
 
-  constructor(private httpService: HttpRequestsService) { }
+  // Salary and deductions properties
+  lateDeductions: number = 0;
+  absenceDeductions: number = 0;
+  totalDeductions: number = 0;
+  basePay: number = 0;
+  totalPay: number = 0;
+
+  // Add new property for salary message
+  salaryMissing: boolean = false;
+
+  constructor(
+    private httpService: HttpRequestsService,
+    private salaryService: SalaryService
+  ) { }
 
   async ngOnInit(): Promise<void> {
     let day = new Date();
@@ -109,6 +125,7 @@ export class TimeManagementDashboardComponent implements OnInit {
     await this.getDaysOff();
     await this.initializeAttendanceChart();
     await this.initializeDaysOffChart();
+    this.loadSalaryData();
   }
 
   async getAllData(date: Date) {
@@ -277,6 +294,51 @@ export class TimeManagementDashboardComponent implements OnInit {
     await this.getAllData(new Date(2025, this.Months.findIndex(item => item == this.selectedMonth), 1));
     await this.initializeAttendanceChart();
     await this.initializeDaysOffChart();
+    this.loadSalaryData();
+  }
+
+  private async loadSalaryData() {
+    try {
+      const user = localStorage.getItem('user');
+      const userId = user ? JSON.parse(user).id : null;
+
+      if (!userId) {
+        console.error('User not found');
+        return;
+      }
+
+      // Create proper date objects using the current year and selected month index
+      const monthIndex = this.Months.findIndex(month => month === this.selectedMonth);
+      const currentYear = new Date().getFullYear();
+      const startDate = new Date(currentYear, monthIndex, 1);
+      const endDate = new Date(currentYear, monthIndex + 1, 0);
+
+      try {
+        const calculation = await this.salaryService.calculateSalaryForPeriod(
+          userId,
+          startDate,
+          endDate
+        );
+
+        this.salaryMissing = false;
+        this.lateDeductions = calculation.deductions.lateDeductions;
+        this.absenceDeductions = calculation.deductions.absenceDeductions;
+        this.totalDeductions = calculation.deductions.totalDeductions;
+        this.basePay = calculation.regularPay + calculation.overtimePay;
+        this.totalPay = calculation.totalPay;
+      } catch (error: any) {
+        if (error.message === 'NO_SALARY_DEFINED') {
+          this.salaryMissing = true;
+          this.lateDeductions = 0;
+          this.absenceDeductions = 0;
+          this.totalDeductions = 0;
+          this.basePay = 0;
+          this.totalPay = 0;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading salary data:', error);
+    }
   }
 
   calaulateExcuseHours = () => {

@@ -40,6 +40,93 @@
       </div>
     </div>
     }
+
+    <!-- Salary Deductions Cards -->
+    <div class="stat-card deductions-card">
+      <div class="card-content">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="block text-500 text-lg mb-2">Late Arrival Deductions</span>
+            <span class="block text-900 text-4xl font-bold negative-amount">-${{lateDeductions | number:'1.2-2'}}</span>
+          </div>
+          <div class="bg-blue-100 icon-container">
+            <i class="pi pi-clock text-blue-500"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card deductions-card">
+      <div class="card-content">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="block text-500 text-lg mb-2">Absence Deductions</span>
+            <span class="block text-900 text-4xl font-bold negative-amount">-${{absenceDeductions |
+              number:'1.2-2'}}</span>
+          </div>
+          <div class="bg-purple-100 icon-container">
+            <i class="pi pi-calendar-times text-purple-500"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card total-deductions-card">
+      <div class="card-content">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="block text-500 text-lg mb-2">Total Deductions</span>
+            <span class="block text-900 text-4xl font-bold negative-amount">-${{totalDeductions |
+              number:'1.2-2'}}</span>
+          </div>
+          <div class="bg-red-100 icon-container">
+            <i class="pi pi-wallet text-red-500"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Pay Card -->
+    <div class="stat-card total-pay-card">
+      <div class="card-content">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="block text-500 text-lg mb-2">Total Pay</span>
+            @if (!salaryMissing) {
+            <span class="block text-900 text-4xl font-bold total-pay">
+              ${{totalPay | number:'1.2-2'}}
+              <div class="pay-tooltip">
+                <div class="tooltip-content">
+                  <div class="tooltip-row">
+                    <span>Base Pay:</span>
+                    <span>${{basePay | number:'1.2-2'}}</span>
+                  </div>
+                  <div class="tooltip-row">
+                    <span>Deductions:</span>
+                    <span class="negative-amount">-${{totalDeductions | number:'1.2-2'}}</span>
+                  </div>
+                  <div class="tooltip-row total">
+                    <span>Net Pay:</span>
+                    <span>${{totalPay | number:'1.2-2'}}</span>
+                  </div>
+                </div>
+              </div>
+            </span>
+            } @else {
+            <div class="salary-missing-message">
+              <span class="block text-500 mb-2">Please set your monthly salary in your
+                <a [routerLink]="['/profile']" class="text-primary">profile</a>
+                to see your total pay calculation
+              </span>
+            </div>
+            }
+          </div>
+          <div class="bg-green-100 icon-container">
+            <i class="pi pi-dollar text-green-500"></i>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Charts and Table Section -->

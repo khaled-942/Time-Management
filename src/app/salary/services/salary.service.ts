@@ -117,8 +117,24 @@ export class SalaryService {
         return 'Present';
     }
 
+    private async getUserBaseSalary(userId: string): Promise<number> {
+        try {
+            const response = await this.httpService.getUserProfile(userId);
+            return response?.salary || 0;
+        } catch (error) {
+            console.error('Error fetching user salary:', error);
+            return 0;
+        }
+    }
+
     async calculateSalaryForPeriod(userId: string, startDate: Date, endDate: Date): Promise<SalaryCalculation> {
         const config = this.salaryConfigSubject.value;
+        const baseSalary = await this.getUserBaseSalary(userId);
+
+        if (!baseSalary) {
+            throw new Error('NO_SALARY_DEFINED');
+        }
+
         const timingData = await this.httpService.getUserDays(userId);
 
         const workDays: WorkDay[] = timingData
@@ -161,7 +177,7 @@ export class SalaryService {
 
         const regularPay = totalRegularHours * config.hourlyRate;
         const overtimePay = totalOvertimeHours * (config.hourlyRate * config.overtimeRate);
-        const basePay = config.monthlyBaseSalary || (regularPay + overtimePay);
+        const basePay = baseSalary;
         const dailySalary = basePay / 30; // Assuming 30-day month for calculation
 
         // Calculate deductions
