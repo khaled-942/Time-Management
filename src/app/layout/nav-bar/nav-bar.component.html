@@ -6,13 +6,7 @@
   </div>
   <div class="navbar-right">
     <span> Hi, {{ user?.name }}</span>
-    <p-avatar
-      styleClass="mr-2"
-      [image]="user?.currentAvatar"
-      size="large"
-      shape="circle"
-      [style]="{ 'margin-left': '10px' }"
-      (click)="onProfile()"
-    ></p-avatar>
+    <p-avatar styleClass="mr-2" [image]="user?.currentAvatar" size="large" shape="circle"
+      [style]="{ 'margin-left': '10px' }" (click)="onProfile()"></p-avatar>
   </div>
 </div>

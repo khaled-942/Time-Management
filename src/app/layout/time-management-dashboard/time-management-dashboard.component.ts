@@ -403,18 +403,26 @@ export class TimeManagementDashboardComponent implements OnInit {
     return totalExcuseHours;
   };
 
-  formatHours = (Milsec: number) => {
-    // Convert milliseconds to hours and minutes
-    const totalExcuseSeconds = Math.floor(Milsec / 1000);
-    const hours = Math.floor(totalExcuseSeconds / 3600);
-    const minutes = Math.floor((totalExcuseSeconds % 3600) / 60);
+  formatHours = (milliseconds: number): string => {
+    // If excuse hours are exceeded (remaining hours is negative or total > 4 hours)
+    if (milliseconds <= 0 || this.totalExcuseHours > 4 * 60 * 60 * 1000) {
+      // Show the extra time used (as a positive value)
+      const extraMs = Math.abs(milliseconds);
+      const extraHours = Math.floor(extraMs / (60 * 60 * 1000));
+      const extraMinutes = Math.floor((extraMs % (60 * 60 * 1000)) / (60 * 1000));
+      return `-${extraHours.toString().padStart(2, '0')}:${extraMinutes.toString().padStart(2, '0')}`;
+    }
 
-    // Format as HH:MM
-    const formattedHours = hours < 10 ? '0' + hours : hours.toString();
-    const formattedMinutes = minutes < 10 ? '0' + minutes : minutes.toString();
+    // For positive remaining hours
+    const hours = Math.floor(milliseconds / (60 * 60 * 1000));
+    const minutes = Math.floor((milliseconds % (60 * 60 * 1000)) / (60 * 1000));
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }
 
-    return formattedHours + ':' + formattedMinutes;
-  };
+  // Helper method to check if excuse hours are exceeded
+  isExcuseHoursExceeded(): boolean {
+    return this.totalExcuseHours > 4 * 60 * 60 * 1000 || this.remainingExcuseHours <= 0;
+  }
 
   // Initialize Attendance Pie Chart
   initializeAttendanceChart() {

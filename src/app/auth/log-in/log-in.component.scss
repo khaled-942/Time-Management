@@ -2,7 +2,8 @@
 .login-container {
   display: flex;
   min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: var(--background);
+  color: var(--foreground);
   align-items: center;
   justify-content: center;
   padding: 3rem 1rem;
@@ -12,10 +13,12 @@
 .login-card {
   width: 100%;
   max-width: 28rem;
-  background: white;
+  background-color: var(--card);
+  color: var(--card-foreground);
   padding: 2rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
 }
 
 .login-header {
@@ -25,7 +28,7 @@
   .login-icon {
     display: flex;
     justify-content: center;
-    color: #f97316;
+    color: var(--primary);
     margin-bottom: 1.5rem;
 
     .pi {

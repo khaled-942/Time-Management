@@ -1,125 +1,166 @@
-/* You can add global styles to this file, and also import other style files */
+/* Import PrimeNG and other external styles first */
 @import "primeng/resources/themes/lara-light-blue/theme.css";
 @import "primeng/resources/primeng.css";
 @import "primeflex/primeflex.css";
 @import "primeicons/primeicons.css";
-@import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
 
+/* Import theme utilities */
+@import './styles/theme';
+
+:root {
+  /* Base colors */
+  --background: rgb(255, 255, 255);
+  --foreground: rgb(10, 10, 10);
+  
+  /* Primary colors */
+  --primary: rgb(59, 130, 246);
+  --primary-foreground: rgb(255, 255, 255);
+  
+  /* Secondary colors */
+  --secondary: rgb(241, 245, 249);
+  --secondary-foreground: rgb(15, 23, 42);
+  
+  /* Accent colors */
+  --accent: rgb(244, 244, 245);
+  --accent-foreground: rgb(24, 24, 28);
+  
+  /* Destructive colors */
+  --destructive: rgb(239, 68, 68);
+  --destructive-foreground: rgb(250, 250, 250);
+  
+  /* UI element colors */
+  --card: rgb(255, 255, 255);
+  --card-foreground: rgb(10, 10, 10);
+  --popover: rgb(255, 255, 255);
+  --popover-foreground: rgb(10, 10, 10);
+  --muted: rgb(245, 245, 245);
+  --muted-foreground: rgb(113, 113, 113);
+  
+  /* Border and input colors */
+  --border: rgb(229, 229, 229);
+  --input: rgb(229, 229, 229);
+  --ring: rgb(59, 130, 246);
+  
+  /* Chart colors */
+  --chart-1: rgb(59, 130, 246);
+  --chart-2: rgb(56, 189, 248);
+  --chart-3: rgb(168, 85, 247);
+  --chart-4: rgb(34, 197, 94);
+  --chart-5: rgb(249, 115, 22);
+  
+  /* Sidebar specific colors */
+  --sidebar: rgb(255, 255, 255);
+  --sidebar-foreground: rgb(10, 10, 10);
+  --sidebar-primary: rgb(59, 130, 246);
+  --sidebar-primary-foreground: rgb(255, 255, 255);
+  --sidebar-accent: rgb(241, 245, 249);
+  --sidebar-accent-foreground: rgb(15, 23, 42);
+  --sidebar-border: rgb(229, 229, 229);
+  --sidebar-ring: rgb(59, 130, 246);
+  
+  /* Typography */
+  --font-sans: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Poppins', Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: 'Poppins', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  
+  /* Border radius */
+  --radius: 0.5rem;
+  
+  /* Shadows */
+  --shadow-2xs: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-xs: 0 1px 3px rgb(0 0 0 / 0.1);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 25px 30px -12px rgb(0 0 0 / 0.25);
+  --shadow-2xl: 0 35px 35px -15px rgb(0 0 0 / 0.25);
+  
+  /* Spacing and tracking */
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+/* Base styles */
 body {
-  padding: 0;
   margin: 0;
+  padding: 0;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
   font-size: 14px;
-  font-family: "Poppins", sans-serif;
-  font-weight: 400;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-.poppins-thin {
-  font-family: "Poppins", sans-serif;
-  font-weight: 100;
-  font-style: normal;
-}
-
-.poppins-extralight {
-  font-family: "Poppins", sans-serif;
-  font-weight: 200;
-  font-style: normal;
-}
-
-.poppins-light {
-  font-family: "Poppins", sans-serif;
-  font-weight: 300;
-  font-style: normal;
+/* Typography utility classes */
+.font {
+  &-thin { font-weight: 100; }
+  &-extralight { font-weight: 200; }
+  &-light { font-weight: 300; }
+  &-normal { font-weight: 400; }
+  &-medium { font-weight: 500; }
+  &-semibold { font-weight: 600; }
+  &-bold { font-weight: 700; }
+  &-extrabold { font-weight: 800; }
+  &-black { font-weight: 900; }
+  
+  &-italic { font-style: italic; }
 }
 
-.poppins-regular {
-  font-family: "Poppins", sans-serif;
-  font-weight: 400;
-  font-style: normal;
+/* Text size utilities */
+.text {
+  &-xs { font-size: 0.75rem; line-height: 1rem; }
+  &-sm { font-size: 0.875rem; line-height: 1.25rem; }
+  &-base { font-size: 1rem; line-height: 1.5rem; }
+  &-lg { font-size: 1.125rem; line-height: 1.75rem; }
+  &-xl { font-size: 1.25rem; line-height: 1.75rem; }
+  &-2xl { font-size: 1.5rem; line-height: 2rem; }
+  &-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+  &-4xl { font-size: 2.25rem; line-height: 2.5rem; }
 }
 
-.poppins-medium {
-  font-family: "Poppins", sans-serif;
-  font-weight: 500;
-  font-style: normal;
+/* PrimeNG component overrides */
+.p-component {
+  font-family: var(--font-sans);
 }
 
-.poppins-semibold {
-  font-family: "Poppins", sans-serif;
-  font-weight: 600;
-  font-style: normal;
-}
-
-.poppins-bold {
-  font-family: "Poppins", sans-serif;
-  font-weight: 700;
-  font-style: normal;
-}
-
-.poppins-extrabold {
-  font-family: "Poppins", sans-serif;
-  font-weight: 800;
-  font-style: normal;
-}
-
-.poppins-black {
-  font-family: "Poppins", sans-serif;
-  font-weight: 900;
-  font-style: normal;
-}
-
-.poppins-thin-italic {
-  font-family: "Poppins", sans-serif;
-  font-weight: 100;
-  font-style: italic;
-}
-
-.poppins-extralight-italic {
-  font-family: "Poppins", sans-serif;
-  font-weight: 200;
-  font-style: italic;
-}
-
-.poppins-light-italic {
-  font-family: "Poppins", sans-serif;
-  font-weight: 300;
-  font-style: italic;
-}
-
-.poppins-regular-italic {
-  font-family: "Poppins", sans-serif;
-  font-weight: 400;
-  font-style: italic;
-}
-
-.poppins-medium-italic {
-  font-family: "Poppins", sans-serif;
-  font-weight: 500;
-  font-style: italic;
-}
-
-.poppins-semibold-italic {
-  font-family: "Poppins", sans-serif;
-  font-weight: 600;
-  font-style: italic;
-}
-
-.poppins-bold-italic {
-  font-family: "Poppins", sans-serif;
-  font-weight: 700;
-  font-style: italic;
-}
-
-.poppins-extrabold-italic {
-  font-family: "Poppins", sans-serif;
-  font-weight: 800;
-  font-style: italic;
-}
-
-.poppins-black-italic {
-  font-family: "Poppins", sans-serif;
-  font-weight: 900;
-  font-style: italic;
-}
 .p-inputswitch {
   display: flex;
-  scale: 0.75;
+  transform: scale(0.75);
+}
+
+.p-button {
+  &.p-button-sm {
+    font-size: 0.875rem;
+    padding: 0.4rem 0.8rem;
+  }
+  
+  &.p-button-lg {
+    font-size: 1.125rem;
+    padding: 0.8rem 1.6rem;
+  }
+}
+
+/* Custom spacing utilities */
+.space {
+  &-xs { gap: 0.25rem; }
+  &-sm { gap: 0.5rem; }
+  &-md { gap: 1rem; }
+  &-lg { gap: 1.5rem; }
+  &-xl { gap: 2rem; }
+}
+
+/* Custom container styles */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  
+  @media (min-width: 640px) { max-width: 640px; }
+  @media (min-width: 768px) { max-width: 768px; }
+  @media (min-width: 1024px) { max-width: 1024px; }
+  @media (min-width: 1280px) { max-width: 1280px; }
 }

@@ -5,6 +5,7 @@ import { AvatarModule } from 'primeng/avatar';
 import { Router } from '@angular/router';
 import { AuthService } from '../../auth/auth.service';
 import { UserService } from '../../shared/services/user.service';
+
 @Component({
   selector: 'appNavbar',
   imports: [MenuModule, ButtonModule, AvatarModule],
@@ -14,11 +15,12 @@ import { UserService } from '../../shared/services/user.service';
 })
 export class NavBarComponent {
   user: any = null;
+
   constructor(
     private router: Router,
     private authService: AuthService,
     private userService: UserService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.userService.user$.subscribe((user) => {

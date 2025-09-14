@@ -5,22 +5,41 @@
   left: 0;
   height: 100vh;
   width: 200px;
-  background-color: #fff;
-  color: #2c3e50;
+  background-color: var(--sidebar);
+  color: var(--sidebar-foreground);
   transition: width 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
   z-index: 1;
+  border-right: 1px solid var(--sidebar-border);
+
+  .nav-item {
+    color: var(--sidebar-foreground);
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background-color: var(--sidebar-accent);
+      color: var(--sidebar-accent-foreground);
+    }
+
+    &.active {
+      background-color: var(--sidebar-primary);
+      color: var(--sidebar-primary-foreground);
+    }
+  }
 
   .logout {
+    margin-top: auto;
     margin-bottom: 10px;
     padding: 5px 10px;
+    
     .nav-item {
       cursor: pointer;
-    }
-    .nav-item:hover {
-      background-color: rgba(128, 8, 8, 0.705);
-      border-color: rgba(201, 77, 77, 0.705);
+      
+      &:hover {
+        background-color: var(--destructive);
+        color: var(--destructive-foreground);
+      }
     }
   }
 }

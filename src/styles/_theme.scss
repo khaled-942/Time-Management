@@ -1,0 +1,374 @@
+// Theme Mixins
+@mixin themed-component {
+  background-color: var(--background);
+  color: var(--foreground);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+@mixin themed-card {
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: var(--shadow-md);
+  }
+}
+
+@mixin themed-input {
+  background-color: var(--input);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--ring);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px var(--ring-light);
+  }
+}
+
+@mixin themed-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+
+  &:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &.secondary {
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+  }
+
+  &.outline {
+    background-color: transparent;
+    border: 1px solid var(--border);
+    color: var(--foreground);
+
+    &:hover {
+      background-color: var(--secondary);
+    }
+  }
+}
+
+@mixin themed-sidebar {
+  background-color: var(--sidebar);
+  color: var(--sidebar-foreground);
+  border-right: 1px solid var(--sidebar-border);
+  transition: all 0.3s ease;
+}
+
+// Utility Classes
+.themed {
+  &-component {
+    @include themed-component;
+  }
+
+  &-card {
+    @include themed-card;
+  }
+
+  &-input {
+    @include themed-input;
+  }
+
+  &-button {
+    @include themed-button;
+  }
+
+  &-sidebar {
+    @include themed-sidebar;
+  }
+
+  &-text {
+    &-muted {
+      color: var(--muted-foreground);
+    }
+
+    &-primary {
+      color: var(--primary);
+    }
+
+    &-destructive {
+      color: var(--destructive);
+    }
+  }
+
+  &-border {
+    border: 1px solid var(--border);
+  }
+
+  &-shadow {
+    &-sm { box-shadow: var(--shadow-sm); }
+    &-md { box-shadow: var(--shadow-md); }
+    &-lg { box-shadow: var(--shadow-lg); }
+  }
+}
+
+// PrimeNG Component Overrides
+:root {
+  .p-component {
+    font-family: var(--font-sans);
+  }
+
+  // ...existing PrimeNG overrides...
+
+
+
+  // Form elements
+  &-input {
+    background-color: var(--input);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.75rem;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: var(--ring);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--ring);
+      box-shadow: 0 0 0 2px var(--ring-light);
+    }
+  }
+
+  // Buttons
+  &-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    border: none;
+    border-radius: var(--radius);
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+
+    &:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+
+    &.secondary {
+      background-color: var(--secondary);
+      color: var(--secondary-foreground);
+    }
+
+    &.outline {
+      background-color: transparent;
+      border: 1px solid var(--border);
+      color: var(--foreground);
+
+      &:hover {
+        background-color: var(--secondary);
+      }
+    }
+  }
+
+  // Navigation elements
+  &-sidebar {
+    background-color: var(--sidebar);
+    color: var(--sidebar-foreground);
+    border-right: 1px solid var(--sidebar-border);
+    transition: all 0.3s ease;
+  }
+
+  // Typography helpers
+  &-text {
+    &-muted {
+      color: var(--muted-foreground);
+    }
+
+    &-primary {
+      color: var(--primary);
+    }
+
+    &-destructive {
+      color: var(--destructive);
+    }
+  }
+
+  // Layout utilities
+  &-border {
+    border: 1px solid var(--border);
+  }
+
+  &-shadow {
+    &-sm { box-shadow: var(--shadow-sm); }
+    &-md { box-shadow: var(--shadow-md); }
+    &-lg { box-shadow: var(--shadow-lg); }
+  }
+}
+
+// PrimeNG Component Overrides
+:root {
+  .p-component {
+    font-family: var(--font-sans);
+  }
+
+  // Buttons
+  .p-button {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    border: none;
+    border-radius: var(--radius);
+    transition: all 0.2s ease;
+
+    &:enabled:hover {
+      background-color: var(--primary);
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    &.p-button-secondary {
+      background-color: var(--secondary);
+      color: var(--secondary-foreground);
+    }
+
+    &.p-button-outlined {
+      background-color: transparent;
+      border: 1px solid var(--border);
+      color: var(--foreground);
+
+      &:enabled:hover {
+        background-color: var(--secondary);
+      }
+    }
+  }
+
+  // Cards
+  .p-card {
+    background-color: var(--card);
+    color: var(--card-foreground);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease;
+
+    &:hover {
+      box-shadow: var(--shadow-md);
+    }
+  }
+
+  // Dialogs
+  .p-dialog {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+
+    .p-dialog-header {
+      background-color: var(--popover);
+      color: var(--popover-foreground);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem;
+    }
+
+    .p-dialog-content {
+      background-color: var(--popover);
+      color: var(--popover-foreground);
+      padding: 1rem;
+    }
+  }
+
+  // Form controls
+  .p-inputtext,
+  .p-input-filled {
+    background-color: var(--input);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: all 0.2s ease;
+    
+    &:enabled:hover {
+      border-color: var(--ring);
+    }
+    
+    &:enabled:focus {
+      outline: none;
+      border-color: var(--ring);
+      box-shadow: 0 0 0 2px rgba(var(--ring-rgb), 0.2);
+    }
+  }
+
+  // Dropdowns
+  .p-dropdown {
+    background-color: var(--input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: all 0.2s ease;
+
+    &:not(.p-disabled):hover {
+      border-color: var(--ring);
+    }
+
+    .p-dropdown-panel {
+      background-color: var(--popover);
+      color: var(--popover-foreground);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .p-dropdown-item {
+      &:hover {
+        background-color: var(--secondary);
+      }
+
+      &.p-highlight {
+        background-color: var(--primary);
+        color: var(--primary-foreground);
+      }
+    }
+  }
+
+  // Menu
+  .p-menu {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+
+    .p-menuitem-link {
+      &:hover {
+        background-color: var(--secondary);
+      }
+
+      &.p-menuitem-link-active {
+        background-color: var(--primary);
+        color: var(--primary-foreground);
+      }
+    }
+  }
+}
