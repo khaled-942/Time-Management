@@ -131,20 +131,29 @@ export class ProfileComponent implements OnInit {
   }
 
   initializeForm() {
-    if (this.user != null)
+    if (this.user != null) {
+      // Ensure salary is numeric when loading into the form (strip formatting if needed)
+      let salaryValue: number | null = null;
+      if (this.user.salary !== undefined && this.user.salary !== null) {
+        const raw = String(this.user.salary);
+        const parsed = parseFloat(raw.replace(/[^0-9.\-]/g, ''));
+        salaryValue = isNaN(parsed) ? null : parsed;
+      }
+
       this.profileForm = this.fb.group({
         name: [this.user.name, [Validators.required, Validators.minLength(2)]],
         email: [this.user.email, [Validators.required, Validators.email]],
         gender: [this.user.gender || ''],
         birthDate: [this.user.birthDate || null],
         position: [this.user.position || ''],
-        salary: [this.user.salary || null, [Validators.min(0)]],
+        salary: [salaryValue, [Validators.min(0)]],
         phone: [this.user.phone || ''],
         location: [this.user.location || ''],
         bio: [this.user.bio || '', Validators.maxLength(500)],
         currentAvatar: this.user.currentAvatar,
         userId: this.user.userId,
       });
+    }
 
     if (this.profileForm.valid && !this.compareObjects(this.profileForm.value, this.user)) this.submitBtn = true;
     this.profileForm.valueChanges.subscribe(value => {
@@ -163,6 +172,13 @@ export class ProfileComponent implements OnInit {
     const formData = this.profileForm.value;
     formData.currentAvatar = this.user.currentAvatar;
     formData.userId = this.user.userId;
+    // Ensure salary is a plain number (strip currency formatting if present)
+    if (formData.salary !== null && formData.salary !== undefined) {
+      const raw = String(formData.salary);
+      const parsed = parseFloat(raw.replace(/[^0-9.\-]/g, ''));
+      formData.salary = isNaN(parsed) ? null : parsed;
+    }
+
     if (this.profileForm.valid && (!this.compareObjects(formData, this.user) || this.oldAvatar != this.user.currentAvatar)) {
       console.log('Profile Data that will be change ====> ', formData);
       this.isLoading = true;

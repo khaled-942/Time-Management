@@ -41,7 +41,8 @@ interface StatisticCard {
 
 interface AttendanceViolations {
   under15Minutes: number;
-  between15And60Minutes: number;
+  between16And30Minutes: number;
+  between31And60Minutes: number;
   over60Minutes: number;
 }
 
@@ -97,7 +98,8 @@ export class TimeManagementDashboardComponent implements OnInit {
 
   attendanceViolations: AttendanceViolations = {
     under15Minutes: 0,
-    between15And60Minutes: 0,
+    between16And30Minutes: 0,
+    between31And60Minutes: 0,
     over60Minutes: 0
   };
 
@@ -120,17 +122,22 @@ export class TimeManagementDashboardComponent implements OnInit {
     let day = new Date();
     console.log("HERE =============> ", this.Months[day.getMonth()]);
     console.log(day.getDate());
-    day.getDate() > 10 ? this.selectedMonth = this.Months[day.getMonth() + 1] : this.selectedMonth = this.Months[day.getMonth()];
-    await this.getAllData(new Date());
-    await this.getDaysOff();
-    await this.initializeAttendanceChart();
-    await this.initializeDaysOffChart();
-    this.loadSalaryData();
+    // Only run client-side initialization in the browser (skip during SSR/prerender)
+    const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+    if (isBrowser) {
+      day.getDate() > 10 ? this.selectedMonth = this.Months[day.getMonth() + 1] : this.selectedMonth = this.Months[day.getMonth()];
+      await this.getAllData(new Date());
+      await this.getDaysOff();
+      await this.initializeAttendanceChart();
+      await this.initializeDaysOffChart();
+      this.loadSalaryData();
+    }
   }
 
   async getAllData(date: Date) {
     this.isLoading = true;
-    const userData = localStorage.getItem('user');
+    const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+    const userData = isBrowser ? localStorage.getItem('user') : null;
     if (userData) {
       this.userId = JSON.parse(userData).id;
       await this.httpService
@@ -237,8 +244,8 @@ export class TimeManagementDashboardComponent implements OnInit {
         color: 'bg-yellow-500',
       },
       {
-        title: 'Late (15-60 min)',
-        value: this.attendanceViolations.between15And60Minutes.toString(),
+        title: 'Late (16-60 min)',
+        value: (this.attendanceViolations.between16And30Minutes + this.attendanceViolations.between31And60Minutes).toString(),
         icon: 'pi pi-exclamation-triangle',
         color: 'bg-orange-500',
       },
@@ -299,7 +306,8 @@ export class TimeManagementDashboardComponent implements OnInit {
 
   private async loadSalaryData() {
     try {
-      const user = localStorage.getItem('user');
+      const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+      const user = isBrowser ? localStorage.getItem('user') : null;
       const userId = user ? JSON.parse(user).id : null;
 
       if (!userId) {
@@ -324,7 +332,7 @@ export class TimeManagementDashboardComponent implements OnInit {
         this.lateDeductions = calculation.deductions.lateDeductions;
         this.absenceDeductions = calculation.deductions.absenceDeductions;
         this.totalDeductions = calculation.deductions.totalDeductions;
-        this.basePay = calculation.regularPay + calculation.overtimePay;
+        this.basePay = calculation.regularPay
         this.totalPay = calculation.totalPay;
       } catch (error: any) {
         if (error.message === 'NO_SALARY_DEFINED') {
@@ -426,7 +434,8 @@ export class TimeManagementDashboardComponent implements OnInit {
 
   // Initialize Attendance Pie Chart
   initializeAttendanceChart() {
-    const documentStyle = getComputedStyle(document.documentElement);
+    const isBrowserDoc = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+    const documentStyle = isBrowserDoc ? getComputedStyle(document.documentElement) : ({} as CSSStyleDeclaration);
 
     this.attendanceChartData = {
       labels: [
@@ -483,7 +492,8 @@ export class TimeManagementDashboardComponent implements OnInit {
 
   // Initialize Work Hours Bar Chart
   initializeDaysOffChart() {
-    const documentStyle = getComputedStyle(document.documentElement);
+    const isBrowserDoc = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+    const documentStyle = isBrowserDoc ? getComputedStyle(document.documentElement) : ({} as CSSStyleDeclaration);
 
     this.daysOffChartData = {
       labels: this.getMonthsLabels(),
@@ -615,7 +625,8 @@ export class TimeManagementDashboardComponent implements OnInit {
   }
 
   private async getMonthData(date: Date) {
-    const userData = localStorage.getItem('user');
+    const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+    const userData = isBrowser ? localStorage.getItem('user') : null;
     if (userData) {
       const userId = JSON.parse(userData).id;
 
@@ -679,7 +690,8 @@ export class TimeManagementDashboardComponent implements OnInit {
   private calculateViolations() {
     const violations: AttendanceViolations = {
       under15Minutes: 0,
-      between15And60Minutes: 0,
+      between16And30Minutes: 0,
+      between31And60Minutes: 0,
       over60Minutes: 0
     };
 
@@ -691,10 +703,14 @@ export class TimeManagementDashboardComponent implements OnInit {
 
         if (lateMinutes > 60) {
           violations.over60Minutes++;
-        } else if (lateMinutes > 15) {
-          violations.between15And60Minutes++;
+        } else if (lateMinutes > 30) {
+          violations.between31And60Minutes++;
         } else if (lateMinutes > 0) {
-          violations.under15Minutes++;
+          if (lateMinutes <= 15) {
+            violations.under15Minutes++;
+          } else {
+            violations.between16And30Minutes++;
+          }
         }
       }
     });

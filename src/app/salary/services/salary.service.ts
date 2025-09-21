@@ -31,55 +31,64 @@ export class SalaryService {
 
         const checkInTime = new Date(dayData.in);
         const checkOutTime = new Date(dayData.out);
-        const scheduledStart = new Date(dayData.start);
+        const scheduledDate = new Date(dayData.start);
 
-        // Calculate minutes late
-        const scheduledStartTime = new Date(scheduledStart);
-        scheduledStartTime.setHours(9, 0, 0, 0); // Set to 9:00 AM of the scheduled day
+        // Determine scheduled start time: default 9:00, Thursday shortened to 9:00 (but shorter end)
+        const scheduledStartTime = new Date(scheduledDate);
+        scheduledStartTime.setHours(9, 0, 0, 0); // 9:00 AM
 
-        // Calculate late minutes only if not excused
-        const lateMinutes = dayData.isLate && !dayData.lateExcuse && Math.max(0, (checkInTime.getTime() - scheduledStartTime.getTime()) / (1000 * 60)) || 0;
-        // If check-in is before scheduled start, late minutes are 0
+        // Late minutes only count when not excused
+        let lateMinutes = 0;
+        // treat both late excuses and early-leave excuses as a valid excuse to avoid counting deductions
+        const hasAnyExcuse = !!(dayData.lateExcuse || dayData.earlyLeaveExcuse);
+        if (dayData.isLate && !hasAnyExcuse) {
+            lateMinutes = Math.max(0, Math.round((checkInTime.getTime() - scheduledStartTime.getTime()) / (1000 * 60)));
+        }
 
-        // If excused, late minutes are set to 0
+        // If check-in is before scheduled start or excused, late minutes are 0
+        if (lateMinutes < 0) lateMinutes = 0;
 
         return {
             checkInTime,
             checkOutTime,
             lateMinutes,
-            isExcused: dayData.lateExcuse || false,
-            isAbsent: dayData.isDayOff && dayData.dayOffType === -1,
-            isPaidLeave: dayData.isDayOff && dayData.dayOffType === 0
+            // mark as excused if there is either a late excuse or an early-leave excuse
+            isExcused: hasAnyExcuse,
+            isAbsent: !!(dayData.isDayOff && dayData.dayOffType === -1),
+            isPaidLeave: !!(dayData.isDayOff && dayData.dayOffType === 0)
         };
     }
 
     private calculateViolationPenalty(violations: ViolationCount, dailySalary: number): number {
         let totalDeduction = 0;
 
-        // Under 15 minutes
-        if (violations.under15Minutes === 1) {
-            // Warning only
-        } else if (violations.under15Minutes === 2) {
-            totalDeduction += dailySalary * 0.25; // Quarter-day
-        } else if (violations.under15Minutes === 3) {
-            totalDeduction += dailySalary * 0.5; // Half-day
-        } else if (violations.under15Minutes >= 4) {
-            totalDeduction += dailySalary; // Full-day
+        // Combine 0-15 and 16-30 into the same 0-30 bucket per spec
+        const u = (violations.under15Minutes || 0) + (violations.between16And30Minutes || 0);
+        if (u === 1) {
+            // first occurrence: warning, no deduction
+        } else if (u === 2) {
+            totalDeduction += dailySalary * 0.25; // second -> quarter day
+        } else if (u === 3) {
+            totalDeduction += dailySalary * 0.5; // third -> half day
+        } else if (u >= 4) {
+            // second and third already handled (0.25 + 0.5). From 4th onward each is a full day.
+            totalDeduction += dailySalary * 0.25; // second
+            totalDeduction += dailySalary * 0.5;  // third
+            totalDeduction += dailySalary * (u - 3); // 4th+ -> full day each
         }
 
-        // 15-60 minutes
-        if (violations.between15And60Minutes === 1) {
-            // Warning only
-        } else if (violations.between15And60Minutes === 2) {
-            totalDeduction += dailySalary * 0.25;
-        } else if (violations.between15And60Minutes === 3) {
+        // 31-60 minutes tier: first -> half day, second+ -> full day each
+        const b = violations.between31And60Minutes || 0;
+        if (b === 1) {
             totalDeduction += dailySalary * 0.5;
-        } else if (violations.between15And60Minutes >= 4) {
-            totalDeduction += dailySalary;
+        } else if (b >= 2) {
+            totalDeduction += dailySalary * 0.5; // first
+            totalDeduction += dailySalary * (b - 1); // second+ each full day
         }
 
-        // Over 60 minutes
-        totalDeduction += violations.over60Minutes * dailySalary; // Full day deduction for each occurrence
+        // over60: each occurrence -> full day
+        const o = violations.over60Minutes || 0;
+        totalDeduction += o * dailySalary;
 
         return totalDeduction;
     }
@@ -90,7 +99,7 @@ export class SalaryService {
         const attendance = this.calculateAttendance(dayData);
         console.log(`Calculating work day for ${date.toDateString()}:`, dayData);
 
-
+        // If paid leave or weekend/holiday, we still consider the day as paid for salary basis
         if (!dayData.isDayOff && attendance) {
             hoursWorked = (attendance.checkOutTime.getTime() - attendance.checkInTime.getTime()) / (1000 * 60 * 60);
         }
@@ -144,65 +153,74 @@ export class SalaryService {
             })
             .map((day: any) => this.calculateWorkDay(day, config));
 
-        let totalRegularHours = 0;
-        let totalOvertimeHours = 0;
+        // New rules: salary is daily-based and overtime is not paid. Count paid days in period (including weekends and paid leaves)
+        const dailySalary = baseSalary / 30; // keep 30-day assumption for consistency
+
+        // Prepare violation counters according to new buckets
         const violations: ViolationCount = {
             under15Minutes: 0,
-            between15And60Minutes: 0,
+            between16And30Minutes: 0,
+            between31And60Minutes: 0,
             over60Minutes: 0
-        };
+        } as any;
 
-        // Calculate violations
+        let paidDaysCount = 0;
+        let absenceDaysCount = 0;
+
         workDays.forEach(day => {
+            // Determine if the day counts as paid for salary basis
+            const isPaidDay = day.isHoliday || day.isWeekend || (day.attendance?.isPaidLeave) || (!day.attendance && !day.isHoliday && !day.isWeekend);
+            if (isPaidDay) paidDaysCount++;
+
+            // Absence (unpaid) handling
+            if (day.attendance?.isAbsent && !day.attendance?.isPaidLeave) {
+                absenceDaysCount++;
+            }
+
+            // Count violations only for working days (not paid leave and not weekends if they don't require attendance)
             if (!day.isHoliday && !day.isWeekend && day.attendance && !day.attendance.isExcused) {
                 const lateMinutes = day.attendance.lateMinutes;
                 if (lateMinutes > 60) {
-                    violations.over60Minutes++;
-                } else if (lateMinutes > 15) {
-                    violations.between15And60Minutes++;
+                    violations.over60Minutes = (violations.over60Minutes || 0) + 1;
+                } else if (lateMinutes > 30) {
+                    violations.between31And60Minutes = (violations.between31And60Minutes || 0) + 1;
                 } else if (lateMinutes > 0) {
-                    violations.under15Minutes++;
-                }
-            }
-
-            if (!day.isHoliday && !day.isWeekend && !day.attendance?.isAbsent) {
-                if (day.hoursWorked <= config.regularHours) {
-                    totalRegularHours += day.hoursWorked;
-                } else {
-                    totalRegularHours += config.regularHours;
-                    totalOvertimeHours += day.hoursWorked - config.regularHours;
+                    // bucket under 30 into 0-15 and 16-30 depending on value
+                    if (lateMinutes <= 15) {
+                        violations.under15Minutes = (violations.under15Minutes || 0) + 1;
+                    } else {
+                        violations.between16And30Minutes = (violations.between16And30Minutes || 0) + 1;
+                    }
                 }
             }
         });
 
-        const regularPay = totalRegularHours * config.hourlyRate;
-        const overtimePay = totalOvertimeHours * (config.hourlyRate * config.overtimeRate);
-        const basePay = baseSalary;
-        const dailySalary = basePay / 30; // Assuming 30-day month for calculation
+        // Late deductions
+        const lateDeductions = this.calculateViolationPenalty(violations as any, dailySalary);
 
-        // Calculate deductions
-        const deductions: SalaryDeductions = {
-            lateDeductions: this.calculateViolationPenalty(violations, dailySalary),
-            absenceDeductions: workDays.filter(d =>
-                !d.isWeekend && !d.isHoliday &&
-                d.attendance?.isAbsent &&
-                !d.attendance?.isPaidLeave
-            ).length * dailySalary,
-            totalDeductions: 0
-        };
-        deductions.totalDeductions = deductions.lateDeductions + deductions.absenceDeductions;
+        // Absence deductions: each unpaid absence -> full day deduction
+        const absenceDeductions = absenceDaysCount * dailySalary;
+
+        const totalDeductions = lateDeductions + absenceDeductions;
+
+        // Total pay is base salary scaled by (paidDaysCount / 30) minus deductions
+        const baseProRated = dailySalary * paidDaysCount;
 
         return {
-            totalRegularHours,
-            totalOvertimeHours,
-            regularPay,
-            overtimePay,
-            totalPay: basePay - deductions.totalDeductions,
+            totalRegularHours: 0,
+            totalOvertimeHours: 0,
+            regularPay: baseProRated,
+            overtimePay: 0,
+            totalPay: Math.max(0, baseProRated - totalDeductions),
             periodStart: startDate,
             periodEnd: endDate,
             workDays,
-            deductions,
-            violations
+            deductions: {
+                lateDeductions,
+                absenceDeductions,
+                totalDeductions
+            },
+            violations: violations as any
         };
     }
 }

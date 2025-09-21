@@ -46,10 +46,12 @@ export class LogInComponent {
         if (res._tokenResponse !== undefined) {
           console.log('User logged in');
           this.authService.loginStatusChanged.emit(true);
-          localStorage.setItem(
-            'user',
-            JSON.stringify({ id: res.user.uid, token: res.user.accessToken, date: new Date() })
-          );
+          if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+            localStorage.setItem(
+              'user',
+              JSON.stringify({ id: res.user.uid, token: res.user.accessToken, date: new Date() })
+            );
+          }
           this.authService.getUserById(res.user.uid).then((res: any) => {
             this.userService.setUser(res[0]);
             this.router.navigate(['/home']);

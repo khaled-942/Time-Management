@@ -55,11 +55,7 @@ export const routes: Routes = [
       ),
     canActivate: [allowedGuard],
   },
-  {
-    path: 'salary',
-    loadChildren: () =>
-      import('./salary/salary.module').then((m) => m.SalaryModule),
-  },
+  // Salary module removed — salary calculation is now shown inside the dashboard
   {
     path: '**',
     loadComponent: () =>

@@ -36,7 +36,7 @@ export class AuthService {
     private router: Router,
     private userService: UserService,
     @Inject(PLATFORM_ID) private platformId: Object
-  ) {}
+  ) { }
 
   // Register a new user with email and password
   async register(email: string, password: string) {
@@ -80,8 +80,10 @@ export class AuthService {
   logout() {
     console.log('Logging out...');
     this.userService.clearUser();
-    localStorage.removeItem('user');
-    localStorage.removeItem('isAdmin');
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAdmin');
+    }
     this.loginStatusChanged.emit(false);
     this.router.navigate(['/login']);
     signOut(this.auth);

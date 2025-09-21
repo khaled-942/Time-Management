@@ -142,16 +142,14 @@ export class FullcalendarComponent {
 
   ngOnInit() {
     this.isLoading = true;
-    const userData = localStorage.getItem('user');
+    const isBrowser = isPlatformBrowser(this.platformId);
+    const userData = isBrowser ? localStorage.getItem('user') : null;
     if (userData) {
       this.userId = JSON.parse(userData).id;
-
       this.httpRequestsService.getUserDays(this.userId).then((res: any) => {
         this.timing = res;
-        // console.log("User Days", this.timing);
         this.isLoading = false;
       }).catch(err => {
-        // console.log("Something went wrong.", err);
         this.isLoading = false;
       })
     }
@@ -320,7 +318,7 @@ export class FullcalendarComponent {
       const timeIn = new Date(this.selectedDate);
 
 
-      if(AfterApril25) {
+      if (AfterApril25) {
         isSaturday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
       } else {
         isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
@@ -357,7 +355,7 @@ export class FullcalendarComponent {
     const AfterApril25 = new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3;
     const timeOut = new Date(this.selectedDate);
     const timeIn = new Date(this.selectedDate);
-    if(AfterApril25) {
+    if (AfterApril25) {
       isSaturday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
     } else {
       isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
@@ -400,7 +398,7 @@ export class FullcalendarComponent {
     const isSaturday = new Date(this.selectedDate).getDay() === 6;
     const AfterApril25 = new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3;
     let standardCheckOutTime: Date;
-    if(AfterApril25) {
+    if (AfterApril25) {
       standardCheckOutTime = isSaturday ? new Date(2024, 0, 1, 13, 30) : new Date(2024, 0, 1, 17, 0); // 5:00 PM
     } else {
       standardCheckOutTime = isTusday ? new Date(2024, 0, 1, 13, 30) : new Date(2024, 0, 1, 17, 0); // 5:00 PM

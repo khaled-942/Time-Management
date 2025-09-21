@@ -1,4 +1,5 @@
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { SalaryService } from '../../services/salary.service';
 import { SalaryConfig, SalaryCalculation } from '../../models/salary.models';
@@ -43,7 +44,10 @@ export class SalaryCalculatorComponent implements OnInit {
 
 
         // Initial calculation
-        this.onPeriodChange();
+        // Only run client-only calculations in the browser (skip during SSR/prerender)
+        if (isPlatformBrowser(this.platformId)) {
+            this.onPeriodChange();
+        }
     }
 
     onConfigSubmit() {
@@ -56,17 +60,18 @@ export class SalaryCalculatorComponent implements OnInit {
 
 
     async onPeriodChange() {
-        console.log(localStorage.getItem('user'));
+        const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+        console.log(isBrowser ? localStorage.getItem('user') : null);
 
         if (this.periodStart && this.periodEnd) {
             try {
-                const user = localStorage.getItem('user');
+                const user = isBrowser ? localStorage.getItem('user') : null;
                 const userId = user ? JSON.parse(user).id : null;
 
                 if (!userId) {
-                    console.error('User not authenticated or user ID not available.');
+                    // No userId in SSR or not logged in — skip calculation gracefully
                     this.calculation = undefined;
-                    throw new Error('User ID not available for salary calculation.');
+                    return; // early return instead of throwing
                 }
 
                 this.calculation = await this.salaryService.calculateSalaryForPeriod(

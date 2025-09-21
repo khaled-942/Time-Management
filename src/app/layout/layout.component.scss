@@ -1,3 +1,6 @@
+// Import shared theme mixins so component styles can use them
+@import '../../styles/_theme';
+
 .layout-container {
   @include themed-component;
   min-height: 100vh;

@@ -38,7 +38,9 @@ export class SideBarComponent {
     this.userService.user$.subscribe((user) => {
       this.user = user; // Update user when the value is emitted
       this.isAdmin = this.user?.isAdmin ? this.user?.isAdmin : false;
-      localStorage.setItem('isAdmin', JSON.stringify(this.isAdmin));
+      if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+        localStorage.setItem('isAdmin', JSON.stringify(this.isAdmin));
+      }
       this.isLoading = false
     });
   }
@@ -55,7 +57,7 @@ export class SideBarComponent {
     { icon: 'pi pi-calendar', label: 'Calendar', route: '/home' },
     { icon: 'pi pi-file', label: 'Admin', route: '/admin' },
     { icon: 'pi pi-flag', label: 'National Days', route: '/nation-days' },
-    { icon: 'pi pi-calculator', label: 'Salary Calculator', route: '/salary/calculator' },
+    // Salary page removed — calculator available on the dashboard
   ];
   logout() {
     this.authService.logout();

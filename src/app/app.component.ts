@@ -29,7 +29,7 @@ export class AppComponent implements OnInit {
     private authService: AuthService,
     private router: Router,
     private userService: UserService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.router.events.subscribe((event: Event) => {
@@ -51,7 +51,8 @@ export class AppComponent implements OnInit {
     });
 
     if (this.isLoggedIn) {
-      const userData = localStorage.getItem('user');
+      const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+      const userData = isBrowser ? localStorage.getItem('user') : null;
       if (userData) {
         let uid: any = JSON.parse(userData).id;
         this.authService.getUserById(uid).then((res: any) => {

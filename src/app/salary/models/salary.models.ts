@@ -25,8 +25,13 @@ export interface AttendanceRecord {
 }
 
 export interface ViolationCount {
+    // 0-15 minutes
     under15Minutes: number;
-    between15And60Minutes: number;
+    // 16-30 minutes
+    between16And30Minutes: number;
+    // 31-60 minutes
+    between31And60Minutes: number;
+    // over 60 minutes
     over60Minutes: number;
 }
 

@@ -84,11 +84,13 @@
                                 <span class="violation-count">{{calculation.violations.under15Minutes}}</span>
                             </div>
                         </div>
-                        <div class="violation-item" [class.warning]="calculation.violations.between15And60Minutes > 0">
+                        <div class="violation-item"
+                            [class.warning]="(calculation.violations.between16And30Minutes + calculation.violations.between31And60Minutes) > 0">
                             <i class="pi pi-exclamation-circle text-orange-500"></i>
                             <div class="violation-content">
-                                <label>Late (15-60 min)</label>
-                                <span class="violation-count">{{calculation.violations.between15And60Minutes}}</span>
+                                <label>Late (16-60 min)</label>
+                                <span class="violation-count">{{calculation.violations.between16And30Minutes +
+                                    calculation.violations.between31And60Minutes}}</span>
                             </div>
                         </div>
                         <div class="violation-item" [class.severe]="calculation.violations.over60Minutes > 0">
