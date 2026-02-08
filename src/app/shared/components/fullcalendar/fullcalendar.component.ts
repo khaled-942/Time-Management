@@ -309,7 +309,8 @@ export class FullcalendarComponent {
     const isFriday = new Date(this.selectedDate).getDay() === 5;
     const isTusday = new Date(this.selectedDate).getDay() === 4;
     const isSaturday = new Date(this.selectedDate).getDay() === 6;
-    const AfterApril25 = new Date(this.selectedDate).getFullYear() >= 2025 && new Date(this.selectedDate).getMonth() >= 3;
+    const AfterApril25 = (new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3) || new Date(this.selectedDate).getFullYear() >= 2025;
+    console.log(AfterApril25);
 
 
     const notNationalDay = this.nationalDays.findIndex((item) => this.compareDates(new Date(this.selectedDate), new Date(item.date)) == 0) == -1;
@@ -354,7 +355,7 @@ export class FullcalendarComponent {
 
     const isTusday = new Date(this.selectedDate).getDay() === 4;
     const isSaturday = new Date(this.selectedDate).getDay() === 6;
-    const AfterApril25 = new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3;
+    const AfterApril25 = (new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3) || new Date(this.selectedDate).getFullYear() >= 2025;
     const timeOut = new Date(this.selectedDate);
     const timeIn = new Date(this.selectedDate);
     if(AfterApril25) {
@@ -398,7 +399,7 @@ export class FullcalendarComponent {
     if (!this.check_Out_time) return;
     const isTusday = new Date(this.selectedDate).getDay() === 4;
     const isSaturday = new Date(this.selectedDate).getDay() === 6;
-    const AfterApril25 = new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3;
+    const AfterApril25 = (new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3) || new Date(this.selectedDate).getFullYear() >= 2025;
     let standardCheckOutTime: Date;
     if(AfterApril25) {
       standardCheckOutTime = isSaturday ? new Date(2024, 0, 1, 13, 30) : new Date(2024, 0, 1, 17, 0); // 5:00 PM
