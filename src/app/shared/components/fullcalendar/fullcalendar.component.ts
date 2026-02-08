@@ -309,7 +309,7 @@ export class FullcalendarComponent {
     const isFriday = new Date(this.selectedDate).getDay() === 5;
     const isTusday = new Date(this.selectedDate).getDay() === 4;
     const isSaturday = new Date(this.selectedDate).getDay() === 6;
-    const AfterApril25 = new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3;
+    const AfterApril25 = new Date(this.selectedDate).getFullYear() >= 2025 && new Date(this.selectedDate).getMonth() >= 3;
 
 
     const notNationalDay = this.nationalDays.findIndex((item) => this.compareDates(new Date(this.selectedDate), new Date(item.date)) == 0) == -1;
