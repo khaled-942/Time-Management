@@ -135,12 +135,32 @@ export class AdminComponent implements OnInit {
     });
   }
 
-  downloadUserData(user: any) {
-    // In a real app, this would fetch user's time tracking data
+  async downloadUserData(user: any) {
+    let days: any[];
+    try {
+      days = await this.httpRequestsService.getUserDays(user.userId);
+    } catch (error) {
+      console.error('Error fetching user days', error);
+      return;
+    }
+    days.sort((a, b) => String(a.start).localeCompare(String(b.start)));
+
+    const time = (value?: string) => (value ? value.split('T')[1] ?? '' : '');
+    const yesNo = (value: any) => (value ? 'Yes' : 'No');
+    const dayOffLabel: Record<number, string> = { 0: 'Paid Day Off', [-1]: 'Absent', 1: 'Task' };
+
     const userData = [
-      ['Date', 'Check In', 'Check Out', 'Days Off'],
-      ['2024-01-15', '09:00', '17:00', 'No'],
-      ['2024-01-16', '09:30', '16:45', 'Yes'],
+      ['Date', 'Check In', 'Check Out', 'Status', 'Late', 'Early Leave', 'Late Excuse', 'Early Leave Excuse'],
+      ...days.map((day) => [
+        day.start,
+        day.isDayOff ? '' : time(day.in),
+        day.isDayOff ? '' : time(day.out),
+        day.isDayOff ? dayOffLabel[day.dayOffType] ?? 'Day Off' : 'Worked',
+        yesNo(day.isLate),
+        yesNo(day.isEarlyLeave),
+        yesNo(day.lateExcuse),
+        yesNo(day.earlyLeaveExcuse),
+      ]),
     ];
 
     // Convert to CSV

@@ -15,6 +15,7 @@ import {
   where,
   WithFieldValue,
 } from '@angular/fire/firestore';
+import { periodContaining } from '../utils/work-schedule';
 
 @Injectable({
   providedIn: 'root',
@@ -77,19 +78,16 @@ export class HttpRequestsService {
     return querySnapshot.docs.map((doc) => doc.data());
   }
 
-  // Get all days for a specific user
+  // Get the days of the 11th → 10th reporting period that contains `date`
   async getUserMonthDays(userId: string, date: Date): Promise<any> {
-    let year = date.getFullYear();
-    let month = date.getMonth();
-    let day = date.getDate();
-    if (day > 10) {
-      month = month + 1;
-    }
-    const startOfMonth = `${month == 0 ? year - 1 : year}-${String(month == 0 ? 12 : month).padStart(2, '0')}-11`;
-    const endOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-10`;
-    // console.log(startOfMonth, endOfMonth);
+    const period = periodContaining(date);
+    return this.getUserDaysBetween(userId, period.startStr, period.endStr);
+  }
+
+  // Get days whose `start` ("YYYY-MM-DD") is within [startStr, endStr], both inclusive
+  async getUserDaysBetween(userId: string, startStr: string, endStr: string): Promise<any> {
     const colRef = collection(this.firestore, `users/${userId}/days`);
-    const daysQuery = query(colRef, orderBy('start'), where('start', '>=', startOfMonth), where('start', '<', endOfMonth));
+    const daysQuery = query(colRef, orderBy('start'), where('start', '>=', startStr), where('start', '<=', endStr));
     const querySnapshot: QuerySnapshot<DocumentData> = await getDocs(daysQuery);
     return querySnapshot.docs.map((doc) => doc.data());
   }

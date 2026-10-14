@@ -1,16 +1,28 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
+import { AuthService } from '../../auth/auth.service';
 
-export const adminGuard: CanActivateFn = (route, state) => {
+export const adminGuard: CanActivateFn = async (route, state) => {
   const router = inject(Router);
-  const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
-  const isAdmin = isBrowser ? localStorage.getItem('isAdmin') : null;
-  // console.log(isAdmin);
-
-  if (isAdmin == 'true') {
-    return true; // Allow access if the user is an admin
+  const authService = inject(AuthService);
+  const isBrowser = typeof window !== 'undefined';
+  if (!isBrowser) {
+    return router.createUrlTree(['/home']);
   }
 
-  router.navigate(['/home']);
-  return false;
+  const user = await authService.currentUser();
+  if (!user) {
+    authService.clearSession();
+    return router.createUrlTree(['/login']);
+  }
+
+  try {
+    if (await authService.isAdmin(user.uid)) {
+      return true; // Allow access if the user is an admin
+    }
+  } catch (error) {
+    console.error('Error checking admin access:', error);
+  }
+
+  return router.createUrlTree(['/home']);
 };

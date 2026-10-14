@@ -70,8 +70,8 @@
             <!-- Contact & Additional Info -->
             <div class="form-section">
               <div class="form-group">
-                <label for="salary" class="form-label">Monthly Salary</label>
-                <p-inputNumber formControlName="salary" placeholder="Your monthly income" [min]="0" mode="currency"
+                <label for="salary" class="form-label">Monthly Salary (set by admin)</label>
+                <p-inputNumber formControlName="salary" [readonly]="true" placeholder="Not set yet" [min]="0" mode="currency"
                   currency="USD" styleClass="w-full">
                 </p-inputNumber>
               </div>

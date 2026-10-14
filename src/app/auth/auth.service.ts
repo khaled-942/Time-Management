@@ -1,6 +1,8 @@
 import { EventEmitter, Inject, Injectable, PLATFORM_ID } from '@angular/core';
 import {
   Auth,
+  authState,
+  User,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
@@ -18,9 +20,11 @@ import {
   where,
   WithFieldValue,
   doc,
+  getDoc,
   updateDoc,
   setDoc,
 } from '@angular/fire/firestore';
+import { firstValueFrom } from 'rxjs';
 import { Router } from '@angular/router';
 import { UserService } from '../shared/services/user.service';
 import { isPlatformBrowser } from '@angular/common';
@@ -76,14 +80,29 @@ export class AuthService {
     return false; // Return false if not in browser context
   }
 
-  // Sign out the current user
-  logout() {
-    console.log('Logging out...');
-    this.userService.clearUser();
+  // Resolves with the Firebase user once Auth has restored its session (null when signed out)
+  currentUser(): Promise<User | null> {
+    return firstValueFrom(authState(this.auth));
+  }
+
+  // Admin status is read from Firestore (users/{uid}.isAdmin), never from localStorage
+  async isAdmin(uid: string): Promise<boolean> {
+    const snapshot = await getDoc(doc(this.firestore, 'users', uid));
+    return snapshot.exists() && snapshot.data()['isAdmin'] === true;
+  }
+
+  clearSession() {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem('user');
       localStorage.removeItem('isAdmin');
     }
+  }
+
+  // Sign out the current user
+  logout() {
+    console.log('Logging out...');
+    this.userService.clearUser();
+    this.clearSession();
     this.loginStatusChanged.emit(false);
     this.router.navigate(['/login']);
     signOut(this.auth);

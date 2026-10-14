@@ -32,6 +32,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { HttpRequestsService } from '../../services/http-requests.service';
 import { UserService } from '../../services/user.service';
 import { LoaderComponent } from "../../loader/loader.component";
+import { isFriday, parseLocalDate, scheduledEnd, toDateString, WORK_START } from '../../utils/work-schedule';
 import { log } from 'node:console';
 
 @Component({
@@ -68,6 +69,8 @@ export class FullcalendarComponent {
   nationalDays: any[] = [];
 
   timing: any[] = [];
+  // Resolves once the user's saved days are in `timing`, so calendar events never render without them
+  private timingLoaded: Promise<void> = Promise.resolve();
 
   // Day Off
   isDayOff: boolean = false;
@@ -116,6 +119,7 @@ export class FullcalendarComponent {
         const nationalDays = await this.getNationalDays();  // Wait for the holidays to load
         // console.log("Holidays", nationalDays);
 
+        await this.timingLoaded;
         const userEvents = this.getUserEvents();
 
         // Combine both the Friday and national days events
@@ -146,12 +150,15 @@ export class FullcalendarComponent {
     const userData = isBrowser ? localStorage.getItem('user') : null;
     if (userData) {
       this.userId = JSON.parse(userData).id;
-      this.httpRequestsService.getUserDays(this.userId).then((res: any) => {
+      this.timingLoaded = this.httpRequestsService.getUserDays(this.userId).then((res: any) => {
         this.timing = res;
-        this.isLoading = false;
       }).catch(err => {
+        console.error('Error loading saved days:', err);
+      }).finally(() => {
         this.isLoading = false;
-      })
+      });
+    } else {
+      this.isLoading = false;
     }
   }
 
@@ -251,10 +258,9 @@ export class FullcalendarComponent {
     let currentDate = new Date(start);
 
     while (currentDate < end) {
-      if (currentDate.getDay() === 6) {
-        // 5 corresponds to Friday
+      if (isFriday(currentDate)) {
         events.push({
-          start: currentDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+          start: toDateString(currentDate), // Local YYYY-MM-DD
           display: 'background',
           backgroundColor: 'lightblue', // Optional: Custom background color
         });
@@ -304,28 +310,13 @@ export class FullcalendarComponent {
     // Store the selected date
     this.selectedDate = selectInfo.startStr;
 
-    const isFriday = new Date(this.selectedDate).getDay() === 5;
-    const isTusday = new Date(this.selectedDate).getDay() === 4;
-    const isSaturday = new Date(this.selectedDate).getDay() === 6;
-    const AfterApril25 = new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3;
+    const selected = parseLocalDate(this.selectedDate);
 
+    const notNationalDay = this.nationalDays.findIndex((item) => this.compareDates(new Date(selected), new Date(item.date)) == 0) == -1;
 
-    const notNationalDay = this.nationalDays.findIndex((item) => this.compareDates(new Date(this.selectedDate), new Date(item.date)) == 0) == -1;
-
-    if (!isFriday && notNationalDay && this.compareDates(new Date(this.selectedDate), new Date()) <= 0) {
+    if (!isFriday(selected) && notNationalDay && this.compareDates(new Date(selected), new Date()) <= 0) {
       // in Day We can click
-      const timeOut = new Date(this.selectedDate);
-      const timeIn = new Date(this.selectedDate);
-
-
-      if (AfterApril25) {
-        isSaturday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
-      } else {
-        isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
-      }
-
-      timeIn.setHours(9, 0, 0, 0);
-
+      const { timeIn, timeOut } = this.scheduledTimes();
 
       let index = this.timing.findIndex((item) => item.start == this.selectedDate);
 
@@ -348,19 +339,18 @@ export class FullcalendarComponent {
     selectInfo.view.calendar.unselect();
   }
 
-  setDefaultDayData() {
+  // Default check-in/out for the selected day (09:00 → 17:00, or 13:30 on the short day)
+  private scheduledTimes(): { timeIn: Date; timeOut: Date } {
+    const timeIn = parseLocalDate(this.selectedDate);
+    const timeOut = parseLocalDate(this.selectedDate);
+    const end = scheduledEnd(timeOut);
+    timeIn.setHours(WORK_START.hours, WORK_START.minutes, 0, 0);
+    timeOut.setHours(end.hours, end.minutes, 0, 0);
+    return { timeIn, timeOut };
+  }
 
-    const isTusday = new Date(this.selectedDate).getDay() === 4;
-    const isSaturday = new Date(this.selectedDate).getDay() === 6;
-    const AfterApril25 = new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3;
-    const timeOut = new Date(this.selectedDate);
-    const timeIn = new Date(this.selectedDate);
-    if (AfterApril25) {
-      isSaturday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
-    } else {
-      isTusday ? timeOut.setHours(13, 30, 0, 0) : timeOut.setHours(17, 0, 0, 0);
-    }
-    timeIn.setHours(9, 0, 0, 0);
+  setDefaultDayData() {
+    const { timeIn, timeOut } = this.scheduledTimes();
     this.check_Out_time = timeOut;
     this.check_In_time = timeIn;
   }
@@ -394,20 +384,10 @@ export class FullcalendarComponent {
   // Validate Check-Out Time
   validateCheckOut() {
     if (!this.check_Out_time) return;
-    const isTusday = new Date(this.selectedDate).getDay() === 4;
-    const isSaturday = new Date(this.selectedDate).getDay() === 6;
-    const AfterApril25 = new Date(this.selectedDate).getFullYear() == 2025 && new Date(this.selectedDate).getMonth() >= 3;
-    let standardCheckOutTime: Date;
-    if (AfterApril25) {
-      standardCheckOutTime = isSaturday ? new Date(2024, 0, 1, 13, 30) : new Date(2024, 0, 1, 17, 0); // 5:00 PM
-    } else {
-      standardCheckOutTime = isTusday ? new Date(2024, 0, 1, 13, 30) : new Date(2024, 0, 1, 17, 0); // 5:00 PM
-    }
+    const { hours: standardHours, minutes: standardMinutes } = scheduledEnd(parseLocalDate(this.selectedDate));
     // Compare check-out time with standard check-out time
     const checkOutHours = this.check_Out_time.getHours();
     const checkOutMinutes = this.check_Out_time.getMinutes();
-    const standardHours = standardCheckOutTime.getHours();
-    const standardMinutes = standardCheckOutTime.getMinutes();
 
     this.isEarlyLeave = (checkOutHours < standardHours) || (checkOutHours === standardHours && checkOutMinutes < standardMinutes);
   }

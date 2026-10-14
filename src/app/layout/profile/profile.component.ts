@@ -94,10 +94,6 @@ export class ProfileComponent implements OnInit {
       this.user = user; // Update user when the value is emittedthis.user.birthDate
       if (this.user != null) {
         console.log(this.user);
-
-        // remove unnecessary values to compare
-        delete this.user['isAdmin'];
-        delete this.user['verified'];
         this.loadAvatars();
         this.isLoading = false;
         this.initializeForm();
@@ -155,7 +151,7 @@ export class ProfileComponent implements OnInit {
       });
     }
 
-    if (this.profileForm.valid && !this.compareObjects(this.profileForm.value, this.user)) this.submitBtn = true;
+    if (this.profileForm.valid && !this.compareObjects(this.profileForm.value, this.editableUser())) this.submitBtn = true;
     this.profileForm.valueChanges.subscribe(value => {
       console.log(value);
 
@@ -164,7 +160,7 @@ export class ProfileComponent implements OnInit {
   }
 
   isSubmitValid(val: any) {
-    if (this.profileForm.valid && (!this.compareObjects(val, this.user) || this.oldAvatar != this.user.currentAvatar)) this.submitBtn = true;
+    if (this.profileForm.valid && (!this.compareObjects(val, this.editableUser()) || this.oldAvatar != this.user.currentAvatar)) this.submitBtn = true;
     else this.submitBtn = false;
   }
 
@@ -179,13 +175,16 @@ export class ProfileComponent implements OnInit {
       formData.salary = isNaN(parsed) ? null : parsed;
     }
 
-    if (this.profileForm.valid && (!this.compareObjects(formData, this.user) || this.oldAvatar != this.user.currentAvatar)) {
+    if (this.profileForm.valid && (!this.compareObjects(formData, this.editableUser()) || this.oldAvatar != this.user.currentAvatar)) {
       console.log('Profile Data that will be change ====> ', formData);
       this.isLoading = true;
-      this.authService.updateUserById(this.user.userId, formData).then(onfulfilled => {
+      // Salary is managed by an admin, so it is never sent from the profile page
+      const { salary, ...updateData } = formData;
+      this.authService.updateUserById(this.user.userId, updateData).then(onfulfilled => {
         console.log(onfulfilled);
         if (onfulfilled.val) {
-          this.userService.setUser(formData);
+          // Keep fields the form doesn't edit (e.g. isAdmin) on the shared user
+          this.userService.setUser({ ...this.user, ...formData });
           this.initializeForm();
           this.submitBtn = false;
           this.isLoading = false;
@@ -205,6 +204,12 @@ export class ProfileComponent implements OnInit {
         }
       })
     }
+  }
+
+  // The user without fields the profile form doesn't edit, for change detection
+  private editableUser(): any {
+    const { isAdmin, verified, ...editable } = this.user ?? {};
+    return editable;
   }
 
   compareObjects(obj1: any, obj2: any): boolean {

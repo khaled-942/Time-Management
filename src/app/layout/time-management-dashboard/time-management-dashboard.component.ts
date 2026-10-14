@@ -14,6 +14,7 @@ import * as moment from 'moment';
 import { LoaderComponent } from "../../shared/loader/loader.component";
 import { SalaryService } from '../../salary/services/salary.service';
 import { RouterModule } from '@angular/router';
+import { latestPeriodForMonth, MONTHS, parseLocalDate, periodContaining, ReportingPeriod, scheduledEnd, workingDayMs } from '../../shared/utils/work-schedule';
 
 interface AttendanceRecord {
   date: Date;
@@ -66,8 +67,10 @@ interface AttendanceViolations {
   styleUrls: ['./time-management-dashboard.component.scss'],
 })
 export class TimeManagementDashboardComponent implements OnInit {
-  Months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  Months = MONTHS;
   selectedMonth: any;
+  // 11th → 10th reporting period currently shown
+  period: ReportingPeriod = periodContaining(new Date());
   // Attendance Records
   attendanceRecords: AttendanceRecord[] = [];
   allRecords: AttendanceRecord[] = [];
@@ -125,8 +128,9 @@ export class TimeManagementDashboardComponent implements OnInit {
     // Only run client-side initialization in the browser (skip during SSR/prerender)
     const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
     if (isBrowser) {
-      day.getDate() > 10 ? this.selectedMonth = this.Months[day.getMonth() + 1] : this.selectedMonth = this.Months[day.getMonth()];
-      await this.getAllData(new Date());
+      this.period = periodContaining(day);
+      this.selectedMonth = this.Months[this.period.monthIndex];
+      await this.getAllData(this.period.end);
       await this.getDaysOff();
       await this.initializeAttendanceChart();
       await this.initializeDaysOffChart();
@@ -145,7 +149,7 @@ export class TimeManagementDashboardComponent implements OnInit {
         .then((res: any) => {
           res.forEach((record: any) => {
             this.allRecords.push({
-              date: new Date(record.start),
+              date: parseLocalDate(record.start),
               checkIn: record.in.split('T')[1],
               checkOut: record.out.split('T')[1],
               status: this.whatTheStatusShouldBe(record),
@@ -197,15 +201,14 @@ export class TimeManagementDashboardComponent implements OnInit {
         record.status == 'Late & Early Excused'
     ).length;
 
-    this.remainingOffDays = 21 - this.totalOffDays;
     this.totalExcuseHours = this.calaulateExcuseHours();
 
     this.remainingExcuseHours = 4 * 60 * 60 * 1000 - this.totalExcuseHours;
 
 
     // Calculate trends by comparing with last month's data
-    const lastMonthDate = new Date(date);
-    lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+    const lastMonthDate = periodContaining(date).start;
+    lastMonthDate.setDate(lastMonthDate.getDate() - 1);
     const lastMonthData = await this.getMonthData(lastMonthDate);
 
     this.statisticCards = [
@@ -267,7 +270,7 @@ export class TimeManagementDashboardComponent implements OnInit {
       } else if (record.dayOffType === 1) {
         return 'Task';
       }
-    } else if (record.lateExcuse && record.earlyExcuse) {
+    } else if (record.lateExcuse && record.earlyLeaveExcuse) {
       return 'Late & Early Excused';
     } else if (record.lateExcuse) {
       return 'Late Excused';
@@ -294,11 +297,11 @@ export class TimeManagementDashboardComponent implements OnInit {
     this.totalOffDays = 0;
     this.totalLatearrival = 0;
     this.totalEarlyLeaves = 0;
-    this.remainingOffDays = 0;
     this.remainingExcuseHours = 0;
     this.totallateExcuse = 0;
     this.totalerlyExcuse = 0;
-    await this.getAllData(new Date(2025, this.Months.findIndex(item => item == this.selectedMonth), 1));
+    this.period = latestPeriodForMonth(this.Months.findIndex(item => item == this.selectedMonth));
+    await this.getAllData(this.period.end);
     await this.initializeAttendanceChart();
     await this.initializeDaysOffChart();
     this.loadSalaryData();
@@ -315,11 +318,9 @@ export class TimeManagementDashboardComponent implements OnInit {
         return;
       }
 
-      // Create proper date objects using the current year and selected month index
-      const monthIndex = this.Months.findIndex(month => month === this.selectedMonth);
-      const currentYear = new Date().getFullYear();
-      const startDate = new Date(currentYear, monthIndex, 1);
-      const endDate = new Date(currentYear, monthIndex + 1, 0);
+      // Salary uses the same 11th → 10th period as the attendance records
+      const startDate = this.period.start;
+      const endDate = this.period.end;
 
       try {
         const calculation = await this.salaryService.calculateSalaryForPeriod(
@@ -349,8 +350,8 @@ export class TimeManagementDashboardComponent implements OnInit {
     }
   }
 
-  calaulateExcuseHours = () => {
-    const totalExcusedays = this.attendanceRecords.filter(
+  calaulateExcuseHours = (records: AttendanceRecord[] = this.attendanceRecords) => {
+    const totalExcusedays = records.filter(
       (record) =>
         record.status == 'Late & Early Excused' ||
         record.status == 'Late Excused' ||
@@ -358,55 +359,15 @@ export class TimeManagementDashboardComponent implements OnInit {
     );
     let totalExcuseHours = 0;
     totalExcusedays.forEach((record) => {
-      const isThrusday = moment.default(record.date).day() === 4;
-      console.log("HERE", isThrusday);
+      // Scheduled day is 09:00 → 17:00, or 09:00 → 13:30 on the short day
+      const workingMs = workingDayMs(record.date);
+      const end = scheduledEnd(record.date);
+      const scheduledOut = `${String(end.hours).padStart(2, '0')}:${String(end.minutes).padStart(2, '0')}`;
 
-      if (record.status == 'Late & Early Excused') {
-        const checkOut = moment.default(record.checkOut, 'hh:mm').toDate();
-        const checkIn = moment.default(record.checkIn, 'hh:mm').toDate();
-        const diff = checkOut.getTime() - checkIn.getTime();
-        if (isThrusday) {
-          const workinHours = 4.5 * 60 * 60 * 1000;
+      const checkIn = moment.default(record.status == 'Early Excused' ? '09:00' : record.checkIn, 'HH:mm').toDate();
+      const checkOut = moment.default(record.status == 'Late Excused' ? scheduledOut : record.checkOut, 'HH:mm').toDate();
 
-          totalExcuseHours += workinHours - diff;
-        } else {
-          const workinHours = 8 * 60 * 60 * 1000;
-
-          totalExcuseHours += workinHours - diff;
-        }
-      } else if (record.status == 'Late Excused') {
-        const checkIn = moment.default(record.checkIn, 'hh:mm').toDate();
-        if (isThrusday) {
-          const checkOut = moment.default('13:30', 'hh:mm').toDate();
-          const diff = checkOut.getTime() - checkIn.getTime();
-          const workinHours = 4.5 * 60 * 60 * 1000;
-
-          totalExcuseHours += workinHours - diff;
-        } else {
-          const checkOut = moment.default('17:00', 'hh:mm').toDate();
-          console.log(checkOut.getTime());
-
-          const diff = checkOut.getTime() - checkIn.getTime();
-          const workinHours = 8 * 60 * 60 * 1000;
-
-          totalExcuseHours += workinHours - diff;
-        }
-      } else if (record.status == 'Early Excused') {
-        const checkOut = moment.default(record.checkOut, 'hh:mm').toDate();
-        const checkIn = moment.default('09:00', 'hh:mm').toDate();
-        const diff = checkOut.getTime() - checkIn.getTime();
-        if (isThrusday) {
-          const workinHours = 4.5 * 60 * 60 * 1000;
-
-          totalExcuseHours += workinHours - diff;
-        } else {
-          const workinHours = 8 * 60 * 60 * 1000;
-
-          totalExcuseHours += workinHours - diff;
-        }
-      }
-
-      console.log(totalExcuseHours);
+      totalExcuseHours += workingMs - (checkOut.getTime() - checkIn.getTime());
     });
     return totalExcuseHours;
   };
@@ -527,26 +488,25 @@ export class TimeManagementDashboardComponent implements OnInit {
     };
   }
 
-  getMonthsLabels(): string[] {
-    let data: string[] = [];
-    let curentDay = new Date();
-    for (let index = 1; index <= 11; index++) {
-      const element: any = this.Months[(Math.abs(curentDay.getMonth() + index) % this.Months.length)]
-      data.push(element);
+  // The last 12 calendar months, oldest first, ending with the current month
+  private lastTwelveMonths(): { month: string; year: number }[] {
+    const today = new Date();
+    const months = [];
+    for (let offset = 11; offset >= 0; offset--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - offset, 1);
+      months.push({ month: this.Months[d.getMonth()], year: d.getFullYear() });
     }
-    data.push(this.Months[curentDay.getMonth()]);
+    return months;
+  }
 
-    return data;
+  getMonthsLabels(): string[] {
+    return this.lastTwelveMonths().map(m => m.month);
   }
 
   getDaysOffNo(): number[] {
-    let data: number[] = [];
-    let months = this.getMonthsLabels();
-    months.forEach(month => {
-      // we need to handle the year of this day off.
-      data.push(this.allDaysOff.filter((item: any) => item.month == month).length)
-    })
-    return data;
+    return this.lastTwelveMonths().map(({ month, year }) =>
+      this.allDaysOff.filter((item: any) => item.month == month && item.year == year).length
+    );
   }
 
 
@@ -555,13 +515,16 @@ export class TimeManagementDashboardComponent implements OnInit {
 
     await this.httpService.getUserDaysOffDays(this.userId).then((res: any) => {
       res.forEach((day: any) => {
-        let d = new Date(day.start);
+        let d = parseLocalDate(day.start);
         this.allDaysOff.push({
           date: d,
           month: this.Months[d.getMonth()],
           year: d.getFullYear()
         });
       });
+      // 21 paid days off per calendar year
+      const currentYear = new Date().getFullYear();
+      this.remainingOffDays = 21 - this.allDaysOff.filter((item: any) => item.year === currentYear).length;
     }).catch((err) => {
       console.log('Something went wrong.', err);
     });
@@ -633,8 +596,8 @@ export class TimeManagementDashboardComponent implements OnInit {
       return await this.httpService
         .getUserMonthDays(userId, date)
         .then((res: any) => {
-          const allRecords = res.map((record: any) => ({
-            date: new Date(record.start),
+          const allRecords: AttendanceRecord[] = res.map((record: any) => ({
+            date: parseLocalDate(record.start),
             checkIn: record.in.split('T')[1],
             checkOut: record.out.split('T')[1],
             status: this.whatTheStatusShouldBe(record),
@@ -658,7 +621,7 @@ export class TimeManagementDashboardComponent implements OnInit {
               record.status == 'Early Excused'
           ).length;
 
-          const totalExcuseHours = this.calaulateExcuseHours();
+          const totalExcuseHours = this.calaulateExcuseHours(allRecords);
           const remainingExcuseHours = 4 * 60 * 60 * 1000 - totalExcuseHours;
 
           return {

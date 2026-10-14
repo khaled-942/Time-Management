@@ -11,6 +11,12 @@ export function app(): express.Express {
   const serverDistFolder = dirname(fileURLToPath(import.meta.url));
   const browserDistFolder = resolve(serverDistFolder, '../browser');
   const indexHtml = join(serverDistFolder, 'index.server.html');
+  const csrIndexHtml = join(browserDistFolder, 'index.csr.html');
+
+  // Only the public pages are server-rendered. Every other page depends on the
+  // signed-in user (stored in the browser), so the server can't render it correctly;
+  // it gets the client-only shell instead of a server-rendered login page.
+  const serverRenderedPaths = ['/login', '/register'];
 
   const commonEngine = new CommonEngine();
 
@@ -19,6 +25,9 @@ export function app(): express.Express {
 
   // Example Express Rest API endpoints
   // server.get('/api/**', (req, res) => { });
+  // "/" redirects to /login or /home depending on the session, so it is never served prerendered
+  server.get('/', (req, res) => res.sendFile(csrIndexHtml));
+
   // Serve static files from /browser
   server.get('**', express.static(browserDistFolder, {
     maxAge: '1y',
@@ -27,7 +36,12 @@ export function app(): express.Express {
 
   // All regular routes use the Angular engine
   server.get('**', (req, res, next) => {
-    const { protocol, originalUrl, baseUrl, headers } = req;
+    const { protocol, originalUrl, baseUrl, headers, path } = req;
+
+    if (!serverRenderedPaths.includes(path)) {
+      res.sendFile(csrIndexHtml);
+      return;
+    }
 
     commonEngine
       .render({

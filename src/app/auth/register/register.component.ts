@@ -67,37 +67,32 @@ export class RegisterComponent {
     this.isLoading = true;
     const { username, email, password } = this.registerForm.value;
     try {
-      await this.authService.register(email, password).then((res: any) => {
-        console.log(res.code);
-        if (res._tokenResponse != undefined) {
-          this.user.userId = res.user.uid;
-          this.user.email = email;
-          this.user.name = username;
-          this.user.currentAvatar = this.avatarService.generateAvatars(
-            this.user.name,
-            true
-          )[0].url;
-          console.log(this.user);
-          this.authService
-            .saveRegisterdUser('users', this.user, this.user.userId)
-            .then((result: any) => {
-              this.router.navigate(['/login']);
-              console.log(result);
-            })
-            .catch((err) => {
-              console.log(err);
-            });
-          console.log('User registered');
-        } else if (res.code == 'auth/email-already-in-use') {
-          console.log('email already exist');
-        } else if (res.code == 'auth/weak-password') {
-          console.log('weak password');
-        } else if (res.code == 'auth/invalid-email') {
-          console.log('invalid email');
-        }
-      });
+      const res: any = await this.authService.register(email, password);
+      if (res._tokenResponse != undefined) {
+        this.user.userId = res.user.uid;
+        this.user.email = email;
+        this.user.name = username;
+        this.user.currentAvatar = this.avatarService.generateAvatars(
+          this.user.name,
+          true
+        )[0].url;
+        await this.authService.saveRegisterdUser('users', this.user, this.user.userId);
+        console.log('User registered');
+        this.router.navigate(['/login']);
+      } else if (res.code == 'auth/email-already-in-use') {
+        this.error = 'This email is already registered';
+      } else if (res.code == 'auth/weak-password') {
+        this.error = 'Password is too weak (at least 6 characters)';
+      } else if (res.code == 'auth/invalid-email') {
+        this.error = 'Invalid email format';
+      } else {
+        this.error = 'Registration failed, please try again';
+      }
     } catch (error) {
       console.error('Registration error:', error);
+      this.error = 'Registration failed, please try again';
+    } finally {
+      this.isLoading = false;
     }
   }
   isFormValid(): boolean {
