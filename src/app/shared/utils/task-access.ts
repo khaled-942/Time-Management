@@ -40,3 +40,14 @@ export function canMoveTask(task: Task, status: TaskStatus, me: UserProfile | nu
 export function canWorkOnTask(task: Task, me: UserProfile | null): boolean {
   return isReviewer(task, me) || (isAssignee(task, me) && task.status !== 'done');
 }
+
+/** Breaking a task into sub-tasks: whoever runs it (PM/admin, its creator or a leader assigned to it). */
+export function canAddSubtask(parent: Task, me: UserProfile | null): boolean {
+  return !parent.parentId && canCreateTasks(me) && (isReviewer(parent, me) || isAssignee(parent, me));
+}
+
+/** Sub-task progress recorded on a parent. */
+export function subtaskProgress(task: Task): { done: number; total: number } {
+  const states = Object.values(task.subtasks ?? {});
+  return { done: states.filter(Boolean).length, total: states.length };
+}

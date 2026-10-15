@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -27,7 +27,14 @@ import {
   UserProfile,
 } from '../../../shared/models';
 import { NewTask } from '../../../shared/services/task.service';
-import { canEditTask, canMoveTask, canWorkOnTask, managesAll } from '../../../shared/utils/task-access';
+import {
+  canAddSubtask,
+  canEditTask,
+  canMoveTask,
+  canWorkOnTask,
+  managesAll,
+  subtaskProgress,
+} from '../../../shared/utils/task-access';
 import { toDateString } from '../../../shared/utils/work-schedule';
 
 export type TaskDialogResult =
@@ -66,6 +73,10 @@ export class TaskDialogComponent implements OnChanges {
   @Input() open = false;
   /** Status for a new task (the column its "+" was pressed in). */
   @Input() initialStatus: TaskStatus = 'todo';
+  /** Parent of a new sub-task. */
+  @Input() parent: Task | null = null;
+  /** Every task the viewer can see, to list sub-tasks and name the parent. */
+  @Input() allTasks: Task[] = [];
   @Input() me: UserProfile | null = null;
   @Input() people: DirectoryEntry[] = [];
   @Input() teams: Team[] = [];
@@ -73,6 +84,8 @@ export class TaskDialogComponent implements OnChanges {
   @Input() saving = false;
   @Output() closed = new EventEmitter<void>();
   @Output() submitted = new EventEmitter<TaskDialogResult>();
+  @Output() openTask = new EventEmitter<string>();
+  @Output() addSubtask = new EventEmitter<Task>();
 
   readonly types = Object.entries(TASK_TYPES).map(([value, meta]) => ({ value: value as TaskType, ...meta }));
   readonly priorities = Object.entries(TASK_PRIORITIES).map(([value, meta]) => ({ value: value as TaskPriority, ...meta }));
@@ -84,19 +97,22 @@ export class TaskDialogComponent implements OnChanges {
   newChecklistItem = '';
   confirmDelete = false;
 
+  constructor(private host: ElementRef<HTMLElement>) { }
+
   ngOnChanges(changes: SimpleChanges) {
     // Reset the form when the dialog opens or switches task, not when `saving` flips
-    if (!this.open || !(changes['open'] || changes['task'])) return;
+    if (!this.open || !(changes['open'] || changes['task'] || changes['parent'])) return;
     const t = this.task;
+    const parent = this.parent;
     this.form = {
       title: t?.title ?? '',
       description: t?.description ?? '',
       type: t?.type ?? 'feature',
       priority: t?.priority ?? 'medium',
       status: t?.status ?? this.initialStatus,
-      projectId: t?.projectId ?? '',
+      projectId: t?.projectId ?? parent?.projectId ?? '',
       assigneeIds: [...(t?.assigneeIds ?? [])],
-      dueDate: t?.dueDate ?? '',
+      dueDate: t?.dueDate ?? parent?.dueDate ?? '',
       estimateHours: t?.estimateHours ?? null,
       links: (t?.links ?? []).map((l) => ({ ...l })),
       checklist: (t?.checklist ?? []).map((c) => ({ ...c })),
@@ -105,6 +121,8 @@ export class TaskDialogComponent implements OnChanges {
     this.newLink = { label: '', url: '' };
     this.newChecklistItem = '';
     this.confirmDelete = false;
+    // Start at the top when opening or jumping between parent and sub-task
+    setTimeout(() => this.host.nativeElement.querySelector('.p-dialog-content')?.scrollTo(0, 0));
   }
 
   /* ---------- Access ---------- */
@@ -163,12 +181,43 @@ export class TaskDialogComponent implements OnChanges {
   }
 
   get header(): string {
-    if (this.isNew) return 'New task';
+    if (this.isNew) return this.parent ? 'New sub-task' : 'New task';
     return this.canEdit ? 'Edit task' : 'Task';
   }
 
   get overdue(): boolean {
     return !!this.form?.dueDate && this.form.status !== 'done' && this.form.dueDate < toDateString(new Date());
+  }
+
+  /* ---------- Sub-tasks ---------- */
+
+  /** The parent of the task being shown (or of the new sub-task). */
+  get parentTask(): Task | null {
+    if (this.parent) return this.parent;
+    const id = this.task?.parentId;
+    return id ? this.allTasks.find((t) => t.id === id) ?? null : null;
+  }
+
+  get subtasks(): Task[] {
+    const id = this.task?.id;
+    return id ? this.allTasks.filter((t) => t.parentId === id).sort((a, b) => a.order - b.order) : [];
+  }
+
+  get progress() {
+    return this.task ? subtaskProgress(this.task) : { done: 0, total: 0 };
+  }
+
+  /** Sub-tasks recorded on the parent that this viewer can't see (other teams'). */
+  get hiddenSubtasks(): number {
+    return Math.max(0, this.progress.total - this.subtasks.length);
+  }
+
+  get canAddSubtask(): boolean {
+    return !!this.task && canAddSubtask(this.task, this.me);
+  }
+
+  statusLabel(status: TaskStatus): string {
+    return TASK_STATUSES.find((s) => s.value === status)?.label ?? status;
   }
 
   /* ---------- Links & checklist ---------- */
@@ -235,7 +284,7 @@ export class TaskDialogComponent implements OnChanges {
           reviewNote: '',
           order: 0, // the board places it at the end of its column
           teamIds: [],
-          parentId: '',
+          parentId: this.parent?.id ?? '',
           createdBy: '',
           createdByName: '',
         },

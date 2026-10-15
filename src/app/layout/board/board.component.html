@@ -85,7 +85,19 @@
             </span>
           </div>
 
+          @if (task.parentId) {
+          <span class="parent-name"><i class="pi pi-sitemap"></i>{{ parentTitle(task) }}</span>
+          }
           <h3 class="card-title-text">{{ task.title }}</h3>
+
+          @if (progress(task); as p) {
+          @if (p.total) {
+          <div class="subtask-progress" [attr.aria-label]="p.done + ' of ' + p.total + ' sub-tasks done'">
+            <div class="progress-bar"><span [style.width.%]="(p.done / p.total) * 100"></span></div>
+            <span class="mono">{{ p.done }}/{{ p.total }}</span>
+          </div>
+          }
+          }
 
           @if (task.status === 'changes' && task.reviewNote) {
           <p class="review-note"><i class="pi pi-comments"></i> {{ task.reviewNote }}</p>
@@ -132,9 +144,10 @@
   }
 </div>
 
-<app-task-dialog [open]="dialogOpen" [task]="dialogTask" [initialStatus]="dialogStatus" [me]="me" [people]="people"
-  [teams]="teams" [projects]="projects" [saving]="saving" (closed)="closeDialog()"
-  (submitted)="onDialogSubmit($event)"></app-task-dialog>
+<app-task-dialog [open]="dialogOpen" [task]="dialogTask" [parent]="dialogParent" [initialStatus]="dialogStatus"
+  [allTasks]="tasks" [me]="me" [people]="people" [teams]="teams" [projects]="projects" [saving]="saving"
+  (closed)="closeDialog()" (submitted)="onDialogSubmit($event)" (openTask)="openTaskById($event)"
+  (addSubtask)="openNewSubtask($event)"></app-task-dialog>
 
 <!-- Note for "Changes requested" -->
 <p-dialog [visible]="!!pendingChanges" (visibleChange)="!$event && (pendingChanges = null)" [modal]="true"

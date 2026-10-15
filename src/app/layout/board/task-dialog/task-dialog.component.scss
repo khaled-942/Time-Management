@@ -294,3 +294,131 @@
 :host ::ng-deep p-button:has(.delete-btn) {
   margin-right: auto;
 }
+
+/* ---------- Parent & sub-tasks ---------- */
+.parent-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-muted);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+
+  span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pi {
+    font-size: 0.8rem;
+    color: var(--muted-foreground);
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--accent);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.subtasks-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--muted);
+  overflow: hidden;
+
+  span {
+    display: block;
+    height: 100%;
+    background: var(--success);
+    border-radius: inherit;
+    transition: width 0.3s ease;
+  }
+}
+
+.subtask-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 400;
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+    color: var(--foreground);
+    font: inherit;
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--accent);
+    }
+  }
+
+  .pi {
+    color: var(--muted-foreground);
+
+    &.done {
+      color: var(--success);
+    }
+  }
+
+  .pill {
+    flex: none;
+    font-size: 0.7rem;
+  }
+}
+
+.subtask-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &.done {
+    color: var(--muted-foreground);
+    text-decoration: line-through;
+  }
+}
+
+.avatars {
+  display: inline-flex;
+
+  img {
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    border: 2px solid var(--card);
+    background: var(--muted);
+    margin-left: -0.35rem;
+  }
+}

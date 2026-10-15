@@ -347,6 +347,45 @@
   }
 }
 
+.parent-name {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: -0.3rem;
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  i {
+    font-size: 0.65rem;
+  }
+}
+
+.subtask-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+}
+
+.progress-bar {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--muted);
+  overflow: hidden;
+
+  span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--success);
+  }
+}
+
 /* ---------- Drag states ---------- */
 .task-card.cdk-drag-preview {
   box-shadow: var(--shadow-lg);

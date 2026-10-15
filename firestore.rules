@@ -75,7 +75,14 @@ service cloud.firestore {
         && (t.estimateHours == null || t.estimateHours is number)
         && t.links is list && t.links.size() <= 10
         && t.checklist is list && t.checklist.size() <= 50
-        && t.reviewNote is string && t.reviewNote.size() <= 1000;
+        && t.reviewNote is string && t.reviewNote.size() <= 1000
+        && (!('subtasks' in t) || t.subtasks is map);
+    }
+
+    // Sub-tasks can be added by whoever runs the parent: PMs/admins, its creator or its assignees
+    function canAddSubtaskTo(parentId) {
+      let parent = get(/databases/$(database)/documents/tasks/$(parentId)).data;
+      return managesAll() || parent.createdBy == request.auth.uid || request.auth.uid in parent.assigneeIds;
     }
 
     function periodLocked(dayId) {
@@ -161,18 +168,20 @@ service cloud.firestore {
       // PMs/admins create for anyone; team leaders only for their own team; members can't create
       allow create: if isActive() && validTask(request.resource.data)
         && request.resource.data.createdBy == request.auth.uid
-        && (managesAll() || (myRole() == 'leader' && myTeam() != '' && request.resource.data.teamIds == [myTeam()]));
+        && (managesAll() || (myRole() == 'leader' && myTeam() != '' && request.resource.data.teamIds == [myTeam()]))
+        && (request.resource.data.parentId == '' || canAddSubtaskTo(request.resource.data.parentId));
 
       allow update: if isActive() && validTask(request.resource.data)
         && request.resource.data.createdBy == resource.data.createdBy
         && (managesAll()
           // The creator (a leader) edits freely but keeps the task in their team
           || (resource.data.createdBy == request.auth.uid && request.resource.data.teamIds == [myTeam()])
-          // Assignees only move unfinished tasks up to Need review and tick the checklist
+          // Assignees only move unfinished tasks up to Need review, tick the checklist and record
+          // their sub-tasks' progress (which can move the parent to Need review)
           || (request.auth.uid in resource.data.assigneeIds
             && resource.data.status != 'done'
             && request.resource.data.status in ['backlog', 'todo', 'in_progress', 'review']
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'order', 'checklist', 'updatedAt'])));
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'order', 'checklist', 'subtasks', 'updatedAt'])));
 
       allow delete: if managesAll() || resource.data.createdBy == request.auth.uid;
     }

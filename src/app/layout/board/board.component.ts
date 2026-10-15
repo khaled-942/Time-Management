@@ -1,5 +1,6 @@
 import { Component, Inject, OnDestroy, OnInit, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CdkDrag, CdkDragDrop, CdkDragPlaceholder, CdkDropList, CdkDropListGroup } from '@angular/cdk/drag-drop';
 import { Subscription } from 'rxjs';
@@ -28,7 +29,7 @@ import {
   Team,
   UserProfile,
 } from '../../shared/models';
-import { canCreateTasks, canMoveTask, canWorkOnTask, managesAll } from '../../shared/utils/task-access';
+import { canCreateTasks, canMoveTask, canWorkOnTask, managesAll, subtaskProgress } from '../../shared/utils/task-access';
 import { toDateString } from '../../shared/utils/work-schedule';
 import { TaskDialogComponent, TaskDialogResult } from './task-dialog/task-dialog.component';
 
@@ -96,6 +97,8 @@ export class BoardComponent implements OnInit, OnDestroy {
   dialogOpen = false;
   dialogTask: Task | null = null;
   dialogStatus: TaskStatus = 'todo';
+  dialogParent: Task | null = null; // set when adding a sub-task
+  private pendingOpenId = ''; // ?task=<id> from a notification, opened once tasks load
 
   // True while a card is being dragged, so the click that ends a drag doesn't open the card
   dragging = false;
@@ -114,11 +117,19 @@ export class BoardComponent implements OnInit, OnDestroy {
     private org: OrgService,
     private userService: UserService,
     private messageService: MessageService,
+    private route: ActivatedRoute,
+    private router: Router,
     @Inject(PLATFORM_ID) private platformId: Object
   ) { }
 
   ngOnInit() {
     if (!isPlatformBrowser(this.platformId)) return;
+
+    // Notifications link to /board?task=<id>
+    this.route.queryParamMap.subscribe((params) => {
+      this.pendingOpenId = params.get('task') ?? '';
+      this.openPending();
+    });
 
     Promise.all([this.directory.getAll(), this.org.getTeams(), this.org.getProjects()])
       .then(([people, teams, projects]) => {
@@ -147,6 +158,7 @@ export class BoardComponent implements OnInit, OnDestroy {
           this.tasks = tasks;
           this.loading = false;
           this.rebuild();
+          this.openPending();
         },
         (error) => {
           console.error('Error loading tasks', error);
@@ -244,6 +256,14 @@ export class BoardComponent implements OnInit, OnDestroy {
     return task.checklist.filter((c) => c.done).length;
   }
 
+  progress(task: Task) {
+    return subtaskProgress(task);
+  }
+
+  parentTitle(task: Task): string {
+    return task.parentId ? this.tasks.find((t) => t.id === task.parentId)?.title ?? 'Parent task' : '';
+  }
+
   canDrag(task: Task): boolean {
     return canWorkOnTask(task, this.me);
   }
@@ -294,12 +314,13 @@ export class BoardComponent implements OnInit, OnDestroy {
       return;
     }
     // Move it on screen straight away; the live listener confirms (or the catch restores it)
+    const before = structuredClone(task);
     const previous = { status: task.status, order: task.order, reviewNote: task.reviewNote };
     Object.assign(task, { status, order }, reviewNote !== undefined ? { reviewNote } : {});
     this.rebuild();
     try {
       // Assignees may not change the review note, so only the reviewer's moves send it
-      await this.taskService.move(task.id!, status, order, reviewNote);
+      await this.taskService.move(before, status, order, reviewNote);
     } catch (error) {
       console.error('Error moving task', error);
       Object.assign(task, previous);
@@ -312,8 +333,32 @@ export class BoardComponent implements OnInit, OnDestroy {
 
   openNew(status: TaskStatus = 'todo') {
     this.dialogTask = null;
+    this.dialogParent = null;
     this.dialogStatus = status;
     this.dialogOpen = true;
+  }
+
+  /** New sub-task under `parent`; the dialog pre-fills project and due date from it. */
+  openNewSubtask(parent: Task) {
+    this.dialogTask = null;
+    this.dialogParent = structuredClone(parent);
+    this.dialogStatus = 'todo';
+    this.dialogOpen = true;
+  }
+
+  openTaskById(id: string) {
+    const task = this.tasks.find((t) => t.id === id);
+    if (task) this.openTask(task);
+  }
+
+  private openPending() {
+    if (!this.pendingOpenId || !this.tasks.length) return;
+    const task = this.tasks.find((t) => t.id === this.pendingOpenId);
+    this.pendingOpenId = '';
+    if (task) this.openTask(task);
+    else this.toast('info', 'Task not found', 'It may have been deleted, or you no longer have access.');
+    // Drop ?task so closing the dialog and refreshing doesn't reopen it
+    this.router.navigate([], { relativeTo: this.route, queryParams: { task: null }, replaceUrl: true });
   }
 
   endDrag() {
@@ -322,6 +367,7 @@ export class BoardComponent implements OnInit, OnDestroy {
 
   openTask(task: Task) {
     if (this.dragging) return;
+    this.dialogParent = null;
     this.dialogTask = structuredClone(task);
     this.dialogOpen = true;
   }
@@ -329,6 +375,7 @@ export class BoardComponent implements OnInit, OnDestroy {
   closeDialog() {
     this.dialogOpen = false;
     this.dialogTask = null;
+    this.dialogParent = null;
   }
 
   /** Teams a task belongs to: the assignees' teams, or a leader's own team. */
@@ -355,15 +402,21 @@ export class BoardComponent implements OnInit, OnDestroy {
         });
         this.toast('success', 'Task created', result.task.title);
       } else if (result.kind === 'update') {
-        const original = this.tasks.find((t) => t.id === result.id);
+        const original = this.tasks.find((t) => t.id === result.id)!;
         const changes = { ...result.changes };
         if (changes.assigneeIds) changes.teamIds = this.teamIdsFor(changes.assigneeIds);
-        if (changes.status && changes.status !== original?.status) changes.order = this.endOrder(changes.status);
-        await this.taskService.update(result.id, changes);
-        this.toast('success', 'Task saved', original?.title ?? '');
+        if (changes.status && changes.status !== original.status) changes.order = this.endOrder(changes.status);
+        await this.taskService.update(original, changes);
+        this.toast('success', 'Task saved', original.title);
       } else {
-        await this.taskService.remove(result.id);
-        this.toast('success', 'Task deleted', '');
+        const task = this.tasks.find((t) => t.id === result.id)!;
+        // Sub-tasks would be left pointing at nothing (and some may belong to other teams)
+        if (this.progress(task).total) {
+          this.toast('warn', 'This task has sub-tasks', 'Delete or finish its sub-tasks first.');
+          return;
+        }
+        await this.taskService.remove(task);
+        this.toast('success', 'Task deleted', task.title);
       }
       this.closeDialog();
     } catch (error) {

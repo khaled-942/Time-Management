@@ -160,6 +160,11 @@ export interface Task {
   links: TaskLink[];
   checklist: ChecklistItem[];
   reviewNote: string; // set by the reviewer when requesting changes
+  /**
+   * On a parent: one entry per sub-task, true once it's Done. Lets everyone see progress even
+   * when they can't see every sub-task (sub-tasks of other teams). Kept by TaskService.
+   */
+  subtasks?: Record<string, boolean>;
   createdAt?: any;
   updatedAt?: any;
 }

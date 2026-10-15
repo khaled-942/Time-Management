@@ -3,6 +3,17 @@
   [dismissableMask]="!canEdit">
   @if (open && form) {
   <div class="task-form">
+    <!-- Part of a bigger task -->
+    @if (parentTask; as p) {
+    <button type="button" class="parent-link" [disabled]="isNew" (click)="openTask.emit(p.id!)">
+      <i class="pi pi-sitemap"></i>
+      <span>Part of <strong>{{ p.title }}</strong></span>
+      @if (!isNew) { <i class="pi pi-arrow-right"></i> }
+    </button>
+    } @else if (task?.parentId) {
+    <p class="muted small"><i class="pi pi-sitemap"></i> Part of a task you can&rsquo;t see.</p>
+    }
+
     <!-- Review note from the reviewer -->
     @if (task?.reviewNote && !(canEdit && form.status === 'changes')) {
     <div class="callout warning">
@@ -154,6 +165,51 @@
     </label>
     }
 
+    <!-- Sub-tasks (parents only) -->
+    @if (task && !task.parentId && (progress.total || canAddSubtask)) {
+    <div class="field">
+      <span class="subtasks-head">
+        Sub-tasks
+        @if (progress.total) {
+        <small class="muted mono">{{ progress.done }} of {{ progress.total }} done</small>
+        }
+      </span>
+      @if (progress.total) {
+      <div class="progress" role="progressbar" [attr.aria-valuenow]="progress.done" aria-valuemin="0"
+        [attr.aria-valuemax]="progress.total">
+        <span [style.width.%]="(progress.done / progress.total) * 100"></span>
+      </div>
+      }
+      @if (subtasks.length) {
+      <ul class="subtask-list">
+        @for (sub of subtasks; track sub.id) {
+        <li>
+          <button type="button" (click)="openTask.emit(sub.id!)">
+            <i class="pi" [ngClass]="sub.status === 'done' ? 'pi-check-circle done' : 'pi-circle'"></i>
+            <span class="subtask-title" [class.done]="sub.status === 'done'">{{ sub.title }}</span>
+            <span class="avatars">
+              @for (id of sub.assigneeIds.slice(0, 2); track id) {
+              <img [src]="person(id)?.avatar" [alt]="person(id)?.name" />
+              }
+            </span>
+            <span class="pill" [class.success]="sub.status === 'done'" [class.danger]="sub.status === 'changes'"
+              [class.warning]="sub.status === 'review'">{{ statusLabel(sub.status) }}</span>
+          </button>
+        </li>
+        }
+      </ul>
+      }
+      @if (hiddenSubtasks) {
+      <small class="muted">+ {{ hiddenSubtasks }} sub-task{{ hiddenSubtasks === 1 ? '' : 's' }} in other teams</small>
+      }
+      @if (canAddSubtask) {
+      <p-button label="Add sub-task" icon="pi pi-plus" styleClass="p-button-outlined p-button-sm"
+        (onClick)="addSubtask.emit(task)" />
+      <small class="muted">When every sub-task is done, this task moves to Need review by itself.</small>
+      }
+    </div>
+    }
+
     <!-- Links (both modes) -->
     @if (canEdit || form.links.length) {
     <div class="field">
@@ -224,7 +280,8 @@
   <ng-template pTemplate="footer">
     @if (!isNew && canEdit) {
     <p-button [label]="confirmDelete ? 'Really delete?' : ''" icon="pi pi-trash" styleClass="p-button-danger p-button-text delete-btn"
-      ariaLabel="Delete task" [disabled]="saving" (onClick)="remove()" />
+      ariaLabel="Delete task" [disabled]="saving || progress.total > 0"
+      [pTooltip]="progress.total ? 'Delete its sub-tasks first' : ''" tooltipPosition="top" (onClick)="remove()" />
     }
     <p-button [label]="canWork ? 'Cancel' : 'Close'" styleClass="p-button-outlined" (onClick)="closed.emit()" />
     @if (canWork) {
