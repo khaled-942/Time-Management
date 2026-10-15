@@ -13,6 +13,8 @@ import { SideBarComponent } from './layout/side-bar/side-bar.component';
 import { AuthService } from './auth/auth.service';
 import { UserService } from './shared/services/user.service';
 import { DirectoryService } from './shared/services/directory.service';
+import { PushService } from './shared/services/push.service';
+import { distinctUntilChanged, filter, map } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -30,7 +32,8 @@ export class AppComponent implements OnInit {
     private authService: AuthService,
     private router: Router,
     private userService: UserService,
-    private directory: DirectoryService
+    private directory: DirectoryService,
+    private push: PushService
   ) { }
 
   ngOnInit() {
@@ -52,7 +55,17 @@ export class AppComponent implements OnInit {
       this.isLoggedIn = status;
     });
 
-    if (typeof window !== 'undefined') this.directory.start();
+    if (typeof window !== 'undefined') {
+      this.directory.start();
+      // Once per signed-in person: check push support and refresh this device's token
+      this.userService.user$
+        .pipe(
+          map((user) => user?.userId ?? ''),
+          filter(Boolean),
+          distinctUntilChanged()
+        )
+        .subscribe(() => this.push.init());
+    }
 
     if (this.isLoggedIn) {
       const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';

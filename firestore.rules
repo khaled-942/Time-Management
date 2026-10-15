@@ -116,6 +116,11 @@ service cloud.firestore {
           && request.resource.data.salary >= 0;
       }
 
+      // This person's devices for push notifications; read by the sendPush Cloud Function (admin SDK)
+      match /pushTokens/{token} {
+        allow read, write: if signedIn() && userId == request.auth.uid;
+      }
+
       // Private task log: only the owner, never admins, PMs or leaders
       match /timeEntries/{entryId} {
         allow read, delete: if signedIn() && userId == request.auth.uid;

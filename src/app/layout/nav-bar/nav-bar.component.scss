@@ -114,6 +114,50 @@
     padding: 0;
   }
 
+  .push-offer {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--info-bg);
+    font-size: 0.8rem;
+
+    > i {
+      color: var(--info);
+    }
+
+    span {
+      flex: 1;
+    }
+
+    &.muted-offer {
+      background: var(--card-muted);
+      color: var(--muted-foreground);
+
+      > i {
+        color: inherit;
+      }
+    }
+  }
+
+  .push-btn {
+    flex: none;
+    padding: 0.3rem 0.7rem;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.6;
+    }
+  }
+
   .notifications-header {
     display: flex;
     justify-content: space-between;

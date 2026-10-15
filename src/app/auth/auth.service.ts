@@ -27,6 +27,7 @@ import {
 import { firstValueFrom } from 'rxjs';
 import { Router } from '@angular/router';
 import { UserService } from '../shared/services/user.service';
+import { PushService } from '../shared/services/push.service';
 import { isPlatformBrowser } from '@angular/common';
 
 @Injectable({
@@ -39,6 +40,7 @@ export class AuthService {
     private firestore: Firestore,
     private router: Router,
     private userService: UserService,
+    private push: PushService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) { }
 
@@ -105,7 +107,8 @@ export class AuthService {
     this.clearSession();
     this.loginStatusChanged.emit(false);
     this.router.navigate(['/login']);
-    signOut(this.auth);
+    // Unregister this device first (it needs the session), so the next person here doesn't get pushes
+    this.push.disable().finally(() => signOut(this.auth));
   }
 
   async saveRegisterdUser<T extends object>(collectionName: string, data: WithFieldValue<T>, userId: string): Promise<DocumentReference<DocumentData, DocumentData> | void> {

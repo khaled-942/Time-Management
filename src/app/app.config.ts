@@ -22,8 +22,9 @@ export const appConfig: ApplicationConfig = {
     provideAnimations(),
     provideHttpClient(),
     importProvidersFrom(FullCalendarModule),
-    // Installable app (PWA): caches the app shell so it opens instantly and works offline
-    provideServiceWorker('ngsw-worker.js', {
+    // Installable app (PWA): caches the app shell so it opens instantly and works offline.
+    // sw.js wraps Angular's ngsw-worker.js and adds OS push notifications.
+    provideServiceWorker('sw.js', {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000',
     }),

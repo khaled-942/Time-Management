@@ -39,6 +39,20 @@
       }
     </div>
 
+    <!-- Offer OS notifications on this device -->
+    @if (pushState === 'off') {
+    <div class="push-offer">
+      <i class="pi pi-mobile"></i>
+      <span>Get these on this device even when Time I/O is closed.</span>
+      <button type="button" class="push-btn" [disabled]="pushBusy" (click)="enablePush()">Turn on</button>
+    </div>
+    } @else if (pushState === 'blocked') {
+    <div class="push-offer muted-offer">
+      <i class="pi pi-bell-slash"></i>
+      <span>Notifications are blocked for this site. Allow them in your browser's site settings to get them here.</span>
+    </div>
+    }
+
     <div class="notifications-list">
       @if (checkoutReminder) {
       <button type="button" class="notification unread" (click)="goToDashboard(panel)">
@@ -63,7 +77,7 @@
       <div class="empty-state">
         <i class="pi pi-bell"></i>
         <strong>You're all caught up</strong>
-        <span>Payslip notices will show up here.</span>
+        <span>Task updates and payslip notices will show up here.</span>
       </div>
       }
     </div>

@@ -7,6 +7,7 @@ import { filter, Subscription } from 'rxjs';
 import { UserService } from '../../shared/services/user.service';
 import { ThemeService } from '../../shared/services/theme.service';
 import { NotificationService } from '../../shared/services/notification.service';
+import { PushService, PushState } from '../../shared/services/push.service';
 import { HttpRequestsService } from '../../shared/services/http-requests.service';
 import { AppNotification } from '../../shared/models';
 import { parseLocalDate, scheduledEnd, toDateString } from '../../shared/utils/work-schedule';
@@ -39,6 +40,8 @@ export class NavBarComponent implements OnInit, OnDestroy {
   notifications: AppNotification[] = [];
   /** Not stored: shown while today is checked in but not checked out after the scheduled end. */
   checkoutReminder = false;
+  pushState: PushState = 'unavailable';
+  pushBusy = false;
   private subscriptions = new Subscription();
   private startedFor = '';
 
@@ -47,11 +50,13 @@ export class NavBarComponent implements OnInit, OnDestroy {
     private userService: UserService,
     public theme: ThemeService,
     public notificationService: NotificationService,
-    private http: HttpRequestsService
+    private http: HttpRequestsService,
+    private push: PushService
   ) { }
 
   ngOnInit(): void {
     this.updateTitle(this.router.url);
+    this.subscriptions.add(this.push.state$.subscribe((state) => (this.pushState = state)));
     this.subscriptions.add(
       this.router.events
         .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
@@ -74,6 +79,17 @@ export class NavBarComponent implements OnInit, OnDestroy {
     );
 
     this.subscriptions.add(this.notificationService.notifications$.subscribe((list) => (this.notifications = list)));
+  }
+
+  async enablePush() {
+    this.pushBusy = true;
+    try {
+      await this.push.enable();
+    } catch (error) {
+      console.error('Could not turn on push notifications:', error);
+    } finally {
+      this.pushBusy = false;
+    }
   }
 
   ngOnDestroy(): void {

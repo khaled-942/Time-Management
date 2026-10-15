@@ -93,6 +93,30 @@
       </form>
     </section>
 
+    <!-- OS notifications on this device -->
+    <section class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="pi pi-bell"></i> Notifications on this device</span>
+      </div>
+      @switch (pushState) {
+      @case ('on') {
+      <p class="push-text">On. Task updates and payslip notices reach this device even when Time I/O is closed.</p>
+      <button pButton type="button" label="Turn off" icon="pi pi-bell-slash" class="p-button-outlined"
+        [loading]="pushBusy" (click)="togglePush()"></button>
+      }
+      @case ('off') {
+      <p class="push-text">Get task updates and payslip notices as phone/desktop notifications, even when Time I/O is closed.</p>
+      <button pButton type="button" label="Turn on" icon="pi pi-bell" [loading]="pushBusy" (click)="togglePush()"></button>
+      }
+      @case ('blocked') {
+      <p class="push-text muted">Notifications are blocked for this site. Allow them in your browser's site settings, then reload.</p>
+      }
+      @default {
+      <p class="push-text muted">This browser can't show notifications from Time I/O. On iPhone, add it to your Home Screen first, then open it from there.</p>
+      }
+      }
+    </section>
+
     <!-- Salary (private: only you can see it) -->
     <section class="card salary-section">
       <div class="card-header">

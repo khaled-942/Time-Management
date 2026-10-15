@@ -24,6 +24,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { LoaderComponent } from "../../shared/loader/loader.component";
 import { AuthService } from '../../auth/auth.service';
 import { HttpRequestsService } from '../../shared/services/http-requests.service';
+import { PushService, PushState } from '../../shared/services/push.service';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 
@@ -71,6 +72,8 @@ export class ProfileComponent implements OnInit {
   savedSalary: number | null = null;
   salaryLoaded = false;
   salarySaving = false;
+  pushState: PushState = 'unavailable';
+  pushBusy = false;
   genderOptions = [
     { label: 'Male', value: 'male' },
     { label: 'Female', value: 'female' },
@@ -82,6 +85,7 @@ export class ProfileComponent implements OnInit {
     private messageService: MessageService,
     private userService: UserService,
     private httpRequestsService: HttpRequestsService,
+    private push: PushService,
     private fb: FormBuilder
   ) {
     this.profileForm = this.fb.group({
@@ -97,6 +101,7 @@ export class ProfileComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.push.state$.subscribe((state) => (this.pushState = state));
     this.isLoading = true;
     this.userService.user$.subscribe((user) => {
       this.user = user; // Update user when the value is emittedthis.user.birthDate
@@ -202,6 +207,24 @@ export class ProfileComponent implements OnInit {
   private editableUser(): any {
     const { isAdmin, verified, salary, active, ...editable } = this.user ?? {};
     return editable;
+  }
+
+  async togglePush() {
+    this.pushBusy = true;
+    try {
+      if (this.pushState === 'on') {
+        await this.push.disable();
+        this.messageService.add({ severity: 'success', summary: 'Notifications off', detail: 'This device won’t get them any more.' });
+      } else {
+        const state = await this.push.enable();
+        if (state === 'on') this.messageService.add({ severity: 'success', summary: 'Notifications on', detail: 'You’ll get them on this device.' });
+      }
+    } catch (error) {
+      console.error('Error changing notifications:', error);
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Could not change notifications. Please try again.' });
+    } finally {
+      this.pushBusy = false;
+    }
   }
 
   private async loadSalary() {

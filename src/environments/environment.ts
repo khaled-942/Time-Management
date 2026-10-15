@@ -9,4 +9,7 @@ export const environment = {
     appId: '1:63976208649:web:682c6132672869775dfbd8',
     measurementId: 'G-0J65MDFDVR',
   },
+  // Public "Web Push certificate" key: Firebase console → Project settings → Cloud Messaging →
+  // Web configuration → Generate key pair. Push notifications stay off while it's empty.
+  vapidKey: '',
 };
