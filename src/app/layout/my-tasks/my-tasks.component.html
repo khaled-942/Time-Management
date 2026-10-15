@@ -87,6 +87,9 @@
                 } @else {
                 <span class="muted">No project</span>
                 }
+                @if (reportDetails(entry); as details) {
+                <span class="muted">{{ details }}</span>
+                }
                 @if (entry.note) {
                 <span class="entry-note muted">{{ entry.note }}</span>
                 }
@@ -138,12 +141,13 @@
   @if (form) {
   <div class="form-stack">
     <label class="field">
-      <span>What are you working on?</span>
-      <input pInputText [(ngModel)]="form.title" placeholder="e.g. Login page API integration" maxlength="200" />
+      <span>What are you working on? <small class="muted">(sub-project in the report)</small></span>
+      <input pInputText [(ngModel)]="form.title" placeholder="e.g. YE4 CB Unit 6 Alpha" maxlength="200" />
     </label>
     <label class="field">
       <span>Project</span>
-      <p-dropdown [options]="projectOptions" [(ngModel)]="form.projectId" optionLabel="label" optionValue="value"
+      <p-dropdown [options]="projectOptions" [(ngModel)]="form.projectId" (ngModelChange)="onProjectChange($event)"
+        optionLabel="label" optionValue="value"
         [filter]="projectOptions.length > 8" filterBy="label" styleClass="w-full" appendTo="body">
         <ng-template let-option pTemplate="item">
           <span class="project-tag" [style.--project-color]="option.color || null"><i></i>{{ option.label }}</span>
@@ -151,7 +155,28 @@
       </p-dropdown>
     </label>
 
+    <div class="report-row">
+      <label class="field">
+        <span>Country <small class="muted">(optional)</small></span>
+        <input pInputText [(ngModel)]="form.country" list="entry-countries" maxlength="100" placeholder="e.g. Oman" />
+      </label>
+      <label class="field">
+        <span>Kind of work <small class="muted">(optional)</small></span>
+        <input pInputText [(ngModel)]="form.kind" list="entry-kinds" maxlength="100" placeholder="e.g. creation" />
+      </label>
+    </div>
+    <datalist id="entry-countries">
+      @for (c of countries; track c) { <option [value]="c"></option> }
+    </datalist>
+    <datalist id="entry-kinds">
+      @for (k of kinds; track k) { <option [value]="k"></option> }
+    </datalist>
+
     @if (!startingTimer) {
+    <label class="field">
+      <span>Page numbers <small class="muted">(optional, one per line)</small></span>
+      <textarea pInputTextarea [(ngModel)]="form.pages" rows="2" maxlength="1000" placeholder="p71_3&#10;p72_1"></textarea>
+    </label>
     <div class="time-row">
       <label class="field">
         <span>Date</span>

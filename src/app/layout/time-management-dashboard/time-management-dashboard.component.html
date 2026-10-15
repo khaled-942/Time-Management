@@ -29,6 +29,13 @@
   </div>
   }
 
+  @if (reportReminder) {
+  <div class="callout warning">
+    <i class="pi pi-file-word"></i>
+    <span>{{ reportReminder }} Export it from the <a href="#production-report">Work log</a> below.</span>
+  </div>
+  }
+
   <!-- Today + stats -->
   <div class="top-grid">
     <section class="card today-card" aria-label="Today">
@@ -112,6 +119,151 @@
       </div>
       }
     </div>
+  </div>
+
+  <!-- Work log (production report) + board -->
+  <div class="grid-2">
+    <section class="card report-card" id="production-report" aria-label="Work log and production report">
+      <div class="card-header">
+        <span class="card-title"><i class="pi pi-file-word"></i> Work log</span>
+        <div class="report-controls">
+          <p-dropdown [options]="reportMonthOptions" [(ngModel)]="selectedReportMonth" (onChange)="loadReport()"
+            optionLabel="label" optionValue="value" ariaLabel="Report month" appendTo="body"></p-dropdown>
+          <p-button icon="pi pi-cog" styleClass="p-button-text" ariaLabel="Report details"
+            pTooltip="Report details" tooltipPosition="bottom" (onClick)="openReportSettings()" />
+        </div>
+      </div>
+
+      @if (reportLoading && !report) {
+      <p class="muted">Loading…</p>
+      } @else if (reportError) {
+      <div class="empty-state">
+        <i class="pi pi-exclamation-circle"></i>
+        <strong>Couldn't load your work log</strong>
+        <span>Please refresh the page.</span>
+      </div>
+      } @else if (report) {
+      <div class="report-summary">
+        <div>
+          <span class="eyebrow">Hours logged</span>
+          <span class="report-figure mono">{{ formatHours(report.totalHours) }}<small>h</small></span>
+        </div>
+        <div>
+          <span class="eyebrow">Tasks</span>
+          <span class="report-figure mono">{{ report.entryCount }}</span>
+        </div>
+        <div>
+          <span class="eyebrow">Report due</span>
+          <span class="report-figure mono">{{ report.dueDate | date: 'MMM d' }}</span>
+        </div>
+      </div>
+
+      @if (report.byProject.length) {
+      <div class="breakdown">
+        @for (item of report.byProject; track item.name) {
+        <div class="breakdown-row project-row" [style.--project-color]="item.color || null">
+          <span class="breakdown-label">{{ item.name }}</span>
+          <div class="breakdown-bar"><span [style.width.%]="(item.hours / reportMaxHours) * 100"></span></div>
+          <span class="mono">{{ formatHours(item.hours) }}h</span>
+        </div>
+        }
+      </div>
+      } @else {
+      <div class="empty-state">
+        <i class="pi pi-check-square"></i>
+        <strong>Nothing logged in {{ report.monthLabel }}</strong>
+        <span>Log what you work on in <a routerLink="/my-tasks">My tasks</a>; it becomes this report.</span>
+      </div>
+      }
+
+      @if (report.unloggedDays.length) {
+      <p class="muted report-note">
+        <i class="pi pi-info-circle"></i>
+        {{ report.unloggedDays.length }} worked day{{ report.unloggedDays.length === 1 ? ' has' : 's have' }} nothing
+        logged ({{ report.unloggedDays.slice(0, 3).join(', ') }}{{ report.unloggedDays.length > 3 ? '…' : '' }}).
+      </p>
+      }
+      @if (report.runningCount) {
+      <p class="muted report-note">
+        <i class="pi pi-play"></i> A running timer isn't included until you stop it.
+      </p>
+      }
+
+      <div class="report-actions">
+        <p-button label="Word report" icon="pi pi-file-word" [loading]="exporting === 'word'"
+          [disabled]="!!exporting" (onClick)="exportReport('word')" />
+        <p-button label="Excel sheet" icon="pi pi-file-excel" styleClass="p-button-outlined"
+          [loading]="exporting === 'excel'" [disabled]="!!exporting" (onClick)="exportReport('excel')" />
+        <a routerLink="/my-tasks" class="card-link">My tasks <i class="pi pi-arrow-right"></i></a>
+      </div>
+      }
+    </section>
+
+    <section class="card board-card" aria-label="My board">
+      <div class="card-header">
+        <span class="card-title"><i class="pi pi-objects-column"></i> My board</span>
+        <a routerLink="/board" class="card-link">Open board <i class="pi pi-arrow-right"></i></a>
+      </div>
+
+      @if (!boardLoaded) {
+      <p class="muted">Loading…</p>
+      } @else if (boardError) {
+      <div class="empty-state">
+        <i class="pi pi-exclamation-circle"></i>
+        <strong>Couldn't load your tasks</strong>
+        <span>Please refresh the page.</span>
+      </div>
+      } @else {
+      @if (myTaskCounts.length) {
+      <div class="status-chips">
+        @for (item of myTaskCounts; track item.status) {
+        <span class="pill">{{ item.label }} <strong class="mono">{{ item.count }}</strong></span>
+        }
+      </div>
+      }
+
+      @if (reviewTasks.length) {
+      <span class="eyebrow">Waiting for your review</span>
+      <ul class="task-list">
+        @for (task of reviewTasks.slice(0, 3); track task.id) {
+        <li>
+          <a routerLink="/board" [queryParams]="{ task: task.id }" class="task-row">
+            <i class="pi pi-eye"></i>
+            <span class="task-title">{{ task.title }}</span>
+            <span class="pill info">Review</span>
+          </a>
+        </li>
+        }
+      </ul>
+      }
+
+      @if (myTasks.length) {
+      <span class="eyebrow">Assigned to you</span>
+      <ul class="task-list">
+        @for (task of myTasks.slice(0, 5); track task.id) {
+        <li>
+          <a routerLink="/board" [queryParams]="{ task: task.id }" class="task-row">
+            <i [class]="priorities[task.priority].icon" [pTooltip]="priorities[task.priority].label + ' priority'"></i>
+            <span class="task-title">{{ task.title }}</span>
+            @if (task.dueDate) {
+            <span class="mono task-due" [class.overdue]="isOverdue(task)">{{ task.dueDate | date: 'MMM d' }}</span>
+            }
+          </a>
+        </li>
+        }
+      </ul>
+      @if (myTasks.length > 5) {
+      <p class="muted report-note">and {{ myTasks.length - 5 }} more on the board.</p>
+      }
+      } @else if (!reviewTasks.length) {
+      <div class="empty-state">
+        <i class="pi pi-check-circle"></i>
+        <strong>No open tasks</strong>
+        <span>Tasks assigned to you on the board show up here.</span>
+      </div>
+      }
+      }
+    </section>
   </div>
 
   <!-- Hours chart + salary -->
@@ -286,3 +438,31 @@
     </div>
   </div>
 </div>
+
+<!-- Production report details -->
+<p-dialog [visible]="!!settingsForm" (visibleChange)="!$event && (settingsForm = null)" [modal]="true"
+  [draggable]="false" header="Report details" [style]="{ width: '28rem' }" [breakpoints]="{ '640px': '94vw' }">
+  @if (settingsForm) {
+  <div class="form-stack">
+    <p class="muted">Printed on your Word and Excel reports. Saved on this device.</p>
+    <label class="field">
+      <span>Organization</span>
+      <input pInputText [(ngModel)]="settingsForm.organization" maxlength="120"
+        placeholder="e.g. Educational Research Center" />
+    </label>
+    <label class="field">
+      <span>Department</span>
+      <input pInputText [(ngModel)]="settingsForm.department" maxlength="80" placeholder="e.g. Multimedia" />
+    </label>
+    <label class="field">
+      <span>Main assignment <small class="muted">(optional)</small></span>
+      <input pInputText [(ngModel)]="settingsForm.mainAssignment" maxlength="80" placeholder="e.g. Oman" />
+      <small class="muted">Shown as a band under every working day, like the old reports.</small>
+    </label>
+  </div>
+  }
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" styleClass="p-button-outlined" (onClick)="settingsForm = null" />
+    <p-button label="Save" icon="pi pi-check" (onClick)="saveReportSettings()" />
+  </ng-template>
+</p-dialog>

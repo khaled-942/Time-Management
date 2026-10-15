@@ -6,6 +6,8 @@ import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
+import { DialogModule } from 'primeng/dialog';
+import { InputTextModule } from 'primeng/inputtext';
 import { MessageService } from 'primeng/api';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -20,7 +22,19 @@ import { UserService } from '../../shared/services/user.service';
 import { ThemeService } from '../../shared/services/theme.service';
 import { PayrollService } from '../../shared/services/payroll.service';
 import { ANNUAL_LEAVE_DAYS } from '../../shared/services/leave.service';
-import { DayOffType, DayRecord } from '../../shared/models';
+import { DayOffType, DayRecord, Task, TASK_PRIORITIES, TASK_STATUSES, TaskStatus, UserProfile } from '../../shared/models';
+import { TaskService, taskLink } from '../../shared/services/task.service';
+import {
+  formatHours,
+  ProductionReport,
+  ProductionReportService,
+  reportDueDate,
+  reportMonthFromKey,
+  reportMonthKey,
+  reportMonthLabel,
+  reportMonthOf,
+  ReportSettings,
+} from '../../shared/services/production-report.service';
 import {
   isFriday,
   MONTHS,
@@ -84,6 +98,8 @@ type TodayState = 'loading' | 'off' | 'holiday' | 'not-in' | 'in' | 'done' | 'da
     ToastModule,
     TooltipModule,
     FormsModule,
+    DialogModule,
+    InputTextModule,
     LoaderComponent,
     RouterModule
   ],
@@ -132,8 +148,32 @@ export class TimeManagementDashboardComponent implements OnInit, OnDestroy {
   private holidays: string[] = [];
   private subscriptions = new Subscription();
 
+  // Production report (calendar month, from My Tasks)
+  reportMonthOptions = Array.from({ length: 12 }, (_, i) => {
+    const month = reportMonthOf(new Date(new Date().getFullYear(), new Date().getMonth() - i, 1));
+    return { label: reportMonthLabel(month), value: reportMonthKey(month) };
+  });
+  selectedReportMonth = this.reportMonthOptions[0].value;
+  report?: ProductionReport;
+  reportLoading = false;
+  reportError = false;
+  exporting: 'word' | 'excel' | null = null;
+  settingsForm: ReportSettings | null = null;
+
+  // Board: open tasks assigned to me, and tasks waiting for my review
+  myTasks: Task[] = [];
+  reviewTasks: Task[] = [];
+  myTaskCounts: { status: TaskStatus; label: string; count: number }[] = [];
+  boardLoaded = false;
+  boardError = false;
+  private stopWatchingTasks?: () => void;
+  private user: UserProfile | null = null;
+
   readonly formatMoney = formatMoney;
   readonly formatDays = formatDays;
+  readonly formatHours = formatHours;
+  readonly taskLink = taskLink;
+  readonly priorities = TASK_PRIORITIES;
 
   constructor(
     private httpService: HttpRequestsService,
@@ -142,6 +182,8 @@ export class TimeManagementDashboardComponent implements OnInit, OnDestroy {
     private userService: UserService,
     private payroll: PayrollService,
     private theme: ThemeService,
+    private reports: ProductionReportService,
+    private tasks: TaskService,
     private messageService: MessageService
   ) { }
 
@@ -155,7 +197,17 @@ export class TimeManagementDashboardComponent implements OnInit, OnDestroy {
     this.userId = JSON.parse(userData).id;
 
     this.subscriptions.add(this.theme.mode$.subscribe(() => this.buildCharts()));
-    this.subscriptions.add(this.userService.user$.subscribe((user) => (this.firstName = (user?.name ?? '').split(' ')[0])));
+    this.subscriptions.add(
+      this.userService.user$.subscribe((user) => {
+        this.firstName = (user?.name ?? '').split(' ')[0];
+        // The report and board need the profile (name, position, role, team)
+        if (user?.userId && !this.user) {
+          this.user = user;
+          this.loadReport();
+          this.watchTasks(user);
+        }
+      })
+    );
 
     this.isLoading = true;
     try {
@@ -173,6 +225,7 @@ export class TimeManagementDashboardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
+    this.stopWatchingTasks?.();
   }
 
   async onPeriodChange() {
@@ -359,6 +412,102 @@ export class TimeManagementDashboardComponent implements OnInit, OnDestroy {
       ['Date', 'Check in', 'Check out', 'Hours', 'Status'],
       ...rows,
     ]);
+  }
+
+  /* ---------- Production report ---------- */
+
+  async loadReport() {
+    if (!this.user) return;
+    this.reportLoading = true;
+    this.reportError = false;
+    try {
+      this.report = await this.reports.build(this.user, reportMonthFromKey(this.selectedReportMonth));
+    } catch (error) {
+      console.error('Error building the production report:', error);
+      this.report = undefined;
+      this.reportError = true;
+    } finally {
+      this.reportLoading = false;
+    }
+  }
+
+  /** "Due Oct 30" style reminder from five days before the due date until the month ends. */
+  get reportReminder(): string {
+    const month = reportMonthOf(new Date());
+    const due = reportDueDate(month);
+    const daysLeft = Math.round((parseLocalDate(due).getTime() - parseLocalDate(this.today).getTime()) / 86_400_000);
+    if (daysLeft > 5) return '';
+    const label = reportMonthLabel(month);
+    if (daysLeft > 1) return `Your ${label} production report is due in ${daysLeft} days (${due}).`;
+    if (daysLeft === 1) return `Your ${label} production report is due tomorrow.`;
+    if (daysLeft === 0) return `Your ${label} production report is due today.`;
+    return `Your ${label} production report was due on ${due}.`;
+  }
+
+  get reportMaxHours(): number {
+    return Math.max(1, ...(this.report?.byProject.map((p) => p.hours) ?? []));
+  }
+
+  async exportReport(format: 'word' | 'excel') {
+    if (!this.report) return;
+    this.exporting = format;
+    try {
+      // Rebuild so the file has the latest entries and settings
+      await this.loadReport();
+      if (!this.report) throw new Error('NO_REPORT');
+      if (format === 'word') await this.reports.downloadWord(this.report);
+      else await this.reports.downloadExcel(this.report);
+    } catch (error) {
+      console.error('Error exporting the production report:', error);
+      this.toast('error', 'Report not exported', 'Please try again.');
+    } finally {
+      this.exporting = null;
+    }
+  }
+
+  openReportSettings() {
+    this.settingsForm = { ...this.reports.getSettings() };
+  }
+
+  async saveReportSettings() {
+    if (!this.settingsForm) return;
+    this.reports.saveSettings({
+      organization: this.settingsForm.organization.trim(),
+      department: this.settingsForm.department.trim(),
+      mainAssignment: this.settingsForm.mainAssignment.trim(),
+    });
+    this.settingsForm = null;
+    await this.loadReport();
+  }
+
+  /* ---------- Board ---------- */
+
+  private watchTasks(me: UserProfile) {
+    this.stopWatchingTasks = this.tasks.watch(
+      me,
+      (tasks) => {
+        const byDue = (a: Task, b: Task) =>
+          (a.dueDate || '9999').localeCompare(b.dueDate || '9999') ||
+          Object.keys(TASK_PRIORITIES).indexOf(b.priority) - Object.keys(TASK_PRIORITIES).indexOf(a.priority);
+        const mine = tasks.filter((t) => t.assigneeIds.includes(me.userId) && t.status !== 'done');
+        this.myTasks = mine.sort(byDue);
+        this.reviewTasks = tasks.filter((t) => t.createdBy === me.userId && t.status === 'review').sort(byDue);
+        this.myTaskCounts = TASK_STATUSES.filter((s) => s.value !== 'done')
+          .map((s) => ({ status: s.value, label: s.label, count: mine.filter((t) => t.status === s.value).length }))
+          .filter((s) => s.count > 0);
+        this.boardLoaded = true;
+        this.boardError = false;
+      },
+      (error) => {
+        console.error('Error loading board tasks:', error);
+        this.boardLoaded = true;
+        this.boardError = true;
+      }
+    );
+  }
+
+  isOverdue(task: Task): boolean {
+    return !!task.dueDate && task.dueDate < this.today;
   }
 
   /* ---------- Today: one-tap check in / out ---------- */

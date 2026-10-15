@@ -56,7 +56,11 @@ service cloud.firestore {
         && e.date is string && e.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && e.start is string && e.start.matches('^[0-9]{2}:[0-9]{2}$')
         && e.end is string && (e.end == '' || (e.end.matches('^[0-9]{2}:[0-9]{2}$') && e.end > e.start))
-        && e.note is string && e.note.size() <= 1000;
+        && e.note is string && e.note.size() <= 1000
+        // Production report columns; optional because older entries don't have them
+        && e.get('country', '') is string && e.get('country', '').size() <= 100
+        && e.get('kind', '') is string && e.get('kind', '').size() <= 100
+        && e.get('pages', '') is string && e.get('pages', '').size() <= 1000;
     }
 
     function validTask(t) {

@@ -44,7 +44,16 @@
               "fflate",
               "html2canvas",
               "raf",
-              "rgbcolor"
+              "rgbcolor",
+              "exceljs",
+              "archiver",
+              "dayjs",
+              "fast-csv",
+              "jszip",
+              "readable-stream",
+              "saxes",
+              "tmp",
+              "unzipper"
             ],
             "server": "src/main.server.ts",
             "prerender": {

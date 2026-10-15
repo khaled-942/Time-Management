@@ -93,9 +93,16 @@ export interface TimeEntry {
   start: string; // HH:mm
   end: string; // HH:mm, '' while the timer is running
   note: string;
+  // Production report columns (the title is the sub-project); missing on older entries
+  country?: string;
+  kind?: string; // kind of work, e.g. "creation", "comments"
+  pages?: string; // page numbers, one per line
   createdAt?: any;
   updatedAt?: any;
 }
+
+/** Suggestions for TimeEntry.kind; any text is allowed. */
+export const WORK_KINDS = ['creation', 'comments', 'review', 'revision', 'testing', 'meeting'];
 
 /* ---------- Team tasks (tasks/{id}) ---------- */
 

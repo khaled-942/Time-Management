@@ -1,14 +1,22 @@
 import { initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import { logger } from 'firebase-functions/v2';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 
 initializeApp();
 
 // Must match the Firestore database location (Firebase console → Firestore → the location
 // shown at the top): nam5 → us-central1, eur3 → europe-west1, otherwise the same region.
 const REGION = 'us-central1';
+
+// Office time zone: decides which calendar day it is for the monthly report reminder
+const TIME_ZONE = 'Africa/Cairo';
+
+// Production reports are due on the 30th (the last day in shorter months); matches the app
+const REPORT_DUE_DAY = 30;
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // Tokens FCM reports as gone (app uninstalled, permission revoked, expired); they're deleted
 const DEAD_TOKEN_CODES = new Set([
@@ -78,3 +86,44 @@ export const sendPush = onDocumentCreated({ document: 'notifications/{id}', regi
     removedTokens: dead.length,
   });
 });
+
+/**
+ * Reminds every active person to export their production report on the day it's due. Runs on
+ * the last days of each month and only acts on the due day. The notification is pushed to their
+ * devices by sendPush like any other.
+ */
+export const productionReportReminder = onSchedule(
+  { schedule: '0 10 28-31 * *', timeZone: TIME_ZONE, region: REGION },
+  async () => {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: TIME_ZONE, year: 'numeric', month: 'numeric', day: 'numeric' })
+      .formatToParts(new Date())
+      .reduce<Record<string, number>>((all, p) => (p.type === 'literal' ? all : { ...all, [p.type]: Number(p.value) }), {});
+    const lastDay = new Date(parts.year, parts.month, 0).getDate();
+    if (parts.day !== Math.min(REPORT_DUE_DAY, lastDay)) return;
+
+    const db = getFirestore();
+    const users = await db.collection('users').get();
+    const recipients = users.docs.filter((d) => d.get('active') !== false).map((d) => d.id);
+    const label = `${MONTHS[parts.month - 1]} ${parts.year}`;
+
+    // Batches hold up to 500 writes
+    for (let i = 0; i < recipients.length; i += 500) {
+      const batch = db.batch();
+      for (const userId of recipients.slice(i, i + 500)) {
+        batch.set(db.collection('notifications').doc(), {
+          userId,
+          audience: '',
+          title: 'Production report due today',
+          body: `Export your ${label} production report (Word and Excel) from the dashboard.`,
+          link: '/dashboard',
+          icon: 'pi pi-file-word',
+          createdAt: FieldValue.serverTimestamp(),
+          createdBy: 'system',
+          readBy: [],
+        });
+      }
+      await batch.commit();
+    }
+    logger.info('Production report reminders sent', { month: label, recipients: recipients.length });
+  }
+);
