@@ -13,14 +13,11 @@ import { MessageService } from 'primeng/api';
 import { LoaderComponent } from '../../shared/loader/loader.component';
 import { OrgService } from '../../shared/services/org.service';
 import { entryMinutes, minutesOf, TimeEntryService } from '../../shared/services/time-entry.service';
-import { Project, TimeEntry, WORK_KINDS } from '../../shared/models';
+import { Project, TimeEntry } from '../../shared/models';
 import { nowTimeString, parseLocalDate, toDateString } from '../../shared/utils/work-schedule';
 import { formatMinutes, formatTime12 } from '../../shared/utils/format';
 
-type EntryForm = Required<Omit<TimeEntry, 'id' | 'createdAt' | 'updatedAt'>>;
-
-/** How far back the country / kind-of-work suggestions look. */
-const SUGGESTION_DAYS = 120;
+type EntryForm = Omit<TimeEntry, 'id' | 'createdAt' | 'updatedAt'>;
 
 interface WeekDay {
   date: string;
@@ -68,11 +65,6 @@ export class MyTasksComponent implements OnInit, OnDestroy {
   projects: Project[] = [];
   private projectsById = new Map<string, Project>();
 
-  // Suggestions for the production report fields, from recent entries
-  countries: string[] = [];
-  kinds: string[] = WORK_KINDS;
-  private recentEntries: TimeEntry[] = [];
-
   // Dialog: null when closed; editingId '' for a new entry
   form: EntryForm | null = null;
   editingId = '';
@@ -96,12 +88,7 @@ export class MyTasksComponent implements OnInit, OnDestroy {
     }, 30_000);
 
     try {
-      const [projects] = await Promise.all([
-        this.org.getProjects(),
-        this.loadWeek(),
-        this.loadRunning(),
-        this.loadSuggestions(),
-      ]);
+      const [projects] = await Promise.all([this.org.getProjects(), this.loadWeek(), this.loadRunning()]);
       this.projects = projects;
       this.projectsById = new Map(projects.map((p) => [p.id!, p]));
     } catch (error) {
@@ -146,26 +133,6 @@ export class MyTasksComponent implements OnInit, OnDestroy {
 
   private async loadRunning() {
     this.running = await this.entries.getRunning();
-  }
-
-  private async loadSuggestions() {
-    const from = new Date();
-    from.setDate(from.getDate() - SUGGESTION_DAYS);
-    this.recentEntries = await this.entries.getRange(toDateString(from), this.today);
-    const distinct = (values: (string | undefined)[]) => [...new Set(values.map((v) => v?.trim()).filter((v): v is string => !!v))];
-    this.countries = distinct(this.recentEntries.map((e) => e.country)).sort();
-    this.kinds = distinct([...WORK_KINDS, ...this.recentEntries.map((e) => e.kind)]);
-  }
-
-  /** The country last used with this project, so it doesn't have to be typed every time. */
-  private lastCountryFor(projectId: string): string {
-    const all = [...this.recentEntries, ...this.weekEntries].filter((e) => e.country && e.projectId === projectId);
-    all.sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
-    return all.at(-1)?.country ?? '';
-  }
-
-  onProjectChange(projectId: string) {
-    if (this.form && !this.form.country) this.form.country = this.lastCountryFor(projectId);
   }
 
   private async reload() {
@@ -229,12 +196,6 @@ export class MyTasksComponent implements OnInit, OnDestroy {
       .sort((a, b) => b.minutes - a.minutes);
   }
 
-  /** "Oman · creation · p71_3, p72_1" for the entry list. */
-  reportDetails(entry: TimeEntry): string {
-    const pages = (entry.pages ?? '').split('\n').map((p) => p.trim()).filter(Boolean).join(', ');
-    return [entry.country, entry.kind, pages].filter(Boolean).join(' · ');
-  }
-
   project(id: string): Project | undefined {
     return this.projectsById.get(id);
   }
@@ -255,7 +216,7 @@ export class MyTasksComponent implements OnInit, OnDestroy {
   openStartTimer() {
     this.startingTimer = true;
     this.editingId = '';
-    this.form = this.emptyForm({ date: this.today, start: nowTimeString() });
+    this.form = { title: '', projectId: '', date: this.today, start: nowTimeString(), end: '', note: '' };
   }
 
   async stopTimer() {
@@ -289,14 +250,7 @@ export class MyTasksComponent implements OnInit, OnDestroy {
     const last = this.dayEntries.filter((e) => e.end).at(-1);
     const start = last?.end ?? '09:00';
     const end = `${String(Math.min(23, Math.floor(minutesOf(start) / 60) + 1)).padStart(2, '0')}:${start.slice(3)}`;
-    const projectId = last?.projectId ?? '';
-    this.form = this.emptyForm({
-      projectId,
-      country: this.lastCountryFor(projectId),
-      date: this.selectedDate,
-      start,
-      end: end > start ? end : '23:59',
-    });
+    this.form = { title: '', projectId: last?.projectId ?? '', date: this.selectedDate, start, end: end > start ? end : '23:59', note: '' };
   }
 
   openEdit(entry: TimeEntry) {
@@ -309,14 +263,7 @@ export class MyTasksComponent implements OnInit, OnDestroy {
       start: entry.start,
       end: entry.end,
       note: entry.note ?? '',
-      country: entry.country ?? '',
-      kind: entry.kind ?? '',
-      pages: entry.pages ?? '',
     };
-  }
-
-  private emptyForm(values: Partial<EntryForm>): EntryForm {
-    return { title: '', projectId: '', date: '', start: '', end: '', note: '', country: '', kind: '', pages: '', ...values };
   }
 
   get editingRunning(): boolean {
@@ -358,14 +305,7 @@ export class MyTasksComponent implements OnInit, OnDestroy {
       this.toast('warn', 'A timer is already running', 'Stop it before starting another.');
       return;
     }
-    const entry: EntryForm = {
-      ...f,
-      title: f.title.trim(),
-      note: f.note.trim(),
-      country: f.country.trim(),
-      kind: f.kind.trim(),
-      pages: f.pages.trim(),
-    };
+    const entry: EntryForm = { ...f, title: f.title.trim(), note: f.note.trim() };
     const moved = !this.editingId || entry.date !== this.selectedDate;
 
     this.saving = true;
@@ -376,8 +316,6 @@ export class MyTasksComponent implements OnInit, OnDestroy {
         await this.entries.add(entry);
       }
       this.form = null;
-      if (entry.country && !this.countries.includes(entry.country)) this.countries = [...this.countries, entry.country].sort();
-      if (entry.kind && !this.kinds.includes(entry.kind)) this.kinds = [...this.kinds, entry.kind];
       if (moved) this.selectedDate = entry.date;
       await this.reload();
       this.toast('success', this.startingTimer ? 'Timer started' : this.editingId ? 'Task updated' : 'Task added', entry.title);

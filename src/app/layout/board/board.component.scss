@@ -416,3 +416,22 @@
     width: 100%;
   }
 }
+
+/* Archived cards, shown only with "Show archived" */
+.task-card.archived {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.archived-pill {
+  padding: 0 0.45rem;
+  font-size: 0.7rem;
+
+  &::before {
+    display: none;
+  }
+
+  .pi {
+    font-size: 0.65rem;
+  }
+}

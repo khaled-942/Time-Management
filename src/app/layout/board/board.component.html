@@ -37,6 +37,10 @@
     @if (filtersActive) {
     <p-button label="Clear" icon="pi pi-filter-slash" styleClass="p-button-text p-button-sm" (onClick)="clearFilters()" />
     }
+    @if (archivedCount) {
+    <p-button [label]="(showArchived ? 'Hide' : 'Show') + ' archived (' + archivedCount + ')'" icon="pi pi-inbox"
+      [styleClass]="'p-button-sm ' + (showArchived ? '' : 'p-button-text')" (onClick)="toggleArchived()" />
+    }
   </div>
 
   @if (!loading && !tasks.length) {
@@ -68,7 +72,7 @@
       <div class="column-body">
         @for (task of column.tasks; track task.id) {
         <article class="task-card" cdkDrag [cdkDragData]="task" [cdkDragDisabled]="!canDrag(task)"
-          [cdkDragStartDelay]="{ touch: 250, mouse: 0 }" [class.locked]="!canDrag(task)"
+          [cdkDragStartDelay]="{ touch: 250, mouse: 0 }" [class.locked]="!canDrag(task)" [class.archived]="task.archived"
           [style.--project-color]="project(task.projectId)?.color || null" (cdkDragStarted)="dragging = true"
           (cdkDragEnded)="endDrag()" (click)="openTask(task)"
           (keydown.enter)="openTask(task)" tabindex="0" role="button" [attr.aria-label]="task.title">
@@ -78,6 +82,9 @@
             </span>
             @if (project(task.projectId); as p) {
             <span class="project-tag"><i></i>{{ p.name }}</span>
+            }
+            @if (task.archived) {
+            <span class="pill archived-pill"><i class="pi pi-inbox"></i>Archived</span>
             }
             <span class="priority" [ngClass]="'priority-' + task.priority" [pTooltip]="TASK_PRIORITIES[task.priority].label + ' priority'"
               tooltipPosition="top">

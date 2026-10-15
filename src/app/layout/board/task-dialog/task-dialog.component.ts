@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -22,14 +22,19 @@ import {
   TaskLink,
   TaskPriority,
   TaskStatus,
+  TaskActivity,
   TaskType,
   Team,
   UserProfile,
+  WORK_KINDS,
+  WorkLog,
 } from '../../../shared/models';
-import { NewTask } from '../../../shared/services/task.service';
+import { NewTask, NewWorkLog, TaskService } from '../../../shared/services/task.service';
 import {
   canAddSubtask,
+  canArchiveTask,
   canEditTask,
+  canLogTime,
   canMoveTask,
   canWorkOnTask,
   managesAll,
@@ -40,7 +45,12 @@ import { toDateString } from '../../../shared/utils/work-schedule';
 export type TaskDialogResult =
   | { kind: 'create'; task: NewTask }
   | { kind: 'update'; id: string; changes: Partial<NewTask> }
-  | { kind: 'delete'; id: string };
+  | { kind: 'delete'; id: string }
+  | { kind: 'archive'; id: string; archived: boolean };
+
+type LogForm = Required<NewWorkLog>;
+
+const ACTIVITY_OPEN_KEY = 'taskActivityOpen';
 
 type TaskForm = Omit<NewTask, 'createdBy' | 'createdByName' | 'order' | 'teamIds' | 'parentId'>;
 
@@ -48,6 +58,8 @@ const SAFE_URL = /^https?:\/\//i;
 
 // Create, edit or view a team task. Editing is for the reviewer (creator, PMs, admins);
 // assignees get a read-only view where they can still change the status and tick the checklist.
+// Existing tasks also show the time logged on them (assignees and the reviewer log their own)
+// and, on demand, the task's activity history.
 @Component({
   selector: 'app-task-dialog',
   standalone: true,
@@ -67,7 +79,7 @@ const SAFE_URL = /^https?:\/\//i;
   templateUrl: './task-dialog.component.html',
   styleUrl: './task-dialog.component.scss',
 })
-export class TaskDialogComponent implements OnChanges {
+export class TaskDialogComponent implements OnChanges, OnDestroy {
   /** The task to show, or null with `open` for a new one. */
   @Input() task: Task | null = null;
   @Input() open = false;
@@ -97,9 +109,32 @@ export class TaskDialogComponent implements OnChanges {
   newChecklistItem = '';
   confirmDelete = false;
 
-  constructor(private host: ElementRef<HTMLElement>) { }
+  // Time logged on the task, and its history (both live while the dialog shows the task)
+  workLogs: WorkLog[] = [];
+  logForm: LogForm | null = null;
+  loggingTime = false;
+  logError = '';
+  activity: TaskActivity[] = [];
+  activityOpen = false;
+  private watchedId = '';
+  private unwatch: (() => void)[] = [];
+  readonly kindSuggestions = WORK_KINDS;
+  readonly today = toDateString(new Date());
+
+  constructor(private host: ElementRef<HTMLElement>, private taskService: TaskService) {
+    try {
+      this.activityOpen = typeof window !== 'undefined' && window.localStorage.getItem(ACTIVITY_OPEN_KEY) === '1';
+    } catch {
+      // Storage blocked: activity starts hidden
+    }
+  }
+
+  ngOnDestroy() {
+    this.stopWatching();
+  }
 
   ngOnChanges(changes: SimpleChanges) {
+    if (changes['open'] || changes['task']) this.watchTask(this.open ? this.task?.id ?? '' : '');
     // Reset the form when the dialog opens or switches task, not when `saving` flips
     if (!this.open || !(changes['open'] || changes['task'] || changes['parent'])) return;
     const t = this.task;
@@ -121,8 +156,126 @@ export class TaskDialogComponent implements OnChanges {
     this.newLink = { label: '', url: '' };
     this.newChecklistItem = '';
     this.confirmDelete = false;
+    this.logForm = null;
+    this.logError = '';
     // Start at the top when opening or jumping between parent and sub-task
     setTimeout(() => this.host.nativeElement.querySelector('.p-dialog-content')?.scrollTo(0, 0));
+  }
+
+  /* ---------- Live work logs & activity ---------- */
+
+  private watchTask(id: string) {
+    if (id === this.watchedId) return;
+    this.stopWatching();
+    this.watchedId = id;
+    this.workLogs = [];
+    this.activity = [];
+    if (!id) return;
+    const onError = (what: string) => (error: unknown) => console.error(`Could not load the task's ${what}:`, error);
+    this.unwatch = [
+      this.taskService.watchWorkLogs(id, (logs) => (this.workLogs = logs), onError('time')),
+      this.taskService.watchActivity(id, (entries) => (this.activity = entries), onError('activity')),
+    ];
+  }
+
+  private stopWatching() {
+    this.unwatch.forEach((stop) => stop());
+    this.unwatch = [];
+    this.watchedId = '';
+  }
+
+  toggleActivity() {
+    this.activityOpen = !this.activityOpen;
+    try {
+      window.localStorage.setItem(ACTIVITY_OPEN_KEY, this.activityOpen ? '1' : '0');
+    } catch {
+      // Not remembered; fine
+    }
+  }
+
+  /* ---------- Time ---------- */
+
+  get canLogTime(): boolean {
+    return !!this.task && canLogTime(this.task, this.me);
+  }
+
+  get loggedHours(): number {
+    return Math.round(this.workLogs.reduce((sum, l) => sum + l.hours, 0) * 100) / 100;
+  }
+
+  /** Hours per person, most first. */
+  get hoursByPerson(): { name: string; hours: number }[] {
+    const totals = new Map<string, number>();
+    for (const log of this.workLogs) totals.set(log.userName, (totals.get(log.userName) ?? 0) + log.hours);
+    return [...totals.entries()].map(([name, hours]) => ({ name, hours: Math.round(hours * 100) / 100 })).sort((a, b) => b.hours - a.hours);
+  }
+
+  get countrySuggestions(): string[] {
+    return [...new Set(this.workLogs.map((l) => l.country).filter(Boolean))];
+  }
+
+  canDeleteLog(log: WorkLog): boolean {
+    return managesAll(this.me) || log.userId === this.me?.userId;
+  }
+
+  logPages(log: WorkLog): string {
+    return log.pages.split('\n').map((p) => p.trim()).filter(Boolean).join(', ');
+  }
+
+  openLogForm() {
+    // Start from what this person logged last on the task
+    const mine = this.workLogs.find((l) => l.userId === this.me?.userId);
+    this.logForm = {
+      date: toDateString(new Date()),
+      hours: 1,
+      country: mine?.country ?? this.workLogs[0]?.country ?? '',
+      kind: mine?.kind ?? '',
+      pages: '',
+      note: '',
+    };
+    this.logError = '';
+  }
+
+  get logFormError(): string {
+    const f = this.logForm;
+    if (!f) return '';
+    if (!f.date) return 'Pick a date.';
+    if (f.date > toDateString(new Date())) return "You can't log time in the future.";
+    if (!f.hours || f.hours <= 0 || f.hours > 24) return 'Hours must be between 0 and 24.';
+    return '';
+  }
+
+  async saveLog() {
+    const f = this.logForm;
+    if (!f || !this.task || this.logFormError) return;
+    this.loggingTime = true;
+    this.logError = '';
+    try {
+      await this.taskService.logTime(this.task, {
+        date: f.date,
+        hours: Math.round(f.hours * 100) / 100,
+        country: f.country.trim(),
+        kind: f.kind.trim(),
+        pages: f.pages.trim(),
+        note: f.note.trim(),
+      });
+      this.logForm = null;
+    } catch (error) {
+      console.error('Error logging time', error);
+      this.logError = 'Could not log the time. Please try again.';
+    } finally {
+      this.loggingTime = false;
+    }
+  }
+
+  async deleteLog(log: WorkLog) {
+    if (!this.task) return;
+    try {
+      await this.taskService.deleteTimeLog(this.task, log);
+    } catch (error) {
+      console.error('Error deleting time log', error);
+      this.logError = 'Could not delete that entry. Please try again.';
+    }
   }
 
   /* ---------- Access ---------- */
@@ -137,6 +290,10 @@ export class TaskDialogComponent implements OnChanges {
 
   get canWork(): boolean {
     return this.isNew || canWorkOnTask(this.task!, this.me);
+  }
+
+  get canArchive(): boolean {
+    return !this.isNew && canArchiveTask(this.task!, this.me);
   }
 
   get statusOptions() {
@@ -313,5 +470,9 @@ export class TaskDialogComponent implements OnChanges {
       return;
     }
     this.submitted.emit({ kind: 'delete', id: this.task.id! });
+  }
+
+  setArchived(archived: boolean) {
+    if (this.task) this.submitted.emit({ kind: 'archive', id: this.task.id!, archived });
   }
 }

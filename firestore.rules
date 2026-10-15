@@ -56,11 +56,7 @@ service cloud.firestore {
         && e.date is string && e.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && e.start is string && e.start.matches('^[0-9]{2}:[0-9]{2}$')
         && e.end is string && (e.end == '' || (e.end.matches('^[0-9]{2}:[0-9]{2}$') && e.end > e.start))
-        && e.note is string && e.note.size() <= 1000
-        // Production report columns; optional because older entries don't have them
-        && e.get('country', '') is string && e.get('country', '').size() <= 100
-        && e.get('kind', '') is string && e.get('kind', '').size() <= 100
-        && e.get('pages', '') is string && e.get('pages', '').size() <= 1000;
+        && e.note is string && e.note.size() <= 1000;
     }
 
     function validTask(t) {
@@ -80,7 +76,55 @@ service cloud.firestore {
         && t.links is list && t.links.size() <= 10
         && t.checklist is list && t.checklist.size() <= 50
         && t.reviewNote is string && t.reviewNote.size() <= 1000
-        && (!('subtasks' in t) || t.subtasks is map);
+        && (!('subtasks' in t) || t.subtasks is map)
+        && (!('archived' in t) || t.archived is bool)
+        && (!('archivedByName' in t) || t.archivedByName is string);
+    }
+
+    // Mirrors the read rule of tasks/{id}; `t` is the task's data
+    function canSeeTask(t) {
+      return managesAll() || (signedIn() && (
+        (myTeam() != '' && myTeam() in t.teamIds)
+        || request.auth.uid in t.assigneeIds
+        || t.createdBy == request.auth.uid));
+    }
+
+    function taskData(taskId) {
+      return get(/databases/$(database)/documents/tasks/$(taskId)).data;
+    }
+
+    // Time goes on unarchived tasks, logged by their assignees or reviewer (or a PM/admin)
+    function canLogTime(t) {
+      return t.get('archived', false) == false
+        && (managesAll() || request.auth.uid in t.assigneeIds || t.createdBy == request.auth.uid);
+    }
+
+    function validWorkLog(l) {
+      return l.keys().hasOnly(['taskId', 'taskTitle', 'projectId', 'userId', 'userName', 'date', 'hours', 'country', 'kind', 'pages', 'note', 'createdAt'])
+        && l.taskTitle is string && l.taskTitle.size() <= 200
+        && l.projectId is string
+        && l.userName is string && l.userName.size() <= 100
+        && l.date is string && l.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && l.hours is number && l.hours > 0 && l.hours <= 24
+        && l.country is string && l.country.size() <= 100
+        && l.kind is string && l.kind.size() <= 100
+        && l.pages is string && l.pages.size() <= 1000
+        && l.note is string && l.note.size() <= 1000;
+    }
+
+    function validActivity(a) {
+      return a.keys().hasOnly(['by', 'byName', 'icon', 'text', 'at'])
+        && a.byName is string && a.byName.size() <= 100
+        && a.icon is string && a.icon.size() <= 60
+        && a.text is string && a.text.size() <= 500
+        && a.at == request.time;
+    }
+
+    function validReportSettings(r) {
+      return r.keys().hasOnly(['organization', 'department', 'assignments', 'updatedAt'])
+        && r.organization is string && r.organization.size() <= 120
+        && r.department is string && r.department.size() <= 80
+        && r.assignments is list && r.assignments.size() <= 50;
     }
 
     // Sub-tasks can be added by whoever runs the parent: PMs/admins, its creator or its assignees
@@ -115,9 +159,11 @@ service cloud.firestore {
       match /private/{docId} {
         allow read: if signedIn() && userId == request.auth.uid;
         allow write: if isActive() && userId == request.auth.uid
-          && docId == 'salary'
-          && request.resource.data.salary is number
-          && request.resource.data.salary >= 0;
+          && ((docId == 'salary'
+              && request.resource.data.salary is number
+              && request.resource.data.salary >= 0)
+            // Production report details: organization, department and dated main assignments
+            || (docId == 'report' && validReportSettings(request.resource.data)));
       }
 
       // This person's devices for push notifications; read by the sendPush Cloud Function (admin SDK)
@@ -169,10 +215,7 @@ service cloud.firestore {
 
     // Team tasks. The creator is the reviewer. Each read branch matches one TaskService.watch query.
     match /tasks/{taskId} {
-      allow read: if managesAll() || (signedIn() && (
-        (myTeam() != '' && myTeam() in resource.data.teamIds)
-        || request.auth.uid in resource.data.assigneeIds
-        || resource.data.createdBy == request.auth.uid));
+      allow read: if canSeeTask(resource.data);
 
       // PMs/admins create for anyone; team leaders only for their own team; members can't create
       allow create: if isActive() && validTask(request.resource.data)
@@ -189,10 +232,35 @@ service cloud.firestore {
           // their sub-tasks' progress (which can move the parent to Need review)
           || (request.auth.uid in resource.data.assigneeIds
             && resource.data.status != 'done'
+            && resource.data.get('archived', false) == false
             && request.resource.data.status in ['backlog', 'todo', 'in_progress', 'review']
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'order', 'checklist', 'subtasks', 'updatedAt'])));
 
       allow delete: if managesAll() || resource.data.createdBy == request.auth.uid;
+
+      // Time spent on the task; everyone who sees the task sees its logs. People delete their own.
+      match /workLogs/{logId} {
+        allow read: if canSeeTask(taskData(taskId));
+        allow create: if isActive() && validWorkLog(request.resource.data)
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.taskId == taskId
+          && canLogTime(taskData(taskId));
+        allow delete: if managesAll() || (signedIn() && resource.data.userId == request.auth.uid);
+      }
+
+      // History of the task, written by whoever made the change; never edited. Deleted with the task.
+      match /activity/{entryId} {
+        allow read: if canSeeTask(taskData(taskId));
+        allow create: if isActive() && validActivity(request.resource.data)
+          && request.resource.data.by == request.auth.uid
+          && canSeeTask(taskData(taskId));
+        allow delete: if managesAll() || taskData(taskId).createdBy == request.auth.uid;
+      }
+    }
+
+    // The production report reads someone's own logs across every task (collection group query)
+    match /{path=**}/workLogs/{logId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
     }
 
     match /holidays/{holidayId} {

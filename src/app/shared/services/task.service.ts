@@ -3,11 +3,15 @@ import { Auth } from '@angular/fire/auth';
 import {
   addDoc,
   collection,
+  collectionGroup,
   deleteDoc,
   deleteField,
   doc,
   Firestore,
+  getDocs,
+  limit,
   onSnapshot,
+  orderBy,
   query,
   Query,
   runTransaction,
@@ -15,13 +19,19 @@ import {
   Unsubscribe,
   updateDoc,
   where,
+  writeBatch,
 } from '@angular/fire/firestore';
-import { Task, TASK_STATUSES, TaskStatus, UserProfile } from '../models';
+import { Task, TASK_PRIORITIES, TASK_STATUSES, TASK_TYPES, TaskActivity, TaskStatus, UserProfile, WorkLog } from '../models';
 import { managesAll } from '../utils/task-access';
+import { DirectoryService } from './directory.service';
 import { NotificationService } from './notification.service';
 import { UserService } from './user.service';
 
 export type NewTask = Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'subtasks'>;
+export type NewWorkLog = Omit<WorkLog, 'id' | 'createdAt' | 'taskId' | 'taskTitle' | 'projectId' | 'userId' | 'userName'>;
+
+/** Thrown by remove() for a task with logged time: archive it instead, so reports keep the hours. */
+export const HAS_WORK_LOGS = 'HAS_WORK_LOGS';
 
 const statusLabel = (status: TaskStatus) => TASK_STATUSES.find((s) => s.value === status)?.label ?? status;
 
@@ -30,7 +40,8 @@ export const taskLink = (id: string) => `/board?task=${id}`;
 
 // Team tasks (tasks/{id}), kept live with Firestore listeners. Every write goes through here so
 // the side effects stay in one place: sub-task progress on the parent, the parent moving to
-// Need review when all its sub-tasks are done, and bell notifications.
+// Need review when all its sub-tasks are done, bell notifications, and the task's activity log
+// (tasks/{id}/activity). Time spent on tasks lives in tasks/{id}/workLogs.
 @Injectable({
   providedIn: 'root',
 })
@@ -40,8 +51,20 @@ export class TaskService {
     private auth: Auth,
     private zone: NgZone,
     private notifications: NotificationService,
-    private userService: UserService
+    private userService: UserService,
+    private directory: DirectoryService
   ) { }
+
+  // Names for activity lines ("assigned Aya"), loaded once
+  private names?: Promise<Map<string, string>>;
+
+  private nameOf(ids: string[]): Promise<string> {
+    this.names ??= this.directory
+      .getAll()
+      .then((people) => new Map(people.map((p) => [p.userId, p.name])))
+      .catch(() => new Map<string, string>());
+    return this.names.then((names) => ids.map((id) => names.get(id) ?? 'someone').join(', '));
+  }
 
   private get tasks() {
     return collection(this.firestore, 'tasks');
@@ -93,6 +116,11 @@ export class TaskService {
     await Promise.all([
       task.parentId ? this.syncParent(task.parentId, ref.id, task.status === 'done') : null,
       this.notifyAssigned(created, task.assigneeIds),
+      this.record(ref.id, 'pi pi-plus-circle', `created the task in ${statusLabel(task.status)}`),
+      task.assigneeIds.length
+        ? this.nameOf(task.assigneeIds).then((names) => this.record(ref.id, 'pi pi-user-plus', `assigned ${names}`))
+        : null,
+      task.parentId ? this.record(task.parentId, 'pi pi-sitemap', `added the sub-task "${task.title}"`) : null,
     ]);
     return ref.id;
   }
@@ -102,7 +130,7 @@ export class TaskService {
     await updateDoc(doc(this.tasks, before.id!), { ...changes, updatedAt: serverTimestamp() });
     const after: Task = { ...before, ...changes };
 
-    const effects: Promise<unknown>[] = [];
+    const effects: Promise<unknown>[] = [this.recordChanges(before, changes)];
     if (changes.assigneeIds) {
       const added = changes.assigneeIds.filter((id) => !before.assigneeIds.includes(id));
       effects.push(this.notifyAssigned(after, added));
@@ -122,7 +150,21 @@ export class TaskService {
     await this.update(before, { status, order, ...(reviewNote !== undefined ? { reviewNote } : {}) });
   }
 
+  /** Archive (or restore) a task; archived tasks leave the board but keep their history and time. */
+  async setArchived(before: Task, archived: boolean) {
+    await this.update(before, { archived, archivedByName: archived ? this.myName : '' });
+  }
+
   async remove(task: Task) {
+    const logs = await getDocs(query(this.workLogs(task.id!), limit(1)));
+    if (!logs.empty) throw new Error(HAS_WORK_LOGS);
+    // History goes with the task (the rules need the task to still exist to allow it)
+    const history = await getDocs(this.activity(task.id!));
+    for (let i = 0; i < history.docs.length; i += 400) {
+      const batch = writeBatch(this.firestore);
+      history.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
     await deleteDoc(doc(this.tasks, task.id!));
     if (task.parentId) {
       await this.syncParent(task.parentId, task.id!, null).catch((error) =>
@@ -162,6 +204,7 @@ export class TaskService {
     });
 
     if (movedToReview) {
+      await this.record(parentId, 'pi pi-check-circle', 'finished the last sub-task, so it moved to Need review');
       await this.notify(
         movedToReview.createdBy,
         'Ready for your review',
@@ -170,6 +213,125 @@ export class TaskService {
         'pi pi-check-circle'
       );
     }
+  }
+
+  /* ---------- Work logs ---------- */
+
+  private workLogs(taskId: string) {
+    return collection(this.firestore, `tasks/${taskId}/workLogs`);
+  }
+
+  /** Live list of the time logged on a task, newest first. */
+  watchWorkLogs(taskId: string, onChange: (logs: WorkLog[]) => void, onError: (error: unknown) => void): Unsubscribe {
+    return onSnapshot(
+      query(this.workLogs(taskId), orderBy('date', 'desc')),
+      (snapshot) => this.zone.run(() => onChange(snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as WorkLog) })))),
+      (error) => this.zone.run(() => onError(error))
+    );
+  }
+
+  /** Log time on `task` as the signed-in person. */
+  async logTime(task: Task, log: NewWorkLog) {
+    await addDoc(this.workLogs(task.id!), {
+      ...log,
+      taskId: task.id!,
+      taskTitle: task.title,
+      projectId: task.projectId,
+      userId: this.uid,
+      userName: this.myName,
+      createdAt: serverTimestamp(),
+    });
+    await this.record(task.id!, 'pi pi-clock', `logged ${log.hours}h on ${log.date}${log.kind ? ` (${log.kind})` : ''}`);
+  }
+
+  async deleteTimeLog(task: Task, log: WorkLog) {
+    await deleteDoc(doc(this.workLogs(task.id!), log.id!));
+    const whose = log.userId === this.uid ? 'their' : `${log.userName}'s`;
+    await this.record(task.id!, 'pi pi-trash', `removed ${whose} ${log.hours}h on ${log.date}`);
+  }
+
+  /** The signed-in person's logs from `from` to `to` (YYYY-MM-DD, inclusive) across all tasks. */
+  async myWorkLogs(from: string, to: string): Promise<WorkLog[]> {
+    const snapshot = await getDocs(
+      query(
+        collectionGroup(this.firestore, 'workLogs'),
+        where('userId', '==', this.uid),
+        where('date', '>=', from),
+        where('date', '<=', to)
+      )
+    );
+    return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as WorkLog) }));
+  }
+
+  /* ---------- Activity ---------- */
+
+  private activity(taskId: string) {
+    return collection(this.firestore, `tasks/${taskId}/activity`);
+  }
+
+  /** Live history of a task, newest first. */
+  watchActivity(taskId: string, onChange: (entries: TaskActivity[]) => void, onError: (error: unknown) => void): Unsubscribe {
+    return onSnapshot(
+      query(this.activity(taskId), orderBy('at', 'desc'), limit(200)),
+      (snapshot) =>
+        this.zone.run(() =>
+          onChange(snapshot.docs.map((d) => ({ id: d.id, ...(d.data({ serverTimestamps: 'estimate' }) as TaskActivity) })))
+        ),
+      (error) => this.zone.run(() => onError(error))
+    );
+  }
+
+  /** Add a line to a task's history. Best-effort: the change itself is already saved. */
+  private record(taskId: string, icon: string, text: string): Promise<void> {
+    return addDoc(this.activity(taskId), { by: this.uid, byName: this.myName, icon, text: text.slice(0, 500), at: serverTimestamp() })
+      .then(() => undefined)
+      .catch((error) => console.error('Could not record task activity:', error));
+  }
+
+  /** One history line per kind of change. */
+  private async recordChanges(before: Task, changes: Partial<NewTask>) {
+    const id = before.id!;
+    const lines: [string, string][] = [];
+    const changed = (key: keyof NewTask) => key in changes && JSON.stringify(changes[key]) !== JSON.stringify(before[key]);
+
+    if (changed('archived')) {
+      lines.push(changes.archived ? ['pi pi-inbox', 'archived the task'] : ['pi pi-replay', 'restored the task from the archive']);
+    }
+    if (changed('status')) {
+      const to = changes.status!;
+      if (to === 'changes') lines.push(['pi pi-comments', `requested changes: ${changes.reviewNote ?? before.reviewNote}`]);
+      else if (to === 'done') lines.push(['pi pi-check-circle', 'approved it and marked it Done']);
+      else lines.push(['pi pi-arrow-right', `moved it from ${statusLabel(before.status)} to ${statusLabel(to)}`]);
+    }
+    if (changed('assigneeIds')) {
+      const added = changes.assigneeIds!.filter((a) => !before.assigneeIds.includes(a));
+      const removed = before.assigneeIds.filter((a) => !changes.assigneeIds!.includes(a));
+      if (added.length) lines.push(['pi pi-user-plus', `assigned ${await this.nameOf(added)}`]);
+      if (removed.length) lines.push(['pi pi-user-minus', `unassigned ${await this.nameOf(removed)}`]);
+    }
+    if (changed('title')) lines.push(['pi pi-pencil', `renamed it from "${before.title}" to "${changes.title}"`]);
+    if (changed('description')) lines.push(['pi pi-align-left', 'edited the description']);
+    if (changed('type')) lines.push(['pi pi-tag', `changed the type to ${TASK_TYPES[changes.type!].label}`]);
+    if (changed('priority')) lines.push(['pi pi-flag', `changed the priority to ${TASK_PRIORITIES[changes.priority!].label}`]);
+    if (changed('projectId')) lines.push(['pi pi-briefcase', changes.projectId ? 'moved it to another project' : 'removed the project']);
+    if (changed('dueDate')) lines.push(['pi pi-calendar', changes.dueDate ? `set the due date to ${changes.dueDate}` : 'removed the due date']);
+    if (changed('estimateHours')) {
+      lines.push(['pi pi-stopwatch', changes.estimateHours != null ? `set the estimate to ${changes.estimateHours}h` : 'removed the estimate']);
+    }
+    if (changed('links')) lines.push(['pi pi-link', 'updated the links']);
+    if (changed('checklist')) {
+      const after = changes.checklist!;
+      const wasDone = (text: string) => before.checklist.some((b) => b.text === text && b.done);
+      after.filter((c) => c.done && !wasDone(c.text)).forEach((c) => lines.push(['pi pi-check-square', `ticked "${c.text}"`]));
+      after.filter((c) => !c.done && wasDone(c.text)).forEach((c) => lines.push(['pi pi-stop', `unticked "${c.text}"`]));
+      const sameItems =
+        after.length === before.checklist.length && after.every((c) => before.checklist.some((b) => b.text === c.text));
+      if (!sameItems) lines.push(['pi pi-list', 'edited the checklist']);
+    }
+    if (changed('reviewNote') && changes.reviewNote && !changed('status')) {
+      lines.push(['pi pi-comments', `updated the review note: ${changes.reviewNote}`]);
+    }
+    await Promise.all(lines.map(([icon, text]) => this.record(id, icon, text)));
   }
 
   /* ---------- Notifications ---------- */

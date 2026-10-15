@@ -19,7 +19,8 @@ export function isReviewer(task: Task, me: UserProfile | null): boolean {
 
 /** Full edit (title, assignees, dates, delete…) belongs to the reviewer. */
 export function canEditTask(task: Task, me: UserProfile | null): boolean {
-  return isReviewer(task, me);
+  // Archived tasks are read-only until restored
+  return !task.archived && isReviewer(task, me);
 }
 
 export function isAssignee(task: Task, me: UserProfile | null): boolean {
@@ -31,6 +32,7 @@ export function isAssignee(task: Task, me: UserProfile | null): boolean {
  * Need review; Done and Changes requested are the reviewer's call.
  */
 export function canMoveTask(task: Task, status: TaskStatus, me: UserProfile | null): boolean {
+  if (task.archived) return false;
   if (isReviewer(task, me)) return true;
   if (!isAssignee(task, me) || task.status === 'done') return false;
   return !TASK_STATUSES.find((s) => s.value === status)?.reviewerOnly;
@@ -38,7 +40,18 @@ export function canMoveTask(task: Task, status: TaskStatus, me: UserProfile | nu
 
 /** Assignees can also tick checklist items on their unfinished tasks. */
 export function canWorkOnTask(task: Task, me: UserProfile | null): boolean {
+  if (task.archived) return false;
   return isReviewer(task, me) || (isAssignee(task, me) && task.status !== 'done');
+}
+
+/** Archiving (and restoring) is the reviewer's call, like marking it done. */
+export function canArchiveTask(task: Task, me: UserProfile | null): boolean {
+  return isReviewer(task, me);
+}
+
+/** Time is logged on unarchived tasks by their assignees and reviewer. */
+export function canLogTime(task: Task, me: UserProfile | null): boolean {
+  return !task.archived && (isReviewer(task, me) || isAssignee(task, me));
 }
 
 /** Breaking a task into sub-tasks: whoever runs it (PM/admin, its creator or a leader assigned to it). */

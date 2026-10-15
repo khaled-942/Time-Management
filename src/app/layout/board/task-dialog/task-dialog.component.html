@@ -14,6 +14,13 @@
     <p class="muted small"><i class="pi pi-sitemap"></i> Part of a task you can&rsquo;t see.</p>
     }
 
+    @if (task?.archived) {
+    <div class="callout info">
+      <i class="pi pi-inbox"></i>
+      <span>Archived{{ task!.archivedByName ? ' by ' + task!.archivedByName : '' }}. It's read-only until it's restored.</span>
+    </div>
+    }
+
     <!-- Review note from the reviewer -->
     @if (task?.reviewNote && !(canEdit && form.status === 'changes')) {
     <div class="callout warning">
@@ -271,14 +278,134 @@
     </div>
     }
 
+    <!-- Time logged (existing tasks) -->
+    @if (task) {
+    <div class="field">
+      <span class="subtasks-head">
+        Time logged
+        <small class="muted mono">{{ loggedHours }}h{{ task.estimateHours != null ? ' of ' + task.estimateHours + 'h estimated' : '' }}</small>
+      </span>
+      @if (hoursByPerson.length > 1) {
+      <div class="hours-people">
+        @for (p of hoursByPerson; track p.name) {
+        <span class="pill">{{ p.name }} <strong class="mono">{{ p.hours }}h</strong></span>
+        }
+      </div>
+      }
+      @if (workLogs.length) {
+      <ul class="log-list">
+        @for (log of workLogs; track log.id) {
+        <li>
+          <span class="log-hours mono">{{ log.hours }}h</span>
+          <span class="log-main">
+            <strong>{{ log.userName }}</strong>
+            <span class="muted">
+              {{ log.date | date: 'EEE, MMM d' }}{{ log.country ? ' · ' + log.country : '' }}{{ log.kind ? ' · ' + log.kind : '' }}
+            </span>
+            @if (logPages(log); as pages) { <span class="muted small">Pages: {{ pages }}</span> }
+            @if (log.note) { <span class="muted small">{{ log.note }}</span> }
+          </span>
+          @if (canDeleteLog(log)) {
+          <p-button icon="pi pi-trash" styleClass="p-button-text p-button-sm p-button-danger" ariaLabel="Delete time entry"
+            (onClick)="deleteLog(log)" />
+          }
+        </li>
+        }
+      </ul>
+      } @else if (!canLogTime) {
+      <small class="muted">No time logged yet.</small>
+      }
+
+      @if (canLogTime) {
+      @if (logForm) {
+      <div class="log-form">
+        <div class="log-grid">
+          <label class="field">
+            <span>Date</span>
+            <input pInputText type="date" [(ngModel)]="logForm.date" [max]="today" />
+          </label>
+          <label class="field">
+            <span>Hours</span>
+            <p-inputNumber [(ngModel)]="logForm.hours" [min]="0.25" [max]="24" [step]="0.25" [maxFractionDigits]="2"
+              [showButtons]="true" styleClass="w-full" inputStyleClass="w-full mono"></p-inputNumber>
+          </label>
+          <label class="field">
+            <span>Country</span>
+            <input pInputText [(ngModel)]="logForm.country" list="log-countries" maxlength="100" placeholder="e.g. Oman" />
+          </label>
+          <label class="field">
+            <span>Kind of work</span>
+            <input pInputText [(ngModel)]="logForm.kind" list="log-kinds" maxlength="100" placeholder="e.g. creation" />
+          </label>
+        </div>
+        <datalist id="log-countries">
+          @for (c of countrySuggestions; track c) { <option [value]="c"></option> }
+        </datalist>
+        <datalist id="log-kinds">
+          @for (k of kindSuggestions; track k) { <option [value]="k"></option> }
+        </datalist>
+        <label class="field">
+          <span>Page numbers <small class="muted">(optional, one per line)</small></span>
+          <textarea pInputTextarea [(ngModel)]="logForm.pages" rows="2" maxlength="1000" placeholder="p71_3&#10;p72_1"></textarea>
+        </label>
+        <label class="field">
+          <span>Note <small class="muted">(optional)</small></span>
+          <input pInputText [(ngModel)]="logForm.note" maxlength="1000" />
+        </label>
+        <div class="log-actions">
+          <p-button label="Cancel" styleClass="p-button-text p-button-sm" (onClick)="logForm = null" />
+          <p-button label="Log time" icon="pi pi-check" styleClass="p-button-sm" [loading]="loggingTime"
+            [disabled]="!!logFormError" [pTooltip]="logFormError" tooltipPosition="top" (onClick)="saveLog()" />
+        </div>
+      </div>
+      } @else {
+      <p-button label="Log time" icon="pi pi-clock" styleClass="p-button-outlined p-button-sm" (onClick)="openLogForm()" />
+      }
+      }
+      @if (logError) { <small class="text-danger">{{ logError }}</small> }
+    </div>
+    }
+
     @if (!isNew && canEdit) {
     <p class="muted small">Created by {{ task!.createdByName }}, who reviews it.</p>
+    }
+
+    <!-- Activity (existing tasks), shown or hidden on demand -->
+    @if (task) {
+    <div class="field activity">
+      <button type="button" class="activity-toggle" (click)="toggleActivity()" [attr.aria-expanded]="activityOpen">
+        <i class="pi" [ngClass]="activityOpen ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+        {{ activityOpen ? 'Hide' : 'Show' }} activity
+        <small class="muted mono">{{ activity.length }}</small>
+      </button>
+      @if (activityOpen) {
+      @if (activity.length) {
+      <ol class="activity-list">
+        @for (entry of activity; track entry.id) {
+        <li>
+          <i [class]="entry.icon"></i>
+          <span><strong>{{ entry.byName }}</strong> {{ entry.text }}</span>
+          <time class="muted mono">{{ entry.at?.toDate() | date: 'MMM d, h:mm a' }}</time>
+        </li>
+        }
+      </ol>
+      } @else {
+      <small class="muted">Nothing recorded yet. Changes from now on show up here.</small>
+      }
+      }
+    </div>
     }
   </div>
   }
 
   <ng-template pTemplate="footer">
-    @if (!isNew && canEdit) {
+    @if (canArchive) {
+    <p-button [label]="task!.archived ? 'Restore' : 'Archive'" [icon]="task!.archived ? 'pi pi-replay' : 'pi pi-inbox'"
+      styleClass="p-button-text archive-btn" [disabled]="saving"
+      [pTooltip]="task!.archived ? 'Put it back on the board' : 'Take it off the board; history and time are kept'"
+      tooltipPosition="top" (onClick)="setArchived(!task!.archived)" />
+    }
+    @if (!isNew && (canEdit || (canArchive && task!.archived))) {
     <p-button [label]="confirmDelete ? 'Really delete?' : ''" icon="pi pi-trash" styleClass="p-button-danger p-button-text delete-btn"
       ariaLabel="Delete task" [disabled]="saving || progress.total > 0"
       [pTooltip]="progress.total ? 'Delete its sub-tasks first' : ''" tooltipPosition="top" (onClick)="remove()" />

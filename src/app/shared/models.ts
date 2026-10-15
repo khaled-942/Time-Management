@@ -93,15 +93,11 @@ export interface TimeEntry {
   start: string; // HH:mm
   end: string; // HH:mm, '' while the timer is running
   note: string;
-  // Production report columns (the title is the sub-project); missing on older entries
-  country?: string;
-  kind?: string; // kind of work, e.g. "creation", "comments"
-  pages?: string; // page numbers, one per line
   createdAt?: any;
   updatedAt?: any;
 }
 
-/** Suggestions for TimeEntry.kind; any text is allowed. */
+/** Suggestions for WorkLog.kind; any text is allowed. */
 export const WORK_KINDS = ['creation', 'comments', 'review', 'revision', 'testing', 'meeting'];
 
 /* ---------- Team tasks (tasks/{id}) ---------- */
@@ -172,8 +168,41 @@ export interface Task {
    * when they can't see every sub-task (sub-tasks of other teams). Kept by TaskService.
    */
   subtasks?: Record<string, boolean>;
+  /** Archived tasks leave the board (a toggle shows them); only the reviewer, PMs and admins archive. */
+  archived?: boolean;
+  archivedByName?: string;
   createdAt?: any;
   updatedAt?: any;
+}
+
+/**
+ * tasks/{taskId}/workLogs/{id}: time someone spent on a task. Feeds the monthly production
+ * report, so the task's title and project are copied in (the report reads logs on their own).
+ */
+export interface WorkLog {
+  id?: string;
+  taskId: string;
+  taskTitle: string; // the report's "Sub-Project"
+  projectId: string; // '' for no project
+  userId: string;
+  userName: string;
+  date: string; // YYYY-MM-DD
+  hours: number; // > 0, up to 24
+  country: string;
+  kind: string; // kind of work, e.g. "creation", "comments"
+  pages: string; // page numbers, one per line
+  note: string;
+  createdAt?: any;
+}
+
+/** tasks/{taskId}/activity/{id}: one line of a task's history; written by TaskService, never edited. */
+export interface TaskActivity {
+  id?: string;
+  by: string;
+  byName: string;
+  icon: string; // PrimeIcons class
+  text: string; // e.g. 'moved it from To do to In progress'
+  at?: any;
 }
 
 /** Project colours: fixed swatches that read on both themes. */

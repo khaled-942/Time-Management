@@ -37,6 +37,14 @@
         }
       </div>
 
+      @if (taskCounts(project); as counts) {
+      <button type="button" class="project-tasks" (click)="openTasks(project)">
+        <i class="pi pi-objects-column"></i>
+        <span><strong class="mono">{{ counts.open }}</strong> open · <strong class="mono">{{ counts.done }}</strong> done</span>
+        <span class="see-all">Tasks <i class="pi pi-arrow-right"></i></span>
+      </button>
+      }
+
       @if (canManage) {
       <div class="project-actions">
         <p-button label="Edit" icon="pi pi-pencil" styleClass="p-button-text p-button-sm" (onClick)="openEdit(project)" />
@@ -97,4 +105,82 @@
     <p-button [label]="editingId ? 'Save' : 'Add project'" icon="pi pi-check" [loading]="saving"
       [disabled]="!form?.name?.trim()" (onClick)="save()" />
   </ng-template>
+</p-dialog>
+
+<!-- Every task in a project -->
+<p-dialog [visible]="!!viewing" (visibleChange)="!$event && (viewing = null)" [modal]="true" [draggable]="false"
+  [style]="{ width: '60rem' }" [breakpoints]="{ '960px': '96vw' }" [header]="(viewing?.name ?? '') + ' · tasks'"
+  [dismissableMask]="true">
+  @if (viewing) {
+  <div class="tasks-toolbar">
+    <p-dropdown [options]="statusOptions" [(ngModel)]="statusFilter" optionLabel="label" optionValue="value"
+      appendTo="body" ariaLabel="Status"></p-dropdown>
+    @if (archivedTaskCount) {
+    <label class="switch-label">
+      <p-inputSwitch [(ngModel)]="showArchivedTasks"></p-inputSwitch>
+      <span>Show archived ({{ archivedTaskCount }})</span>
+    </label>
+    }
+    <span class="muted tasks-count">{{ projectTasks.length }} task{{ projectTasks.length === 1 ? '' : 's' }}</span>
+  </div>
+  @if (!seesAllTasks) {
+  <p class="muted small scope-note"><i class="pi pi-info-circle"></i> Showing the tasks you can see: your team's, and the ones
+    you created or are assigned to.</p>
+  }
+
+  @if (projectTasks.length) {
+  <div class="table-scroll">
+    <table class="tasks-table">
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Status</th>
+          <th>Created by</th>
+          <th>Assigned to</th>
+          <th>Due</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (task of projectTasks; track task.id) {
+        <tr [class.archived]="task.archived">
+          <td>
+            <a [routerLink]="'/board'" [queryParams]="{ task: task.id }" class="task-link">{{ task.title }}</a>
+            @if (parentTitle(task); as parent) {
+            <small class="muted parent"><i class="pi pi-sitemap"></i> {{ parent }}</small>
+            }
+            @if (task.archived) { <span class="pill">Archived</span> }
+          </td>
+          <td><span class="pill" [ngClass]="statusTone(task.status)">{{ statusLabel(task.status) }}</span></td>
+          <td>
+            <span class="person">
+              @if (person(task.createdBy)?.avatar; as avatar) { <img [src]="avatar" alt="" /> }
+              {{ task.createdByName }}
+            </span>
+          </td>
+          <td>
+            <div class="people">
+              @for (id of task.assigneeIds; track id) {
+              <span class="person">
+                @if (person(id)?.avatar; as avatar) { <img [src]="avatar" alt="" /> }
+                {{ person(id)?.name ?? 'Unknown' }}
+              </span>
+              } @empty {
+              <span class="muted">Nobody yet</span>
+              }
+            </div>
+          </td>
+          <td class="mono">{{ task.dueDate ? (task.dueDate | date: 'MMM d') : '—' }}</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  } @else {
+  <div class="empty-state">
+    <i class="pi pi-objects-column"></i>
+    <strong>{{ tasksLoaded ? 'No tasks here' : 'Loading…' }}</strong>
+    @if (tasksLoaded) { <span>Tasks created on the board for {{ viewing.name }} show up here.</span> }
+  </div>
+  }
+  }
 </p-dialog>

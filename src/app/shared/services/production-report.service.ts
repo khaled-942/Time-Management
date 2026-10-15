@@ -1,17 +1,19 @@
 import { Injectable } from '@angular/core';
-import { DayOffType, DayRecord, Project, TimeEntry, UserProfile } from '../models';
+import { doc, Firestore, getDoc, serverTimestamp, setDoc } from '@angular/fire/firestore';
+import { DayOffType, DayRecord, Project, UserProfile, WorkLog } from '../models';
 import { HttpRequestsService } from './http-requests.service';
 import { OrgService } from './org.service';
-import { entryMinutes, TimeEntryService } from './time-entry.service';
+import { TaskService } from './task.service';
 import { daysBetween, isFriday, MONTHS, parseLocalDate, toDateString } from '../utils/work-schedule';
 import { downloadBlob } from '../utils/format';
 
 // Monthly production report: what was worked on each day of a calendar month (1st → last day,
-// unlike the 11th → 10th payroll period), built from the private task log (My Tasks) plus
-// attendance days and holidays. Exported as Word (day by day) and Excel (project × day grid),
-// matching the paper reports people used to fill in by hand.
+// unlike the 11th → 10th payroll period), built from the time people log on board tasks
+// (tasks/{id}/workLogs) plus attendance days and holidays. Exported as Word (day by day) and
+// Excel (project × day grid), matching the paper reports people used to fill in by hand.
 
-const SETTINGS_KEY = 'productionReportSettings';
+/** Where the first version kept the settings, before they moved to Firestore. */
+const LEGACY_SETTINGS_KEY = 'productionReportSettings';
 
 /** Day of the month the report is due (or the month's last day when it's shorter). */
 export const REPORT_DUE_DAY = 30;
@@ -30,19 +32,25 @@ export interface ReportMonth {
   monthIndex: number;
 }
 
-/** Remembered per browser; the same for every month. */
+/** A main assignment, shown as a band under every working day from `start` to `end`. */
+export interface ReportAssignment {
+  label: string; // e.g. "Oman"
+  start: string; // YYYY-MM-DD, '' = from the beginning
+  end: string; // YYYY-MM-DD, '' = still going
+}
+
+/** users/{uid}/private/report: the person's own report details, the same for every month. */
 export interface ReportSettings {
   organization: string;
   department: string;
-  /** Shown as a band on every working day, e.g. the country of the main project. '' for none. */
-  mainAssignment: string;
+  assignments: ReportAssignment[];
 }
 
 export interface ReportLine {
   country: string;
   project: string;
   projectColor: string;
-  subProject: string; // the entry's title
+  subProject: string; // the task's title
   kind: string;
   pages: string[];
   hours: number;
@@ -81,10 +89,8 @@ export interface ProductionReport {
   grid: ReportGridRow[];
   byProject: { name: string; color: string; hours: number }[];
   totalHours: number;
-  entryCount: number;
-  /** Timers still running: left out until they're stopped. */
-  runningCount: number;
-  /** Working days up to today with a check-in but nothing logged in My Tasks. */
+  logCount: number;
+  /** Working days up to today with a check-in but no time logged on any task. */
   unloggedDays: string[];
 }
 
@@ -111,6 +117,13 @@ export function reportDueDate(month: ReportMonth): string {
   return toDateString(new Date(month.year, month.monthIndex, Math.min(REPORT_DUE_DAY, lastDay)));
 }
 
+/** The assignment covering `date`; when ranges overlap, the one that started last wins. */
+export function assignmentOn(assignments: ReportAssignment[], date: string): ReportAssignment | undefined {
+  return assignments
+    .filter((a) => a.label.trim() && (!a.start || a.start <= date) && (!a.end || date <= a.end))
+    .sort((a, b) => b.start.localeCompare(a.start))[0];
+}
+
 /** 3 → "3", 1.5 → "1.5", 0.33 → "0.33" */
 export function formatHours(hours: number): string {
   return String(Math.round(hours * 100) / 100);
@@ -123,28 +136,50 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 })
 export class ProductionReportService {
   constructor(
-    private entries: TimeEntryService,
+    private firestore: Firestore,
+    private tasks: TaskService,
     private http: HttpRequestsService,
     private org: OrgService
   ) { }
 
   /* ---------- Settings ---------- */
 
-  getSettings(): ReportSettings {
-    const empty: ReportSettings = { organization: '', department: '', mainAssignment: '' };
+  async getSettings(userId: string): Promise<ReportSettings> {
+    const snapshot = await getDoc(doc(this.firestore, `users/${userId}/private/report`));
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      return {
+        organization: data['organization'] ?? '',
+        department: data['department'] ?? '',
+        assignments: Array.isArray(data['assignments']) ? data['assignments'] : [],
+      };
+    }
+    return this.legacySettings();
+  }
+
+  async saveSettings(userId: string, settings: ReportSettings) {
+    await setDoc(doc(this.firestore, `users/${userId}/private/report`), { ...settings, updatedAt: serverTimestamp() });
     try {
-      const saved = typeof window !== 'undefined' ? window.localStorage.getItem(SETTINGS_KEY) : null;
-      return saved ? { ...empty, ...JSON.parse(saved) } : empty;
+      window.localStorage.removeItem(LEGACY_SETTINGS_KEY);
     } catch {
-      return empty;
+      // Nothing to clean up
     }
   }
 
-  saveSettings(settings: ReportSettings) {
+  /** Settings the first version kept in this browser; offered until they're saved to Firestore. */
+  private legacySettings(): ReportSettings {
+    const empty: ReportSettings = { organization: '', department: '', assignments: [] };
     try {
-      window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      const saved = typeof window !== 'undefined' ? window.localStorage.getItem(LEGACY_SETTINGS_KEY) : null;
+      if (!saved) return empty;
+      const old = JSON.parse(saved);
+      return {
+        organization: old.organization ?? '',
+        department: old.department ?? '',
+        assignments: old.mainAssignment ? [{ label: old.mainAssignment, start: '', end: '' }] : [],
+      };
     } catch {
-      // Private mode or storage blocked: the settings just won't be remembered
+      return empty;
     }
   }
 
@@ -153,13 +188,14 @@ export class ProductionReportService {
   async build(user: UserProfile, month: ReportMonth): Promise<ProductionReport> {
     const first = toDateString(new Date(month.year, month.monthIndex, 1));
     const last = toDateString(new Date(month.year, month.monthIndex + 1, 0));
-    const [entries, days, holidays, projects] = await Promise.all([
-      this.entries.getRange(first, last),
+    const [logs, days, holidays, projects, settings] = await Promise.all([
+      this.tasks.myWorkLogs(first, last),
       this.http.getUserDaysBetween(user.userId, first, last) as Promise<DayRecord[]>,
       this.http.getHolidays().catch(() => []),
       this.org.getProjects().catch(() => [] as Project[]),
+      this.getSettings(user.userId).catch(() => this.legacySettings()),
     ]);
-    return this.assemble(user, month, entries, days, this.holidayNames(holidays), projects);
+    return this.assemble(user, month, settings, logs, days, this.holidayNames(holidays), projects);
   }
 
   private holidayNames(holidays: any[]): Map<string, string> {
@@ -174,40 +210,43 @@ export class ProductionReportService {
   private assemble(
     user: UserProfile,
     month: ReportMonth,
-    entries: TimeEntry[],
+    settings: ReportSettings,
+    logs: WorkLog[],
     dayRecords: DayRecord[],
     holidays: Map<string, string>,
     projects: Project[]
   ): ProductionReport {
-    const settings = this.getSettings();
     const today = toDateString(new Date());
     const projectsById = new Map(projects.map((p) => [p.id!, p]));
     const recordsByDate = new Map(dayRecords.map((d) => [d.start, d]));
-    const finished = entries.filter((e) => e.end);
     const dates = daysBetween(
       toDateString(new Date(month.year, month.monthIndex, 1)),
       toDateString(new Date(month.year, month.monthIndex + 1, 0))
     );
 
-    const toLine = (e: TimeEntry): ReportLine => {
-      const project = projectsById.get(e.projectId);
+    const toLine = (log: WorkLog): ReportLine => {
+      const project = projectsById.get(log.projectId);
       return {
-        country: e.country?.trim() ?? '',
+        country: log.country.trim(),
         project: project?.name ?? '',
         projectColor: project?.color ?? '',
-        subProject: e.title,
-        kind: e.kind?.trim() ?? '',
-        pages: (e.pages ?? '').split('\n').map((p) => p.trim()).filter(Boolean),
-        hours: round2(entryMinutes(e) / 60),
+        subProject: log.taskTitle,
+        kind: log.kind.trim(),
+        pages: log.pages.split('\n').map((p) => p.trim()).filter(Boolean),
+        hours: round2(log.hours),
       };
     };
+    // Same order every time: by task, then by when it was logged
+    const sorted = [...logs].sort(
+      (a, b) => a.taskTitle.localeCompare(b.taskTitle) || (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0)
+    );
 
     const days: ReportDay[] = dates.map((date) => {
       const d = parseLocalDate(date);
       const record = recordsByDate.get(date);
-      const lines = finished.filter((e) => e.date === date).map(toLine);
+      const lines = sorted.filter((l) => l.date === date).map(toLine);
       let kind: ReportDayKind = 'work';
-      let band = settings.mainAssignment.trim();
+      let band = assignmentOn(settings.assignments, date)?.label.trim() ?? '';
       if (record?.isDayOff && record.dayOffType !== DayOffType.Task) {
         kind = 'off';
         band = record.dayOffType === DayOffType.Absent ? 'Absent' : 'Off';
@@ -274,8 +313,7 @@ export class ProductionReportService {
       })),
       byProject: [...byProject.values()].sort((a, b) => b.hours - a.hours),
       totalHours: round2(days.reduce((sum, d) => sum + d.hours, 0)),
-      entryCount: finished.length,
-      runningCount: entries.length - finished.length,
+      logCount: logs.length,
       unloggedDays: days
         .filter((d) => d.date <= today && !d.lines.length && recordsByDate.get(d.date)?.in && d.kind === 'work')
         .map((d) => d.date),
@@ -482,7 +520,7 @@ export class ProductionReportService {
       day.kind === 'friday' ? solid(FILL.friday) : day.kind === 'off' ? solid(FILL.off) : day.kind === 'holiday' ? solid(FILL.holiday) : undefined;
 
     // Title block
-    const { organization, department, mainAssignment } = report.settings;
+    const { organization, department } = report.settings;
     sheet.getCell('A1').value = organization.trim();
     sheet.getCell('A1').font = { bold: true, size: 13 };
     sheet.getCell('A2').value = 'Production Report';
@@ -521,31 +559,31 @@ export class ProductionReportService {
     // Header row: column titles, then the main assignment / Off / holiday per day
     const headerRow = 8;
     ['Project Name', 'Sub - Project', 'Country'].forEach((title, i) => (sheet.getCell(headerRow, i + 1).value = title));
-    let runStart = -1;
     report.days.forEach((day, i) => {
-      const c = firstDayCol + i;
-      const header = sheet.getCell(headerRow, c);
-      if (day.kind !== 'work') {
-        header.value = day.kind === 'friday' ? '' : day.band;
-        header.alignment = { textRotation: 90, horizontal: 'center', vertical: 'middle' };
-        header.font = { size: 8, color: { argb: day.kind === 'off' ? 'FFFFFFFF' : 'FF000000' } };
-      }
-      // Consecutive working days share one merged main-assignment cell
-      const isBandDay = day.kind === 'work' && !!mainAssignment.trim();
-      if (isBandDay && runStart < 0) runStart = c;
-      const runEnds = runStart >= 0 && (!isBandDay || i === dayCount - 1);
-      if (runEnds) {
-        const end = isBandDay ? c : c - 1;
-        if (end > runStart) sheet.mergeCells(headerRow, runStart, headerRow, end);
-        const cellBand = sheet.getCell(headerRow, runStart);
-        cellBand.value = mainAssignment.trim();
-        // A run of one or two narrow day columns only fits the text sideways
-        cellBand.alignment = end - runStart < 2 ? { ...center, textRotation: 90 } : center;
-        if (end - runStart < 2) cellBand.font = { size: 8 };
-        cellBand.fill = solid(FILL.band);
-        runStart = -1;
-      }
+      if (day.kind === 'work') return;
+      const header = sheet.getCell(headerRow, firstDayCol + i);
+      header.value = day.kind === 'friday' ? '' : day.band;
+      header.alignment = { textRotation: 90, horizontal: 'center', vertical: 'middle' };
+      header.font = { size: 8, color: { argb: day.kind === 'off' ? 'FFFFFFFF' : 'FF000000' } };
     });
+    // Consecutive working days under the same main assignment share one merged cell
+    for (let i = 0; i < dayCount; ) {
+      const band = report.days[i].kind === 'work' ? report.days[i].band : '';
+      let j = i;
+      while (band && j + 1 < dayCount && report.days[j + 1].kind === 'work' && report.days[j + 1].band === band) j++;
+      if (band) {
+        const start = firstDayCol + i;
+        const end = firstDayCol + j;
+        if (end > start) sheet.mergeCells(headerRow, start, headerRow, end);
+        const cellBand = sheet.getCell(headerRow, start);
+        cellBand.value = band;
+        // A run of one or two narrow day columns only fits the text sideways
+        cellBand.alignment = end - start < 2 ? { ...center, textRotation: 90 } : center;
+        if (end - start < 2) cellBand.font = { size: 8 };
+        cellBand.fill = solid(FILL.band);
+      }
+      i = j + 1;
+    }
     sheet.getRow(headerRow).height = 42;
 
     // Data rows

@@ -159,6 +159,7 @@ export class TimeManagementDashboardComponent implements OnInit, OnDestroy {
   reportError = false;
   exporting: 'word' | 'excel' | null = null;
   settingsForm: ReportSettings | null = null;
+  savingSettings = false;
 
   // Board: open tasks assigned to me, and tasks waiting for my review
   myTasks: Task[] = [];
@@ -465,19 +466,64 @@ export class TimeManagementDashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  openReportSettings() {
-    this.settingsForm = { ...this.reports.getSettings() };
+  async openReportSettings() {
+    if (!this.user) return;
+    try {
+      const settings = await this.reports.getSettings(this.user.userId);
+      this.settingsForm = { ...settings, assignments: settings.assignments.map((a) => ({ ...a })) };
+      if (!this.settingsForm.assignments.length) this.addAssignment();
+    } catch (error) {
+      console.error('Error loading report details:', error);
+      this.toast('error', 'Could not load your report details', 'Please try again.');
+    }
+  }
+
+  addAssignment() {
+    const last = this.settingsForm?.assignments.at(-1);
+    // A new assignment usually starts the day after the previous one ends
+    let start = this.today;
+    if (last?.end) {
+      const next = parseLocalDate(last.end);
+      next.setDate(next.getDate() + 1);
+      start = toDateString(next);
+    }
+    this.settingsForm?.assignments.push({ label: '', start, end: '' });
+  }
+
+  removeAssignment(index: number) {
+    this.settingsForm?.assignments.splice(index, 1);
+  }
+
+  /** Why the details can't be saved, or '' when they can. */
+  get settingsError(): string {
+    for (const a of this.settingsForm?.assignments ?? []) {
+      if (!a.label.trim()) return 'Give every assignment a name, or remove it.';
+      if (!a.start) return `Pick a start date for ${a.label.trim()}.`;
+      if (a.end && a.end < a.start) return `${a.label.trim()} ends before it starts.`;
+    }
+    return '';
   }
 
   async saveReportSettings() {
-    if (!this.settingsForm) return;
-    this.reports.saveSettings({
-      organization: this.settingsForm.organization.trim(),
-      department: this.settingsForm.department.trim(),
-      mainAssignment: this.settingsForm.mainAssignment.trim(),
-    });
-    this.settingsForm = null;
-    await this.loadReport();
+    const form = this.settingsForm;
+    if (!form || !this.user || this.settingsError) return;
+    this.savingSettings = true;
+    try {
+      await this.reports.saveSettings(this.user.userId, {
+        organization: form.organization.trim(),
+        department: form.department.trim(),
+        assignments: form.assignments
+          .map((a) => ({ label: a.label.trim(), start: a.start, end: a.end }))
+          .sort((a, b) => a.start.localeCompare(b.start)),
+      });
+      this.settingsForm = null;
+      await this.loadReport();
+    } catch (error) {
+      console.error('Error saving report details:', error);
+      this.toast('error', 'Could not save your report details', 'Please try again.');
+    } finally {
+      this.savingSettings = false;
+    }
   }
 
   /* ---------- Board ---------- */
@@ -489,9 +535,9 @@ export class TimeManagementDashboardComponent implements OnInit, OnDestroy {
         const byDue = (a: Task, b: Task) =>
           (a.dueDate || '9999').localeCompare(b.dueDate || '9999') ||
           Object.keys(TASK_PRIORITIES).indexOf(b.priority) - Object.keys(TASK_PRIORITIES).indexOf(a.priority);
-        const mine = tasks.filter((t) => t.assigneeIds.includes(me.userId) && t.status !== 'done');
+        const mine = tasks.filter((t) => t.assigneeIds.includes(me.userId) && t.status !== 'done' && !t.archived);
         this.myTasks = mine.sort(byDue);
-        this.reviewTasks = tasks.filter((t) => t.createdBy === me.userId && t.status === 'review').sort(byDue);
+        this.reviewTasks = tasks.filter((t) => t.createdBy === me.userId && t.status === 'review' && !t.archived).sort(byDue);
         this.myTaskCounts = TASK_STATUSES.filter((s) => s.value !== 'done')
           .map((s) => ({ status: s.value, label: s.label, count: mine.filter((t) => t.status === s.value).length }))
           .filter((s) => s.count > 0);

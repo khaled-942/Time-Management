@@ -105,3 +105,126 @@
     outline-offset: 2px;
   }
 }
+
+/* ---------- Project tasks ---------- */
+
+.project-tasks {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+
+  strong {
+    color: var(--foreground);
+  }
+
+  .see-all {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--foreground);
+    font-weight: 500;
+
+    .pi {
+      font-size: 0.7rem;
+    }
+  }
+
+  &:hover {
+    border-color: var(--project-color);
+  }
+}
+
+.tasks-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+
+  .tasks-count {
+    margin-left: auto;
+    font-size: 0.85rem;
+  }
+}
+
+.scope-note {
+  margin: 0 0 0.75rem;
+}
+
+.tasks-table {
+  width: 100%;
+  min-width: 40rem;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+
+  th {
+    text-align: left;
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  td {
+    padding: 0.6rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr.archived td {
+    opacity: 0.6;
+  }
+
+  .task-link {
+    color: var(--foreground);
+    font-weight: 500;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .parent {
+    display: block;
+    margin-top: 0.15rem;
+  }
+
+  .pill {
+    margin-top: 0.2rem;
+  }
+}
+
+.people {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.person {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+
+  img {
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+}

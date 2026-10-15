@@ -149,8 +149,8 @@
           <span class="report-figure mono">{{ formatHours(report.totalHours) }}<small>h</small></span>
         </div>
         <div>
-          <span class="eyebrow">Tasks</span>
-          <span class="report-figure mono">{{ report.entryCount }}</span>
+          <span class="eyebrow">Time entries</span>
+          <span class="report-figure mono">{{ report.logCount }}</span>
         </div>
         <div>
           <span class="eyebrow">Report due</span>
@@ -172,7 +172,7 @@
       <div class="empty-state">
         <i class="pi pi-check-square"></i>
         <strong>Nothing logged in {{ report.monthLabel }}</strong>
-        <span>Log what you work on in <a routerLink="/my-tasks">My tasks</a>; it becomes this report.</span>
+        <span>Open a task on the <a routerLink="/board">board</a> and use "Log time"; it becomes this report.</span>
       </div>
       }
 
@@ -183,18 +183,13 @@
         logged ({{ report.unloggedDays.slice(0, 3).join(', ') }}{{ report.unloggedDays.length > 3 ? '…' : '' }}).
       </p>
       }
-      @if (report.runningCount) {
-      <p class="muted report-note">
-        <i class="pi pi-play"></i> A running timer isn't included until you stop it.
-      </p>
-      }
 
       <div class="report-actions">
         <p-button label="Word report" icon="pi pi-file-word" [loading]="exporting === 'word'"
           [disabled]="!!exporting" (onClick)="exportReport('word')" />
         <p-button label="Excel sheet" icon="pi pi-file-excel" styleClass="p-button-outlined"
           [loading]="exporting === 'excel'" [disabled]="!!exporting" (onClick)="exportReport('excel')" />
-        <a routerLink="/my-tasks" class="card-link">My tasks <i class="pi pi-arrow-right"></i></a>
+        <a routerLink="/board" class="card-link">Board <i class="pi pi-arrow-right"></i></a>
       </div>
       }
     </section>
@@ -441,10 +436,10 @@
 
 <!-- Production report details -->
 <p-dialog [visible]="!!settingsForm" (visibleChange)="!$event && (settingsForm = null)" [modal]="true"
-  [draggable]="false" header="Report details" [style]="{ width: '28rem' }" [breakpoints]="{ '640px': '94vw' }">
+  [draggable]="false" header="Report details" [style]="{ width: '36rem' }" [breakpoints]="{ '640px': '94vw' }">
   @if (settingsForm) {
   <div class="form-stack">
-    <p class="muted">Printed on your Word and Excel reports. Saved on this device.</p>
+    <p class="muted">Printed on your Word and Excel reports.</p>
     <label class="field">
       <span>Organization</span>
       <input pInputText [(ngModel)]="settingsForm.organization" maxlength="120"
@@ -454,15 +449,27 @@
       <span>Department</span>
       <input pInputText [(ngModel)]="settingsForm.department" maxlength="80" placeholder="e.g. Multimedia" />
     </label>
-    <label class="field">
-      <span>Main assignment <small class="muted">(optional)</small></span>
-      <input pInputText [(ngModel)]="settingsForm.mainAssignment" maxlength="80" placeholder="e.g. Oman" />
-      <small class="muted">Shown as a band under every working day, like the old reports.</small>
-    </label>
+    <div class="field">
+      <span>Main assignments</span>
+      <small class="muted">Shown as a band under every working day between its start and end, like the old reports.
+        Leave the end empty while it's still going.</small>
+      @for (a of settingsForm.assignments; track $index) {
+      <div class="assignment-row">
+        <input pInputText [(ngModel)]="a.label" maxlength="80" placeholder="e.g. Oman" aria-label="Assignment" />
+        <input pInputText type="date" [(ngModel)]="a.start" aria-label="Start date" />
+        <input pInputText type="date" [(ngModel)]="a.end" [min]="a.start" aria-label="End date" />
+        <p-button icon="pi pi-times" styleClass="p-button-text p-button-sm" ariaLabel="Remove assignment"
+          (onClick)="removeAssignment($index)" />
+      </div>
+      }
+      <p-button label="Add assignment" icon="pi pi-plus" styleClass="p-button-outlined p-button-sm add-assignment"
+        (onClick)="addAssignment()" />
+    </div>
   </div>
   }
   <ng-template pTemplate="footer">
     <p-button label="Cancel" styleClass="p-button-outlined" (onClick)="settingsForm = null" />
-    <p-button label="Save" icon="pi pi-check" (onClick)="saveReportSettings()" />
+    <p-button label="Save" icon="pi pi-check" [loading]="savingSettings" [disabled]="!!settingsError"
+      [pTooltip]="settingsError" tooltipPosition="top" (onClick)="saveReportSettings()" />
   </ng-template>
 </p-dialog>

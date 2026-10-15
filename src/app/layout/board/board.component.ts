@@ -15,7 +15,7 @@ import { MessageService } from 'primeng/api';
 import { LoaderComponent } from '../../shared/loader/loader.component';
 import { DirectoryService } from '../../shared/services/directory.service';
 import { OrgService } from '../../shared/services/org.service';
-import { TaskService } from '../../shared/services/task.service';
+import { HAS_WORK_LOGS, TaskService } from '../../shared/services/task.service';
 import { UserService } from '../../shared/services/user.service';
 import {
   DirectoryEntry,
@@ -92,6 +92,7 @@ export class BoardComponent implements OnInit, OnDestroy {
   teamFilter = '';
   typeFilter: TaskType | '' = '';
   assigneeFilter = ''; // '' everyone, 'me', or a user id
+  showArchived = false;
 
   // Task dialog: a copy taken when it opens, so live updates don't reset the form mid-edit
   dialogOpen = false;
@@ -215,7 +216,17 @@ export class BoardComponent implements OnInit, OnDestroy {
     this.rebuild();
   }
 
+  get archivedCount(): number {
+    return this.tasks.filter((t) => t.archived).length;
+  }
+
+  toggleArchived() {
+    this.showArchived = !this.showArchived;
+    this.rebuild();
+  }
+
   private matches(task: Task): boolean {
+    if (task.archived && !this.showArchived) return false;
     const q = this.search.trim().toLowerCase();
     if (q && !task.title.toLowerCase().includes(q) && !task.description.toLowerCase().includes(q)) return false;
     if (this.projectFilter && task.projectId !== this.projectFilter) return false;
@@ -408,6 +419,10 @@ export class BoardComponent implements OnInit, OnDestroy {
         if (changes.status && changes.status !== original.status) changes.order = this.endOrder(changes.status);
         await this.taskService.update(original, changes);
         this.toast('success', 'Task saved', original.title);
+      } else if (result.kind === 'archive') {
+        const task = this.tasks.find((t) => t.id === result.id)!;
+        await this.taskService.setArchived(task, result.archived);
+        this.toast('success', result.archived ? 'Task archived' : 'Task restored', task.title);
       } else {
         const task = this.tasks.find((t) => t.id === result.id)!;
         // Sub-tasks would be left pointing at nothing (and some may belong to other teams)
@@ -419,7 +434,11 @@ export class BoardComponent implements OnInit, OnDestroy {
         this.toast('success', 'Task deleted', task.title);
       }
       this.closeDialog();
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === HAS_WORK_LOGS) {
+        this.toast('warn', 'This task has logged time', 'Archive it instead, so the hours stay in reports.');
+        return;
+      }
       console.error('Error saving task', error);
       this.toast('error', 'Could not save the task', 'Please try again.');
     } finally {
