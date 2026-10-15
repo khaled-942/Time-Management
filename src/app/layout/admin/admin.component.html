@@ -1,110 +1,491 @@
-<div class="admin-container">
-  <div class="header-section">
-    <h1 class="text-3xl font-semibold text-900">Admin Dashboard</h1>
+@if (isLoading) {
+<app-loader></app-loader>
+}
+<p-toast position="bottom-right"></p-toast>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Admin</h1>
+      <p>Team attendance, accounts, teams and payroll periods.</p>
+    </div>
   </div>
 
-  <div class="admin-content">
-    <p-tabView>
-      <!-- Holidays Management Tab -->
-      <p-tabPanel header="Holidays Management">
-        <p-card>
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="holidayDate" class="form-label">Date</label>
-              <p-calendar [(ngModel)]="newHoliday.date" [showIcon]="true" inputId="holidayDate" styleClass="w-full">
-              </p-calendar>
-            </div>
+  <p-tabView (activeIndexChange)="onTabChange($event)" [scrollable]="true">
+    <!-- ================= Team overview ================= -->
+    <p-tabPanel header="Team overview">
+      <div class="stats-grid mb-3">
+        <div class="stat-card">
+          <span class="stat-label">Active people</span>
+          <span class="stat-value">{{ teamSummary.active }}</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">In now</span>
+          <span class="stat-value">{{ isCurrentTeamPeriod ? teamSummary.in : '—' }}</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Not in yet</span>
+          <span class="stat-value" [class.danger]="isCurrentTeamPeriod && teamSummary.notIn > 0">
+            {{ isCurrentTeamPeriod ? teamSummary.notIn : '—' }}
+          </span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Off today</span>
+          <span class="stat-value">{{ isCurrentTeamPeriod ? teamSummary.off : '—' }}</span>
+        </div>
+      </div>
 
-            <div class="form-group">
-              <label for="holidayName" class="form-label">Holiday Name</label>
-              <input pInputText id="holidayName" [(ngModel)]="newHoliday.name" placeholder="Enter holiday name"
-                class="w-full" />
-            </div>
-
-            <div class="form-group">
-              <label for="holidayTags" class="form-label">Tags</label>
-              <p-dropdown [options]="holidayTags" [(ngModel)]="selectedTags" multiple optionLabel="name"
-                optionValue="value" placeholder="Select Tags" styleClass="w-full">
-              </p-dropdown>
-            </div>
-
-            <div class="form-actions">
-              <p-button label="Add Holiday" (onClick)="addHoliday()" icon="pi pi-plus" styleClass="p-button-primary">
-              </p-button>
-            </div>
+      <section class="card">
+        <div class="card-header">
+          <span class="card-title">Team · {{ periodLabelOf(teamPeriod) }}</span>
+          <div class="header-actions">
+            <p-dropdown [options]="periodOptions" [(ngModel)]="teamPeriodKey" (onChange)="loadTeam()" optionLabel="label"
+              optionValue="value" styleClass="period-select" appendTo="body"></p-dropdown>
+            <p-button label="Export report" icon="pi pi-file" styleClass="p-button-outlined" (onClick)="exportTeamCsv()"
+              [disabled]="!team.length" />
           </div>
+        </div>
 
-          <div class="table-container">
-            <p-table [value]="holidays" [paginator]="true" [rows]="10" [showCurrentPageReport]="true"
-              currentPageReportTemplate="Showing {first} to {last} of {totalRecords} holidays"
-              styleClass="p-datatable-gridlines">
+        @if (team.length) {
+        <div class="table-scroll">
+          <p-table [value]="team" [loading]="teamLoading" [rowHover]="true" [tableStyle]="{ 'min-width': '50rem' }">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Person</th>
+                <th>Today</th>
+                <th>Work days</th>
+                <th>Late</th>
+                <th>Absent</th>
+                <th>Leave</th>
+                <th></th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-row>
+              <tr>
+                <td>
+                  <div class="person">
+                    <img [src]="row.user.currentAvatar" [alt]="row.user.name" />
+                    <span>
+                      <strong>{{ row.user.name }}</strong>
+                      <small class="muted">{{ row.user.email }}</small>
+                    </span>
+                  </div>
+                </td>
+                <td><span class="pill" [ngClass]="row.today.tone">{{ row.today.label }}</span></td>
+                <td class="mono">{{ row.workDays }}</td>
+                <td class="mono" [class.text-danger]="row.late > 1">{{ row.late }}</td>
+                <td class="mono" [class.text-danger]="row.absences > 0">{{ row.absences }}</td>
+                <td class="mono">{{ row.leave }}</td>
+                <td class="text-right nowrap">
+                  <p-button icon="pi pi-download" styleClass="p-button-text" pTooltip="Export all days"
+                    tooltipPosition="left" (onClick)="downloadUserData(row.user)" ariaLabel="Export days" />
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        } @else if (!teamLoading) {
+        <div class="empty-state">
+          <i class="pi pi-users"></i>
+          <strong>No active people</strong>
+          <span>People appear here once they register.</span>
+        </div>
+        }
+      </section>
+    </p-tabPanel>
+
+    <!-- ================= Users ================= -->
+    <p-tabPanel header="Users">
+      <section class="card">
+        <div class="card-header">
+          <span class="card-title">People</span>
+          <span class="muted">Inactive people can't sign in. Salaries are private to each person.</span>
+        </div>
+        <div class="table-scroll">
+          <p-table [value]="editableUsers" [rowHover]="true" [paginator]="editableUsers.length > 10" [rows]="10"
+            [tableStyle]="{ 'min-width': '50rem' }">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Person</th>
+                <th>Role</th>
+                <th>Team</th>
+                <th>Admin</th>
+                <th>Active</th>
+                <th></th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-row>
+              <tr [class.inactive]="!row.active">
+                <td>
+                  <div class="person">
+                    <img [src]="row.user.currentAvatar" [alt]="row.user.name" />
+                    <span>
+                      <strong>{{ row.user.name }} @if (row.user.userId === myUid) {<small class="muted">(you)</small>}</strong>
+                      <small class="muted">{{ row.user.email }}</small>
+                    </span>
+                  </div>
+                </td>
+                <td>
+                  <p-dropdown [options]="roleOptions" [(ngModel)]="row.role" optionLabel="label" optionValue="value"
+                    styleClass="cell-select" appendTo="body"></p-dropdown>
+                </td>
+                <td>
+                  @if (row.role === 'pm') {
+                  <span class="muted">All teams</span>
+                  } @else {
+                  <p-dropdown [options]="teamOptions" [(ngModel)]="row.teamId" optionLabel="label" optionValue="value"
+                    styleClass="cell-select" appendTo="body"></p-dropdown>
+                  }
+                </td>
+                <td>
+                  <p-inputSwitch [(ngModel)]="row.isAdmin" [disabled]="row.user.userId === myUid" />
+                </td>
+                <td>
+                  <p-inputSwitch [(ngModel)]="row.active" [disabled]="row.user.userId === myUid" />
+                </td>
+                <td class="text-right">
+                  <p-button label="Save" styleClass="p-button-sm" [disabled]="!isDirty(row)" [loading]="row.saving"
+                    (onClick)="saveUser(row)" />
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </section>
+    </p-tabPanel>
+
+    <!-- ================= Teams ================= -->
+    <p-tabPanel header="Teams">
+      <div class="grid-2 reverse">
+        <section class="card">
+          <div class="card-header">
+            <span class="card-title">Teams</span>
+            <span class="muted">One leader per team. Project managers work across all teams.</span>
+          </div>
+          @if (teams.length) {
+          <div class="team-list">
+            @for (team of teams; track team.id) {
+            <div class="team-row">
+              <div class="team-head">
+                <strong>{{ team.name }}</strong>
+                <p-button icon="pi pi-trash" styleClass="p-button-danger p-button-text p-button-sm"
+                  [disabled]="teamSaving" (onClick)="deleteTeam(team)" ariaLabel="Delete team" pTooltip="Delete team"
+                  tooltipPosition="left" />
+              </div>
+              <label class="field">
+                <span>Team leader</span>
+                <p-dropdown [options]="leaderOptions(team)" [ngModel]="team.leaderId || null"
+                  (onChange)="changeLeader(team, $event.value)" optionLabel="label" optionValue="value"
+                  placeholder="No leader yet" [showClear]="true" [filter]="true" filterBy="label"
+                  [disabled]="teamSaving" styleClass="w-full" appendTo="body"></p-dropdown>
+              </label>
+              <div class="team-members">
+                <span class="eyebrow">Members · {{ teamMembers(team).length }}</span>
+                @for (member of teamMembers(team); track member.userId) {
+                <span class="pill">{{ member.name }}</span>
+                } @empty {
+                <span class="muted">Add people to this team from the Users tab.</span>
+                }
+              </div>
+            </div>
+            }
+          </div>
+          } @else {
+          <div class="empty-state">
+            <i class="pi pi-sitemap"></i>
+            <strong>No teams yet</strong>
+            <span>Create teams like Frontend or Backend, then pick a leader and add members.</span>
+          </div>
+          }
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <span class="card-title">Add team</span>
+          </div>
+          <div class="form-stack">
+            <label class="field">
+              <span>Name</span>
+              <input pInputText [(ngModel)]="newTeamName" placeholder="e.g. Frontend" (keyup.enter)="addTeam()" />
+            </label>
+            <p-button label="Add team" icon="pi pi-plus" styleClass="w-full" [disabled]="!newTeamName.trim()"
+              [loading]="teamSaving" (onClick)="addTeam()" />
+          </div>
+        </section>
+      </div>
+    </p-tabPanel>
+
+    <!-- ================= Leave requests ================= -->
+    @if (leaveEnabled) {
+    <p-tabPanel [header]="pendingCount ? 'Leave requests (' + pendingCount + ')' : 'Leave requests'">
+      <section class="card">
+        <div class="card-header">
+          <span class="card-title">Leave requests</span>
+          <p-dropdown [options]="leaveFilterOptions" [(ngModel)]="leaveFilter" optionLabel="label" optionValue="value"
+            styleClass="filter-select" appendTo="body"></p-dropdown>
+        </div>
+        @if (filteredLeave.length) {
+        <div class="table-scroll">
+          <p-table [value]="filteredLeave" [rowHover]="true" [paginator]="filteredLeave.length > 10" [rows]="10"
+            [tableStyle]="{ 'min-width': '52rem' }">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Person</th>
+                <th>Dates</th>
+                <th>Days</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-r>
+              <tr>
+                <td><strong>{{ r.userName }}</strong></td>
+                <td class="mono">{{ r.start }} → {{ r.end }}</td>
+                <td class="mono">{{ r.days }}</td>
+                <td>
+                  {{ r.reason || '—' }}
+                  @if (r.decisionNote) {
+                  <small class="muted block">Note: {{ r.decisionNote }}</small>
+                  }
+                </td>
+                <td>
+                  <span class="pill" [ngClass]="leaveTone(r.status)">{{ r.status | titlecase }}</span>
+                  @if (r.decidedByName) {
+                  <small class="muted block">by {{ r.decidedByName }}</small>
+                  }
+                </td>
+                <td class="text-right nowrap">
+                  @if (r.status === 'pending') {
+                  <p-button label="Reject" styleClass="p-button-outlined p-button-sm" (onClick)="openDecision(r, 'reject')" />
+                  <p-button label="Approve" styleClass="p-button-sm ml-2" (onClick)="openDecision(r, 'approve')" />
+                  }
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        } @else {
+        <div class="empty-state">
+          <i class="pi pi-inbox"></i>
+          <strong>No {{ leaveFilter === 'all' ? '' : leaveFilter }} requests</strong>
+          <span>New requests show up here and in your notifications.</span>
+        </div>
+        }
+      </section>
+    </p-tabPanel>
+    }
+
+    <!-- ================= Payroll ================= -->
+    <p-tabPanel header="Payroll">
+      <section class="card">
+        <div class="card-header">
+          <span class="card-title">Payroll periods</span>
+          <span class="muted">Closing a period stops employees changing its days and tells them payslips are ready.</span>
+        </div>
+        <div class="table-scroll">
+          <p-table [value]="payrollPeriods" [rowHover]="true" [tableStyle]="{ 'min-width': '44rem' }">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Period</th>
+                <th>Status</th>
+                <th>Closed by</th>
+                <th></th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-p>
+              <tr>
+                <td>{{ periodLabelOf(p) }}</td>
+                <td>
+                  @if (locks.has(keyOf(p))) {
+                  <span class="pill success">Closed</span>
+                  } @else if (isPeriodOver(p)) {
+                  <span class="pill warning">Ready to close</span>
+                  } @else {
+                  <span class="pill">In progress</span>
+                  }
+                </td>
+                <td class="muted">
+                  {{ locks.get(keyOf(p))?.lockedByName || '—' }}
+                  @if (locks.get(keyOf(p))?.lockedAt?.toDate) {
+                  <small class="block mono">{{ locks.get(keyOf(p))!.lockedAt.toDate() | date: 'MMM d, y HH:mm' }}</small>
+                  }
+                </td>
+                <td class="text-right">
+                  @if (locks.has(keyOf(p))) {
+                  <p-button label="Reopen" icon="pi pi-lock-open" styleClass="p-button-outlined p-button-sm" (onClick)="unlock(p)" />
+                  } @else {
+                  <p-button label="Close period" icon="pi pi-lock" styleClass="p-button-sm" [disabled]="!isPeriodOver(p)"
+                    (onClick)="lockTarget = p" />
+                  }
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </section>
+    </p-tabPanel>
+
+    <!-- ================= Audit log ================= -->
+    <p-tabPanel header="Audit log">
+      <section class="card">
+        <div class="card-header">
+          <span class="card-title">Day changes</span>
+          <div class="header-actions">
+            <p-dropdown [options]="auditUserOptions" [(ngModel)]="auditUserFilter" optionLabel="label" optionValue="value"
+              styleClass="filter-select" appendTo="body" [filter]="true" filterBy="label"></p-dropdown>
+            <p-button icon="pi pi-refresh" styleClass="p-button-outlined" (onClick)="loadAudit()" ariaLabel="Refresh" />
+          </div>
+        </div>
+        @if (filteredAudit.length) {
+        <div class="table-scroll">
+          <p-table [value]="filteredAudit" [rowHover]="true" [paginator]="true" [rows]="15"
+            [tableStyle]="{ 'min-width': '52rem' }">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>When</th>
+                <th>Day</th>
+                <th>Whose day</th>
+                <th>Changed by</th>
+                <th>Change</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-a>
+              <tr>
+                <td class="mono">{{ a.at?.toDate ? (a.at.toDate() | date: 'MMM d, HH:mm') : '…' }}</td>
+                <td class="mono">{{ a.dayId }}</td>
+                <td>{{ userName(a.ownerId) }}</td>
+                <td>
+                  {{ a.changedByName || userName(a.changedBy) }}
+                  @if (a.changedBy !== a.ownerId) { <span class="pill info">admin</span> }
+                </td>
+                <td class="mono change">{{ describeChange(a) }}</td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        } @else {
+        <div class="empty-state">
+          <i class="pi pi-history"></i>
+          <strong>{{ auditLoaded ? 'No changes recorded yet' : 'Loading…' }}</strong>
+          <span>Every saved day is recorded here with who changed it and when.</span>
+        </div>
+        }
+      </section>
+    </p-tabPanel>
+
+    <!-- ================= Holidays ================= -->
+    <p-tabPanel header="Holidays">
+      <div class="grid-2 reverse">
+        <section class="card">
+          <div class="card-header">
+            <span class="card-title">Holidays</span>
+            <span class="muted">{{ holidays.length }} total</span>
+          </div>
+          @if (holidays.length) {
+          <div class="table-scroll">
+            <p-table [value]="holidays" [paginator]="holidays.length > 10" [rows]="10" [rowHover]="true"
+              [tableStyle]="{ 'min-width': '30rem' }">
               <ng-template pTemplate="header">
                 <tr>
-                  <th class="text-left">Date</th>
-                  <th class="text-left">Name</th>
-                  <th class="text-left">Tags</th>
-                  <th class="text-center">Actions</th>
+                  <th>Date</th>
+                  <th>Name</th>
+                  <th>Tags</th>
+                  <th></th>
                 </tr>
               </ng-template>
               <ng-template pTemplate="body" let-holiday>
                 <tr>
-                  <td>{{ holiday.date | date : "mediumDate" }}</td>
+                  <td class="mono">{{ holiday.date | date: 'EEE, MMM d, y' }}</td>
                   <td>{{ holiday.name }}</td>
                   <td>
-                    <div class="tag-list">
-
-                      <span class="tag-badge">{{holiday.tags}}</span>
-
-                    </div>
+                    @for (tag of tagList(holiday.tags); track tag) {
+                    <span class="pill mr-1">{{ tag | titlecase }}</span>
+                    }
                   </td>
-                  <td class="text-center">
-                    <p-button icon="pi pi-trash" styleClass="p-button-danger p-button-text"
-                      (onClick)="deleteHoliday(holiday)">
-                    </p-button>
+                  <td class="text-right">
+                    <p-button icon="pi pi-trash" styleClass="p-button-danger p-button-text" (onClick)="deleteHoliday(holiday)"
+                      ariaLabel="Delete holiday" />
                   </td>
                 </tr>
               </ng-template>
             </p-table>
           </div>
-        </p-card>
-      </p-tabPanel>
-
-      <!-- User Management Tab -->
-      <p-tabPanel header="User Management">
-        <p-card>
-          <div class="table-container">
-            <p-table [value]="users" [paginator]="true" [rows]="10" [showCurrentPageReport]="true"
-              currentPageReportTemplate="Showing {first} to {last} of {totalRecords} users"
-              styleClass="p-datatable-gridlines">
-              <ng-template pTemplate="header">
-                <tr>
-                  <th class="text-center w-4rem">Verified</th>
-                  <th class="text-left">Name</th>
-                  <th class="text-left">Email</th>
-                  <th class="text-left">Phone</th>
-                  <th class="text-center">Actions</th>
-                </tr>
-              </ng-template>
-              <ng-template pTemplate="body" let-user>
-                <tr>
-                  <td class="text-center">
-                    <p-checkbox [binary]="true" [(ngModel)]="user.verified" [styleClass]="'verification-checkbox'">
-                    </p-checkbox>
-                  </td>
-                  <td>{{ user.name }}</td>
-                  <td>{{ user.email }}</td>
-                  <td>{{ user.phone }}</td>
-                  <td class="text-center">
-                    <p-button icon="pi pi-download" label="Export" styleClass="p-button-outlined p-button-primary"
-                      (onClick)="downloadUserData(user)">
-                    </p-button>
-                  </td>
-                </tr>
-              </ng-template>
-            </p-table>
+          } @else {
+          <div class="empty-state">
+            <i class="pi pi-flag"></i>
+            <strong>No holidays yet</strong>
+            <span>Add the national holidays so nobody has to log them.</span>
           </div>
-        </p-card>
-      </p-tabPanel>
-    </p-tabView>
-  </div>
+          }
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <span class="card-title">Add holiday</span>
+          </div>
+          <div class="form-stack">
+            <label class="field">
+              <span>Date</span>
+              <p-calendar [(ngModel)]="newHoliday.date" [showIcon]="true" inputId="holidayDate" styleClass="w-full"
+                appendTo="body"></p-calendar>
+            </label>
+            <label class="field">
+              <span>Name</span>
+              <input pInputText id="holidayName" [(ngModel)]="newHoliday.name" placeholder="e.g. Revolution Day" />
+            </label>
+            <label class="field">
+              <span>Tags</span>
+              <p-multiSelect [options]="holidayTags" [(ngModel)]="selectedTags" optionLabel="name" optionValue="value"
+                placeholder="Select tags" display="chip" appendTo="body"></p-multiSelect>
+            </label>
+            <p-button label="Add holiday" icon="pi pi-plus" styleClass="w-full" [disabled]="!newHoliday.name"
+              (onClick)="addHoliday()" />
+          </div>
+        </section>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
 </div>
+
+<!-- Approve / reject leave -->
+<p-dialog [visible]="!!decision" (visibleChange)="!$event && (decision = null)" [modal]="true" [draggable]="false"
+  [style]="{ width: '28rem' }" [header]="decision?.action === 'approve' ? 'Approve leave' : 'Reject leave'">
+  @if (decision) {
+  <p class="mt-0">
+    <strong>{{ decision.request.userName }}</strong> ·
+    <span class="mono">{{ decision.request.start }} → {{ decision.request.end }}</span>
+    ({{ decision.request.days }} day{{ decision.request.days === 1 ? '' : 's' }})
+  </p>
+  @if (decision.action === 'approve') {
+  <p class="muted">Each working day in the range will be recorded as paid leave on their calendar.</p>
+  }
+  <label class="field">
+    <span>Note for {{ decision.request.userName }} <small class="muted">(optional)</small></span>
+    <textarea pInputTextarea [(ngModel)]="decisionNote" rows="3" maxlength="200"></textarea>
+  </label>
+  }
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" styleClass="p-button-outlined" (onClick)="decision = null" />
+    <p-button [label]="decision?.action === 'approve' ? 'Approve' : 'Reject'"
+      [styleClass]="decision?.action === 'reject' ? 'p-button-danger' : ''" [loading]="deciding"
+      (onClick)="confirmDecision()" />
+  </ng-template>
+</p-dialog>
+
+<!-- Close payroll period -->
+<p-dialog [visible]="!!lockTarget" (visibleChange)="!$event && (lockTarget = null)" [modal]="true" [draggable]="false"
+  [style]="{ width: '28rem' }" header="Close payroll period">
+  @if (lockTarget) {
+  <p class="mt-0">Close <strong>{{ periodLabelOf(lockTarget) }}</strong>?</p>
+  <ul class="muted close-list">
+    <li>Employees can no longer change days in this period (admins still can).</li>
+    <li>Everyone gets a "Payslip ready" notification.</li>
+    <li>You can reopen it later if needed.</li>
+  </ul>
+  }
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" styleClass="p-button-outlined" (onClick)="lockTarget = null" />
+    <p-button label="Close period" icon="pi pi-lock" [loading]="locking" (onClick)="confirmLock()" />
+  </ng-template>
+</p-dialog>

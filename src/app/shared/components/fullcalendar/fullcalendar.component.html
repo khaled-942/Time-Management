@@ -1,64 +1,83 @@
 @if (isLoading) {
-  <app-loader></app-loader>
+<app-loader></app-loader>
 }
-<div class="demo-app">
+<p-toast position="bottom-right"></p-toast>
 
-    <div class='demo-app-main'>
-        @if (calendarVisible && isBrowser) {
-        <full-calendar [options]='calendarOptions'></full-calendar>
-        }
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Calendar</h1>
+      <p>Tap a day to record your check-in and check-out, or tap an entry to change it.</p>
+    </div>
+  </div>
+
+  <div class="card calendar-card">
+    <div class="legend calendar-legend">
+      @for (status of legend; track status.key) {
+      <span [class]="'status-' + status.key"><i></i>{{ status.label }}</span>
+      }
+      <span class="legend-holiday"><i></i>Holiday</span>
+      <span class="legend-friday"><i></i>Friday</span>
     </div>
 
-    <p-dialog [header]="selectedDate" [modal]="true" [(visible)]="visible" closable="false">
-        <span class="p-text-secondary block mb-5">Enter your in\out day data </span>
-
-        <!-- Day Off Switch -->
-        <div class="flex align-items-center justify-content-between mb-3">
-          <div class="flex align-items-center">
-            <p-inputSwitch [(ngModel)]="isDayOff" (onChange)="onDayOffChange()"></p-inputSwitch>
-            <label class="ml-2">Day Off</label>
-          </div>
-          @if (isDayOff) {
-            <div class="flex align-items-center">
-              <p-dropdown [options]="dayOffTags" [(ngModel)]="selectedTags" optionLabel="name" optionValue="value" placeholder="Select Type"></p-dropdown>
-            </div>
-          }
-        </div>
-
-        <div class="flex align-items-center gap-3 mb-3" [class.disabledTime]="isDayOff">
-            <div class="flex-auto">
-                <label for="calendar-12h" class="font-bold block mb-2">Check-In</label>
-                <p-calendar inputId="calendar-timeonly" [(ngModel)]="check_In_time" [inline]="true" [timeOnly]="true" [showTime]="true" (onSelect)="validateCheckIn()" />
-            </div>
-            <div class="flex-auto">
-                <label for="calendar-12h" class="font-bold block mb-2">Check-Out</label>
-                <p-calendar inputId="calendar-timeonly" [(ngModel)]="check_Out_time" [inline]="true" [timeOnly]="true" [showTime]="true" (onSelect)="validateCheckOut()" />
-            </div>
-        </div>
-
-        @if(isLate){
-        <!-- Late Arrival Warning -->
-        <div class="p-message p-message-warn mb-3">
-            <div class="p-message-wrapper">
-                <span class="p-message-icon pi pi-exclamation-triangle"></span>
-                <span class="p-message-text">You arrived late! </span>
-                <p-checkbox [(ngModel)]="lateExcuse" [binary]="true" label="Have an excuse?"></p-checkbox>
-            </div>
-        </div>
-        }
-        @if(isEarlyLeave){
-        <!-- Early Departure Warning -->
-        <div class="p-message p-message-warn mb-3">
-            <div class="p-message-wrapper">
-                <span class="p-message-icon pi pi-exclamation-triangle"></span>
-                <span class="p-message-text">You left earlier than scheduled! </span>
-                <p-checkbox [(ngModel)]="earlyLeaveExcuse" [binary]="true" label="Have an excuse?"></p-checkbox>
-            </div>
-        </div>
-        }
-        <div class="flex justify-content-end gap-2">
-            <p-button label="Cancel" severity="secondary" (onClick)="cancelDialog()" />
-            <p-button label="Save" (onClick)="onDialogSubmit()" />
-        </div>
-    </p-dialog>
+    @if (calendarVisible && isBrowser) {
+    <full-calendar [options]="calendarOptions"></full-calendar>
+    }
+  </div>
 </div>
+
+<p-dialog [header]="selectedDateLabel" [modal]="true" [(visible)]="visible" [closable]="true" [draggable]="false"
+  [style]="{ width: '34rem' }" [breakpoints]="{ '640px': '94vw' }" styleClass="day-dialog" (onHide)="cancelDialog()">
+  <p class="muted dialog-intro">Record when you arrived and left, or mark the day off.</p>
+
+  <!-- Day Off Switch -->
+  <div class="day-off-row">
+    <label class="switch-label">
+      <p-inputSwitch [(ngModel)]="isDayOff" (onChange)="onDayOffChange()"></p-inputSwitch>
+      <span>Day off</span>
+    </label>
+    @if (isDayOff) {
+    <p-dropdown [options]="dayOffTags" [(ngModel)]="selectedTags" optionLabel="name" optionValue="value"
+      placeholder="Select type" styleClass="day-off-type" appendTo="body"></p-dropdown>
+    }
+  </div>
+
+  @if (!isDayOff) {
+  <div class="time-grid">
+    <div>
+      <span class="eyebrow">Check-in</span>
+      <p-calendar inputId="check-in" [(ngModel)]="check_In_time" [inline]="true" [timeOnly]="true"
+        (onSelect)="validateCheckIn()" (ngModelChange)="validateCheckIn()" />
+    </div>
+    <div>
+      <span class="eyebrow">Check-out</span>
+      <p-calendar inputId="check-out" [(ngModel)]="check_Out_time" [inline]="true" [timeOnly]="true"
+        (onSelect)="validateCheckOut()" (ngModelChange)="validateCheckOut()" />
+    </div>
+  </div>
+
+  @if (isLate) {
+  <div class="callout warning">
+    <i class="pi pi-exclamation-triangle"></i>
+    <div class="callout-body">
+      <strong>Arrived after 9:00</strong>
+      <p-checkbox [(ngModel)]="lateExcuse" [binary]="true" label="I have an excuse"></p-checkbox>
+    </div>
+  </div>
+  }
+  @if (isEarlyLeave) {
+  <div class="callout warning">
+    <i class="pi pi-exclamation-triangle"></i>
+    <div class="callout-body">
+      <strong>Left before the scheduled end</strong>
+      <p-checkbox [(ngModel)]="earlyLeaveExcuse" [binary]="true" label="I have an excuse"></p-checkbox>
+    </div>
+  </div>
+  }
+  }
+
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" styleClass="p-button-outlined" (onClick)="cancelDialog()" />
+    <p-button label="Save day" icon="pi pi-check" [loading]="isSaving" (onClick)="onDialogSubmit()" />
+  </ng-template>
+</p-dialog>

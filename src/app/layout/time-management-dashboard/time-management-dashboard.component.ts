@@ -1,684 +1,574 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CardModule } from 'primeng/card';
 import { ChartModule } from 'primeng/chart';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
-import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
+import { ToastModule } from 'primeng/toast';
+import { TooltipModule } from 'primeng/tooltip';
+import { MessageService } from 'primeng/api';
 import { FormsModule } from '@angular/forms';
-import Chart, { scales } from 'chart.js/auto'; // Explicit import
-import { HttpRequestsService } from '../../shared/services/http-requests.service';
-import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import * as moment from 'moment';
+import { RouterModule } from '@angular/router';
+import { Subscription } from 'rxjs';
+import 'chart.js/auto'; // registers every Chart.js controller used by p-chart
+import { HttpRequestsService, PERIOD_LOCKED } from '../../shared/services/http-requests.service';
 import { LoaderComponent } from "../../shared/loader/loader.component";
 import { SalaryService } from '../../salary/services/salary.service';
-import { RouterModule } from '@angular/router';
-import { latestPeriodForMonth, MONTHS, parseLocalDate, periodContaining, ReportingPeriod, scheduledEnd, workingDayMs } from '../../shared/utils/work-schedule';
+import { PayslipService } from '../../salary/services/payslip.service';
+import { SalaryCalculation } from '../../salary/models/salary.models';
+import { UserService } from '../../shared/services/user.service';
+import { ThemeService } from '../../shared/services/theme.service';
+import { PayrollService } from '../../shared/services/payroll.service';
+import { ANNUAL_LEAVE_DAYS } from '../../shared/services/leave.service';
+import { DayOffType, DayRecord } from '../../shared/models';
+import {
+  isFriday,
+  MONTHS,
+  nowTimeString,
+  parseLocalDate,
+  periodContaining,
+  periodFromKey,
+  periodKey,
+  periodLabel,
+  recentPeriods,
+  ReportingPeriod,
+  scheduledEnd,
+  toDateString,
+  WORK_START,
+  workingDayMs,
+} from '../../shared/utils/work-schedule';
+import { dayStatus, DayStatus, STATUS_LEGEND, timePart } from '../../shared/utils/day-status';
+import { downloadCsv, formatDays, formatDuration, formatMoney, formatTime12, slug } from '../../shared/utils/format';
 
-interface AttendanceRecord {
+/** Monthly allowance for excused late arrivals / early leaves. */
+const EXCUSE_ALLOWANCE_MS = 4 * 60 * 60 * 1000;
+
+interface PeriodStats {
+  workDays: number;
+  daysOff: number;
+  lateArrivals: number;
+  excusedDays: number;
+  excuseMs: number;
+}
+
+interface StatCard {
+  label: string;
+  value: string;
+  unit?: string;
+  footer: string;
+  trend?: { text: string; dir: 'up' | 'down' | 'flat' };
+  danger?: boolean;
+  meter?: number; // 0..1
+}
+
+interface RecordRow {
+  day: DayRecord;
   date: Date;
   checkIn: string;
   checkOut: string;
-  status:
-  | 'Normal'
-  | 'Early Leave'
-  | 'Late & Early Excused'
-  | 'Late Excused'
-  | 'Early Excused'
-  | 'Day Off'
-  | 'Absent'
-  | 'Task'
-  | 'Late';
+  hours: string;
+  status: DayStatus;
 }
 
-interface StatisticCard {
-  title: string;
-  value: string;
-  icon: string;
-  color: string;
-  trend?: number;  // percentage change from last month
-}
-
-interface AttendanceViolations {
-  under15Minutes: number;
-  between16And30Minutes: number;
-  between31And60Minutes: number;
-  over60Minutes: number;
-}
+type TodayState = 'loading' | 'off' | 'holiday' | 'not-in' | 'in' | 'done' | 'day-off' | 'locked';
 
 @Component({
   selector: 'app-time-management-dashboard',
   standalone: true,
   imports: [
     CommonModule,
-    CardModule,
     ChartModule,
     TableModule,
     ButtonModule,
-    DialogModule,
     DropdownModule,
+    ToastModule,
+    TooltipModule,
     FormsModule,
-    ProgressSpinnerModule,
     LoaderComponent,
     RouterModule
   ],
+  providers: [MessageService],
   templateUrl: './time-management-dashboard.component.html',
   styleUrls: ['./time-management-dashboard.component.scss'],
 })
-export class TimeManagementDashboardComponent implements OnInit {
-  Months = MONTHS;
-  selectedMonth: any;
+export class TimeManagementDashboardComponent implements OnInit, OnDestroy {
+  isLoading = false;
+  userId = '';
+  firstName = '';
+  todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
   // 11th → 10th reporting period currently shown
   period: ReportingPeriod = periodContaining(new Date());
-  // Attendance Records
-  attendanceRecords: AttendanceRecord[] = [];
-  allRecords: AttendanceRecord[] = [];
+  periodOptions = recentPeriods(24).map((p) => ({ label: periodLabel(p), value: periodKey(p) }));
+  selectedPeriodKey = periodKey(this.period);
+  isCurrentPeriod = true;
+  isLocked = false;
+  private locks = new Set<string>();
 
-  allDaysOff: any = [];
+  records: RecordRow[] = [];
+  stats: PeriodStats = { workDays: 0, daysOff: 0, lateArrivals: 0, excusedDays: 0, excuseMs: 0 };
+  statCards: StatCard[] = [];
+  statusCounts: { status: DayStatus; count: number }[] = [];
+  remainingLeave = ANNUAL_LEAVE_DAYS;
 
-  // Statistics Cards
-  statisticCards: StatisticCard[] = [];
-  isLoading = false;
-  userId: any;
-  toatlWorkDays = 0;
-  totalExcusedDays = 0;
-  totalExcuseHours = 0;
-  totalOffDays = 0;
-  totalLatearrival = 0;
-  totalEarlyLeaves = 0;
-  remainingOffDays = 0;
-  remainingExcuseHours = 0;
-  totallateExcuse = 0;
-  totalerlyExcuse = 0;
-  // Pie Chart Data
-  attendanceChartData: any;
-  attendanceChartOptions: any;
+  // Today / check in-out
+  today = toDateString(new Date());
+  todayRecord: DayRecord | null = null;
+  todayState: TodayState = 'loading';
+  checkInBusy = false;
 
-  // Bar Chart Data
+  // Salary
+  salary?: SalaryCalculation;
+  salaryMissing = false;
+  netPayVisible = false;
+  salaryError = false;
+
+  // Charts
+  hoursChartData: any;
+  hoursChartOptions: any;
   daysOffChartData: any;
   daysOffChartOptions: any;
+  private allDaysOff: Date[] = [];
+  private holidays: string[] = [];
+  private subscriptions = new Subscription();
 
-  attendanceViolations: AttendanceViolations = {
-    under15Minutes: 0,
-    between16And30Minutes: 0,
-    between31And60Minutes: 0,
-    over60Minutes: 0
-  };
-
-  // Salary and deductions properties
-  lateDeductions: number = 0;
-  absenceDeductions: number = 0;
-  totalDeductions: number = 0;
-  basePay: number = 0;
-  totalPay: number = 0;
-
-  // Add new property for salary message
-  salaryMissing: boolean = false;
+  readonly formatMoney = formatMoney;
+  readonly formatDays = formatDays;
 
   constructor(
     private httpService: HttpRequestsService,
-    private salaryService: SalaryService
+    private salaryService: SalaryService,
+    private payslipService: PayslipService,
+    private userService: UserService,
+    private payroll: PayrollService,
+    private theme: ThemeService,
+    private messageService: MessageService
   ) { }
 
   async ngOnInit(): Promise<void> {
-    let day = new Date();
-    console.log("HERE =============> ", this.Months[day.getMonth()]);
-    console.log(day.getDate());
     // Only run client-side initialization in the browser (skip during SSR/prerender)
-    const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
-    if (isBrowser) {
-      this.period = periodContaining(day);
-      this.selectedMonth = this.Months[this.period.monthIndex];
-      await this.getAllData(this.period.end);
-      await this.getDaysOff();
-      await this.initializeAttendanceChart();
-      await this.initializeDaysOffChart();
-      this.loadSalaryData();
+    const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+    if (!isBrowser) return;
+
+    const userData = localStorage.getItem('user');
+    if (!userData) return;
+    this.userId = JSON.parse(userData).id;
+
+    this.subscriptions.add(this.theme.mode$.subscribe(() => this.buildCharts()));
+    this.subscriptions.add(this.userService.user$.subscribe((user) => (this.firstName = (user?.name ?? '').split(' ')[0])));
+
+    this.isLoading = true;
+    try {
+      const [locks, holidays] = await Promise.all([
+        this.payroll.getLocks().catch(() => new Map()),
+        this.httpService.getHolidayDates().catch(() => [] as string[]),
+      ]);
+      this.locks = new Set(locks.keys());
+      this.holidays = holidays;
+      await Promise.all([this.loadPeriod(), this.loadToday(), this.loadDaysOff()]);
+    } finally {
+      this.isLoading = false;
     }
   }
 
-  async getAllData(date: Date) {
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
+
+  async onPeriodChange() {
+    this.period = periodFromKey(this.selectedPeriodKey);
     this.isLoading = true;
-    const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
-    const userData = isBrowser ? localStorage.getItem('user') : null;
-    if (userData) {
-      this.userId = JSON.parse(userData).id;
-      await this.httpService
-        .getUserMonthDays(this.userId, date)
-        .then((res: any) => {
-          res.forEach((record: any) => {
-            this.allRecords.push({
-              date: parseLocalDate(record.start),
-              checkIn: record.in.split('T')[1],
-              checkOut: record.out.split('T')[1],
-              status: this.whatTheStatusShouldBe(record),
-            });
-          });
-          this.isLoading = false;
-          this.calculateViolations();
-        })
-        .catch((err) => {
-          console.log('Something went wrong.', err);
-          this.isLoading = false;
-        });
+    try {
+      await this.loadPeriod();
+    } finally {
+      this.isLoading = false;
     }
-    this.attendanceRecords = this.allRecords.filter(
-      (record) =>
-        record.status != 'Task' &&
-        record.status != 'Absent'
-      // record.status != 'Day Off'
-    );
-    this.toatlWorkDays = this.allRecords.filter(
-      (record) =>
-        record.status != 'Absent' &&
-        record.status != 'Task' &&
-        record.status != 'Day Off'
-    ).length;
-    this.totalExcusedDays = this.allRecords.filter(
-      (record) =>
-        record.status == 'Late & Early Excused' ||
-        record.status == 'Late Excused' ||
-        record.status == 'Early Excused'
-    ).length;
-    this.totalOffDays = this.allRecords.filter(
-      (record) => record.status == 'Day Off'
-    ).length;
-    this.totalLatearrival = this.allRecords.filter(
-      (record) => record.status == 'Late'
-    ).length;
-    this.totalEarlyLeaves = this.allRecords.filter(
-      (record) => record.status == 'Early Leave'
-    ).length;
-    this.totallateExcuse = this.allRecords.filter(
-      (record) =>
-        record.status == 'Late Excused' ||
-        record.status == 'Late & Early Excused'
-    ).length;
-    this.totalerlyExcuse = this.allRecords.filter(
-      (record) =>
-        record.status == 'Early Excused' ||
-        record.status == 'Late & Early Excused'
-    ).length;
+  }
 
-    this.totalExcuseHours = this.calaulateExcuseHours();
+  /* ---------- Period data ---------- */
 
-    this.remainingExcuseHours = 4 * 60 * 60 * 1000 - this.totalExcuseHours;
+  private async loadPeriod() {
+    this.isCurrentPeriod = this.selectedPeriodKey === periodKey(periodContaining(new Date()));
+    this.isLocked = this.locks.has(this.selectedPeriodKey);
 
+    const previous = periodContaining(new Date(this.period.start.getTime() - 24 * 60 * 60 * 1000));
+    const [days, previousDays] = await Promise.all([
+      this.httpService.getUserMonthDays(this.userId, this.period.end).catch((err) => {
+        console.error('Error loading days:', err);
+        this.toast('error', 'Could not load your days', 'Please refresh the page.');
+        return [];
+      }),
+      this.httpService.getUserMonthDays(this.userId, previous.end).catch(() => []),
+    ]);
 
-    // Calculate trends by comparing with last month's data
-    const lastMonthDate = periodContaining(date).start;
-    lastMonthDate.setDate(lastMonthDate.getDate() - 1);
-    const lastMonthData = await this.getMonthData(lastMonthDate);
+    this.records = (days as DayRecord[]).map((day) => this.toRow(day)).sort((a, b) => b.day.start.localeCompare(a.day.start));
+    this.stats = this.computeStats(days);
+    const previousStats = this.computeStats(previousDays);
+    this.statusCounts = STATUS_LEGEND.map((status) => ({
+      status,
+      count: this.records.filter((r) => r.status.key === status.key).length,
+    })).filter((s) => s.count > 0);
 
-    this.statisticCards = [
+    this.buildStatCards(previousStats);
+    this.buildCharts();
+    await this.loadSalary();
+  }
+
+  private toRow(day: DayRecord): RecordRow {
+    const checkIn = timePart(day.in);
+    const checkOut = timePart(day.out);
+    let hours = '—';
+    if (!day.isDayOff && day.in && day.out) {
+      hours = formatDuration(new Date(day.out).getTime() - new Date(day.in).getTime());
+    }
+    return {
+      day,
+      date: parseLocalDate(day.start),
+      checkIn: day.isDayOff ? '—' : formatTime12(checkIn),
+      checkOut: day.isDayOff ? '—' : formatTime12(checkOut),
+      hours,
+      status: dayStatus(day),
+    };
+  }
+
+  private computeStats(days: DayRecord[]): PeriodStats {
+    const excused = days.filter((d) => !d.isDayOff && (d.lateExcuse || d.earlyLeaveExcuse));
+    return {
+      workDays: days.filter((d) => !d.isDayOff).length,
+      daysOff: days.filter((d) => d.isDayOff && d.dayOffType === DayOffType.Paid).length,
+      lateArrivals: days.filter((d) => !d.isDayOff && d.isLate && !d.lateExcuse && !d.earlyLeaveExcuse).length,
+      excusedDays: excused.length,
+      excuseMs: excused.reduce((sum, d) => sum + this.excuseMs(d), 0),
+    };
+  }
+
+  // Time covered by an excuse: late part (after 09:00) and/or early part (before the scheduled end)
+  private excuseMs(day: DayRecord): number {
+    const date = parseLocalDate(day.start);
+    const toMinutes = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const start = WORK_START.hours * 60 + WORK_START.minutes;
+    const end = scheduledEnd(date);
+    const endMinutes = end.hours * 60 + end.minutes;
+    let minutes = 0;
+    if (day.lateExcuse && day.in) minutes += Math.max(0, toMinutes(timePart(day.in)) - start);
+    if (day.earlyLeaveExcuse && day.out) minutes += Math.max(0, endMinutes - toMinutes(timePart(day.out)));
+    return Math.min(minutes * 60000, workingDayMs(date));
+  }
+
+  private trend(current: number, previous: number, higherIsGood: boolean): StatCard['trend'] {
+    if (!previous || current === previous) return { text: 'same as last period', dir: 'flat' };
+    const pct = Math.round(((current - previous) / previous) * 100);
+    const good = (pct > 0) === higherIsGood;
+    return { text: `${pct > 0 ? '+' : ''}${pct}% vs last period`, dir: good ? 'up' : 'down' };
+  }
+
+  private previousStats?: PeriodStats;
+
+  private buildStatCards(prev: PeriodStats = this.previousStats ?? this.stats) {
+    this.previousStats = prev;
+    const remainingExcuse = EXCUSE_ALLOWANCE_MS - this.stats.excuseMs;
+    this.statCards = [
       {
-        title: 'Work days',
-        value: `${this.toatlWorkDays}`,
-        icon: 'pi pi-clock',
-        color: 'bg-blue-500',
-        trend: this.calculateTrend(this.toatlWorkDays, lastMonthData.workDays)
+        label: 'Work days',
+        value: String(this.stats.workDays),
+        unit: 'days',
+        footer: `${this.stats.excusedDays} excused`,
+        trend: this.trend(this.stats.workDays, prev.workDays, true),
       },
       {
-        title: 'Total Days Off',
-        value: this.totalOffDays.toString(),
-        icon: 'pi pi-calendar',
-        color: 'bg-green-500',
-        trend: this.calculateTrend(this.totalOffDays, lastMonthData.daysOff)
+        label: 'Days off',
+        value: String(this.stats.daysOff),
+        unit: 'paid',
+        footer: `${this.remainingLeave} of ${ANNUAL_LEAVE_DAYS} left this year`,
+        trend: this.trend(this.stats.daysOff, prev.daysOff, false),
       },
       {
-        title: 'Total Excused Days',
-        value: this.totalExcusedDays.toString(),
-        icon: 'pi pi-clock',
-        color: 'bg-red-500',
-        trend: this.calculateTrend(this.totalExcusedDays, lastMonthData.excusedDays)
+        label: 'Late arrivals',
+        value: String(this.stats.lateArrivals),
+        unit: 'unexcused',
+        footer: this.stats.lateArrivals === 0 ? 'Nothing deducted' : 'See salary breakdown',
+        trend: this.trend(this.stats.lateArrivals, prev.lateArrivals, false),
+        danger: this.stats.lateArrivals > 1,
       },
       {
-        title: 'Remaining Excuse Hours',
-        value: this.formatHours(this.remainingExcuseHours),
-        icon: 'pi pi-clock',
-        color: 'bg-green-500',
-        trend: this.calculateTrend(this.remainingExcuseHours, lastMonthData.remainingExcuseHours)
+        label: 'Excuse hours left',
+        value: `${remainingExcuse < 0 ? '-' : ''}${formatDuration(remainingExcuse)}`,
+        unit: 'of 4:00',
+        footer: remainingExcuse < 0 ? 'Allowance exceeded' : `${formatDuration(this.stats.excuseMs)} used`,
+        danger: remainingExcuse < 0,
+        meter: Math.min(1, this.stats.excuseMs / EXCUSE_ALLOWANCE_MS),
       },
-      {
-        title: 'Late (Under 15 min)',
-        value: this.attendanceViolations.under15Minutes.toString(),
-        icon: 'pi pi-clock',
-        color: 'bg-yellow-500',
-      },
-      {
-        title: 'Late (16-60 min)',
-        value: (this.attendanceViolations.between16And30Minutes + this.attendanceViolations.between31And60Minutes).toString(),
-        icon: 'pi pi-exclamation-triangle',
-        color: 'bg-orange-500',
-      },
-      {
-        title: 'Late (Over 60 min)',
-        value: this.attendanceViolations.over60Minutes.toString(),
-        icon: 'pi pi-times-circle',
-        color: 'bg-red-500',
-      }
     ];
   }
 
-  whatTheStatusShouldBe(record: any) {
-    if (record.isDayOff) {
-      if (record.dayOffType === 0) {
-        return 'Day Off';
-      } else if (record.dayOffType === -1) {
-        return 'Absent';
-      } else if (record.dayOffType === 1) {
-        return 'Task';
-      }
-    } else if (record.lateExcuse && record.earlyLeaveExcuse) {
-      return 'Late & Early Excused';
-    } else if (record.lateExcuse) {
-      return 'Late Excused';
-    } else if (record.earlyLeaveExcuse) {
-      return 'Early Excused';
-    } else if (record.isLate) {
-      return 'Late';
-    } else if (record.isEarlyLeave) {
-      return 'Early Leave';
-    }
-    return 'Normal';
-  }
+  /* ---------- Salary ---------- */
 
-
-  async onMonthChange(event: any) {
-    const selectedMonth = event.value;
-    this.selectedMonth = selectedMonth;
-    console.log('Selected Month:', selectedMonth);
-    this.attendanceRecords = [];
-    this.allRecords = [];
-    this.toatlWorkDays = 0;
-    this.totalExcusedDays = 0;
-    this.totalExcuseHours = 0;
-    this.totalOffDays = 0;
-    this.totalLatearrival = 0;
-    this.totalEarlyLeaves = 0;
-    this.remainingExcuseHours = 0;
-    this.totallateExcuse = 0;
-    this.totalerlyExcuse = 0;
-    this.period = latestPeriodForMonth(this.Months.findIndex(item => item == this.selectedMonth));
-    await this.getAllData(this.period.end);
-    await this.initializeAttendanceChart();
-    await this.initializeDaysOffChart();
-    this.loadSalaryData();
-  }
-
-  private async loadSalaryData() {
+  private async loadSalary() {
+    this.salaryError = false;
     try {
-      const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
-      const user = isBrowser ? localStorage.getItem('user') : null;
-      const userId = user ? JSON.parse(user).id : null;
-
-      if (!userId) {
-        console.error('User not found');
-        return;
+      this.salary = await this.salaryService.calculateSalaryForPeriod(this.userId, this.period.start, this.period.end);
+      this.salaryMissing = false;
+    } catch (error: any) {
+      this.salary = undefined;
+      if (error?.message === 'NO_SALARY_DEFINED') {
+        this.salaryMissing = true;
+      } else {
+        console.error('Error loading salary data:', error);
+        this.salaryError = true;
       }
+    }
+  }
 
-      // Salary uses the same 11th → 10th period as the attendance records
-      const startDate = this.period.start;
-      const endDate = this.period.end;
+  get chargedLines() {
+    return this.salary?.deductionLines.filter((line) => line.days > 0) ?? [];
+  }
 
-      try {
-        const calculation = await this.salaryService.calculateSalaryForPeriod(
-          userId,
-          startDate,
-          endDate
-        );
+  get warningLines() {
+    return this.salary?.deductionLines.filter((line) => line.days === 0) ?? [];
+  }
 
-        this.salaryMissing = false;
-        this.lateDeductions = calculation.deductions.lateDeductions;
-        this.absenceDeductions = calculation.deductions.absenceDeductions;
-        this.totalDeductions = calculation.deductions.totalDeductions;
-        this.basePay = calculation.regularPay
-        this.totalPay = calculation.totalPay;
-      } catch (error: any) {
-        if (error.message === 'NO_SALARY_DEFINED') {
-          this.salaryMissing = true;
-          this.lateDeductions = 0;
-          this.absenceDeductions = 0;
-          this.totalDeductions = 0;
-          this.basePay = 0;
-          this.totalPay = 0;
-        }
-      }
+  get nextPenaltyText(): string {
+    if (!this.salary) return '';
+    const days = this.salary.nextLatePenaltyDays;
+    return days === 0
+      ? 'Your first late arrival (up to 30 min) this period is a warning only.'
+      : `Your next late arrival (up to 30 min) will cost ${formatDays(days)} (${formatMoney(days * this.salary.dailySalary)}).`;
+  }
+
+  get excuseExceeded(): boolean {
+    return this.stats.excuseMs > EXCUSE_ALLOWANCE_MS;
+  }
+
+  async downloadPayslip() {
+    const user = this.userService.current;
+    if (!this.salary || !user) return;
+    try {
+      await this.payslipService.download(user, this.period, this.salary, this.isLocked);
     } catch (error) {
-      console.error('Error loading salary data:', error);
+      console.error('Error creating payslip:', error);
+      this.toast('error', 'Payslip not created', 'Please try again.');
     }
   }
 
-  calaulateExcuseHours = (records: AttendanceRecord[] = this.attendanceRecords) => {
-    const totalExcusedays = records.filter(
-      (record) =>
-        record.status == 'Late & Early Excused' ||
-        record.status == 'Late Excused' ||
-        record.status == 'Early Excused'
-    );
-    let totalExcuseHours = 0;
-    totalExcusedays.forEach((record) => {
-      // Scheduled day is 09:00 → 17:00, or 09:00 → 13:30 on the short day
-      const workingMs = workingDayMs(record.date);
-      const end = scheduledEnd(record.date);
-      const scheduledOut = `${String(end.hours).padStart(2, '0')}:${String(end.minutes).padStart(2, '0')}`;
+  exportCsv() {
+    const rows = [...this.records].reverse().map((r) => [r.day.start, r.checkIn, r.checkOut, r.hours, r.status.label]);
+    downloadCsv(`attendance_${slug(this.firstName)}_${this.selectedPeriodKey}.csv`, [
+      ['Date', 'Check in', 'Check out', 'Hours', 'Status'],
+      ...rows,
+    ]);
+  }
 
-      const checkIn = moment.default(record.status == 'Early Excused' ? '09:00' : record.checkIn, 'HH:mm').toDate();
-      const checkOut = moment.default(record.status == 'Late Excused' ? scheduledOut : record.checkOut, 'HH:mm').toDate();
+  /* ---------- Today: one-tap check in / out ---------- */
 
-      totalExcuseHours += workingMs - (checkOut.getTime() - checkIn.getTime());
-    });
-    return totalExcuseHours;
-  };
-
-  formatHours = (milliseconds: number): string => {
-    // If excuse hours are exceeded (remaining hours is negative or total > 4 hours)
-    if (milliseconds <= 0 || this.totalExcuseHours > 4 * 60 * 60 * 1000) {
-      // Show the extra time used (as a positive value)
-      const extraMs = Math.abs(milliseconds);
-      const extraHours = Math.floor(extraMs / (60 * 60 * 1000));
-      const extraMinutes = Math.floor((extraMs % (60 * 60 * 1000)) / (60 * 1000));
-      return `-${extraHours.toString().padStart(2, '0')}:${extraMinutes.toString().padStart(2, '0')}`;
+  private async loadToday() {
+    this.today = toDateString(new Date());
+    const todayDate = parseLocalDate(this.today);
+    if (isFriday(todayDate)) {
+      this.todayState = 'off';
+      return;
     }
-
-    // For positive remaining hours
-    const hours = Math.floor(milliseconds / (60 * 60 * 1000));
-    const minutes = Math.floor((milliseconds % (60 * 60 * 1000)) / (60 * 1000));
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    if (this.holidays.includes(this.today)) {
+      this.todayState = 'holiday';
+      return;
+    }
+    try {
+      this.todayRecord = await this.httpService.getDay(this.userId, this.today);
+    } catch {
+      this.todayRecord = null;
+    }
+    const day = this.todayRecord;
+    if (this.locks.has(periodKey(periodContaining(todayDate))) && !this.userService.current?.isAdmin) {
+      this.todayState = 'locked';
+    } else if (day?.isDayOff) {
+      this.todayState = 'day-off';
+    } else if (day?.in && day.out) {
+      this.todayState = 'done';
+    } else if (day?.in) {
+      this.todayState = 'in';
+    } else {
+      this.todayState = 'not-in';
+    }
   }
 
-  // Helper method to check if excuse hours are exceeded
-  isExcuseHoursExceeded(): boolean {
-    return this.totalExcuseHours > 4 * 60 * 60 * 1000 || this.remainingExcuseHours <= 0;
+  get todayDayOffLabel(): string {
+    return this.todayRecord ? dayStatus(this.todayRecord).label : '';
   }
 
-  // Initialize Attendance Pie Chart
-  initializeAttendanceChart() {
-    const isBrowserDoc = typeof window !== 'undefined' && typeof window.document !== 'undefined';
-    const documentStyle = isBrowserDoc ? getComputedStyle(document.documentElement) : ({} as CSSStyleDeclaration);
+  get scheduledEndLabel(): string {
+    const end = scheduledEnd(parseLocalDate(this.today));
+    return formatTime12(`${end.hours}:${String(end.minutes).padStart(2, '0')}`);
+  }
 
-    this.attendanceChartData = {
-      labels: [
-        'Normal',
-        'Late Excused',
-        'Early Excused',
-        'Late    ',
-        'Early Leave    ',
-        'Absent',
-        'Day Off',
-        'Task',
-      ],
-      datasets: [
-        {
-          data: this.getAttendanceChartData(),
-          backgroundColor: [
-            documentStyle.getPropertyValue('--green-500'),
-            documentStyle.getPropertyValue('--green-500'),
-            documentStyle.getPropertyValue('--green-500'),
-            documentStyle.getPropertyValue('--red-500'),
-            documentStyle.getPropertyValue('--red-500'),
-            documentStyle.getPropertyValue('--red-600'),
-            documentStyle.getPropertyValue('--blue-500'),
-            documentStyle.getPropertyValue('--blue-500'),
-          ],
-        },
-      ],
-    };
+  /** Minutes late if checking in right now (0 when on time). */
+  get minutesLateNow(): number {
+    const now = new Date();
+    return Math.max(0, now.getHours() * 60 + now.getMinutes() - (WORK_START.hours * 60 + WORK_START.minutes));
+  }
 
-    this.attendanceChartOptions = {
+  get checkInTimeLabel(): string {
+    return formatTime12(timePart(this.todayRecord?.in));
+  }
+
+  get checkOutTimeLabel(): string {
+    return formatTime12(timePart(this.todayRecord?.out));
+  }
+
+  async checkIn() {
+    const now = nowTimeString();
+    const minutesLate = this.minutesLateNow;
+    this.checkInBusy = true;
+    try {
+      await this.httpService.saveDayEvent(this.userId, this.today, {
+        id: `day-${this.today}`,
+        title: 'Day Event',
+        start: this.today,
+        in: `${this.today}T${now}`,
+        isDayOff: false,
+        isLate: minutesLate > 0,
+        isEarlyLeave: false,
+        lateExcuse: false,
+        earlyLeaveExcuse: false,
+      });
+      this.toast('success', 'Checked in', `At ${formatTime12(now)}${minutesLate > 0 ? `, ${minutesLate} min late` : ''}.`);
+      await this.refreshAfterCheck();
+    } catch (error: any) {
+      this.toast('error', 'Check-in failed', error?.message === PERIOD_LOCKED ? 'This payroll period is closed.' : 'Please try again.');
+    } finally {
+      this.checkInBusy = false;
+    }
+  }
+
+  async checkOut() {
+    const now = nowTimeString();
+    const end = scheduledEnd(parseLocalDate(this.today));
+    const nowDate = new Date();
+    const early = nowDate.getHours() * 60 + nowDate.getMinutes() < end.hours * 60 + end.minutes;
+    this.checkInBusy = true;
+    try {
+      await this.httpService.saveDayEvent(this.userId, this.today, {
+        out: `${this.today}T${now}`,
+        isEarlyLeave: early,
+      });
+      this.toast('success', 'Checked out', `At ${formatTime12(now)}${early ? ', before the scheduled end' : ''}.`);
+      await this.refreshAfterCheck();
+    } catch (error: any) {
+      this.toast('error', 'Check-out failed', error?.message === PERIOD_LOCKED ? 'This payroll period is closed.' : 'Please try again.');
+    } finally {
+      this.checkInBusy = false;
+    }
+  }
+
+  private async refreshAfterCheck() {
+    await this.loadToday();
+    if (this.isCurrentPeriod) await this.loadPeriod();
+  }
+
+  /* ---------- Days off this year ---------- */
+
+  private async loadDaysOff() {
+    try {
+      const res: DayRecord[] = await this.httpService.getUserDaysOffDays(this.userId);
+      this.allDaysOff = res.map((day) => parseLocalDate(day.start));
+    } catch (err) {
+      console.error('Error loading days off:', err);
+    }
+    // 21 paid days off per calendar year
+    const currentYear = new Date().getFullYear();
+    this.remainingLeave = ANNUAL_LEAVE_DAYS - this.allDaysOff.filter((d) => d.getFullYear() === currentYear).length;
+    this.buildStatCards();
+    this.buildCharts();
+  }
+
+  /* ---------- Charts ---------- */
+
+  private buildCharts() {
+    if (typeof document === 'undefined') return;
+    const css = getComputedStyle(document.documentElement);
+    const color = (name: string) => css.getPropertyValue(name).trim();
+    const strong = color('--chart-strong');
+    const soft = color('--chart-soft');
+    const grid = color('--chart-grid');
+    const muted = color('--muted-foreground');
+    const warning = color('--warning');
+
+    const baseOptions = {
+      maintainAspectRatio: false,
       plugins: {
-        legend: {
-          labels: {
-            usePointStyle: true,
-          },
-        },
+        legend: { display: false },
+        tooltip: { displayColors: false },
       },
-    };
-  }
-
-  getAttendanceChartData(): number[] {
-    const data: any = [];
-    data.push(this.allRecords.filter(day => (day.status == 'Normal')).length);
-    data.push(this.allRecords.filter(day => (day.status == 'Late Excused')).length);
-    data.push(this.allRecords.filter(day => (day.status == 'Early Excused')).length);
-    data.push(this.allRecords.filter(day => (day.status == 'Late')).length);
-    data.push(this.allRecords.filter(day => (day.status == 'Early Leave')).length);
-    data.push(this.allRecords.filter(day => (day.status == 'Absent')).length);
-    data.push(this.allRecords.filter(day => (day.status == 'Day Off')).length);
-    data.push(this.allRecords.filter(day => (day.status == 'Task')).length);
-
-    return data;
-  }
-
-  // Initialize Work Hours Bar Chart
-  initializeDaysOffChart() {
-    const isBrowserDoc = typeof window !== 'undefined' && typeof window.document !== 'undefined';
-    const documentStyle = isBrowserDoc ? getComputedStyle(document.documentElement) : ({} as CSSStyleDeclaration);
-
-    this.daysOffChartData = {
-      labels: this.getMonthsLabels(),
-      datasets: [
-        {
-          label: 'No Days off',
-          data: this.getDaysOffNo(),
-          backgroundColor: documentStyle.getPropertyValue('--blue-500'),
-        },
-      ],
-    };
-
-    this.daysOffChartOptions = {
       scales: {
+        x: { grid: { display: false }, border: { display: false }, ticks: { color: muted, font: { family: 'JetBrains Mono', size: 10 } } },
         y: {
           beginAtZero: true,
-          title: {
-            display: true,
-            text: 'Days',
-          },
-          ticks: {
-            stepSize: 1,
-          }
+          grid: { color: grid },
+          border: { display: false },
+          ticks: { color: muted, font: { family: 'JetBrains Mono', size: 10 }, precision: 0 },
         },
       },
+    };
+
+    // Hours worked per day of the period; unexcused late days in amber
+    const byDate = new Map(this.records.map((r) => [r.day.start, r.day]));
+    const days: string[] = [];
+    for (let d = new Date(this.period.start); d <= this.period.end; d.setDate(d.getDate() + 1)) days.push(toDateString(d));
+    const hours = days.map((day) => {
+      const record = byDate.get(day);
+      if (!record || record.isDayOff || !record.in || !record.out) return 0;
+      return Math.round(((new Date(record.out).getTime() - new Date(record.in).getTime()) / 3_600_000) * 10) / 10;
+    });
+    this.hoursChartData = {
+      labels: days.map((day) => String(parseLocalDate(day).getDate())),
+      datasets: [
+        {
+          data: hours,
+          backgroundColor: days.map((day) => {
+            const record = byDate.get(day);
+            return record?.isLate && !record.lateExcuse && !record.earlyLeaveExcuse ? warning : strong;
+          }),
+          hoverBackgroundColor: soft,
+          borderRadius: 3,
+          barPercentage: 0.6,
+        },
+      ],
+    };
+    this.hoursChartOptions = {
+      ...baseOptions,
       plugins: {
-        legend: {
-          display: false,
+        ...baseOptions.plugins,
+        tooltip: {
+          displayColors: false,
+          callbacks: {
+            title: (items: any[]) => parseLocalDate(days[items[0].dataIndex]).toDateString(),
+            label: (item: any) => `${item.raw} h`,
+          },
         },
       },
     };
-  }
 
-  // The last 12 calendar months, oldest first, ending with the current month
-  private lastTwelveMonths(): { month: string; year: number }[] {
-    const today = new Date();
-    const months = [];
-    for (let offset = 11; offset >= 0; offset--) {
-      const d = new Date(today.getFullYear(), today.getMonth() - offset, 1);
-      months.push({ month: this.Months[d.getMonth()], year: d.getFullYear() });
-    }
-    return months;
-  }
-
-  getMonthsLabels(): string[] {
-    return this.lastTwelveMonths().map(m => m.month);
-  }
-
-  getDaysOffNo(): number[] {
-    return this.lastTwelveMonths().map(({ month, year }) =>
-      this.allDaysOff.filter((item: any) => item.month == month && item.year == year).length
-    );
-  }
-
-
-
-  async getDaysOff() {
-
-    await this.httpService.getUserDaysOffDays(this.userId).then((res: any) => {
-      res.forEach((day: any) => {
-        let d = parseLocalDate(day.start);
-        this.allDaysOff.push({
-          date: d,
-          month: this.Months[d.getMonth()],
-          year: d.getFullYear()
-        });
-      });
-      // 21 paid days off per calendar year
-      const currentYear = new Date().getFullYear();
-      this.remainingOffDays = 21 - this.allDaysOff.filter((item: any) => item.year === currentYear).length;
-    }).catch((err) => {
-      console.log('Something went wrong.', err);
-    });
-
-  }
-
-  formatTime12Hour(time24: string): string {
-    const [hours, minutes] = time24.split(':').map(Number);
-    let period = 'AM';
-    let hours12 = hours;
-
-    if (hours >= 12) {
-      period = 'PM';
-      if (hours > 12) {
-        hours12 = hours - 12;
-      }
-    } else if (hours === 0) {
-      hours12 = 12; // Midnight case
-    }
-
-    const formattedHours = hours12 < 10 ? `0${hours12}` : hours12.toString();
-    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes.toString();
-
-    return `${formattedHours}:${formattedMinutes} ${period}`;
-  }
-
-  // Utility method to get status class
-  getStatusClass(status: string): string {
-    switch (status) {
-      case 'Normal':
-        return 'text-green-600';
-      case 'Early Leave':
-        return 'text-red-600';
-      case 'Late':
-        return 'text-red-600';
-      default:
-        return 'text-gray-600';
-    }
-  }
-
-  getStatusRowClass(status: string): string {
-    switch (status) {
-      case 'Early Leave':
-        return 'bg-red-100';
-      case 'Late':
-        return 'bg-red-100';
-      case 'Late & Early Excused':
-        return 'bg-gren-200';
-      case 'Late Excused':
-        return 'bg-green-200';
-      case 'Early Excused':
-        return 'bg-green-200';
-      default:
-        return '';
-    }
-  }
-
-  private calculateTrend(currentValue: number, previousValue: number): number {
-    if (previousValue === 0) return 0;
-    return Math.round(((currentValue - previousValue) / previousValue) * 100);
-  }
-
-  private async getMonthData(date: Date) {
-    const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
-    const userData = isBrowser ? localStorage.getItem('user') : null;
-    if (userData) {
-      const userId = JSON.parse(userData).id;
-
-      return await this.httpService
-        .getUserMonthDays(userId, date)
-        .then((res: any) => {
-          const allRecords: AttendanceRecord[] = res.map((record: any) => ({
-            date: parseLocalDate(record.start),
-            checkIn: record.in.split('T')[1],
-            checkOut: record.out.split('T')[1],
-            status: this.whatTheStatusShouldBe(record),
-          }));
-
-          const workDays = allRecords.filter(
-            (record: any) =>
-              record.status != 'Absent' &&
-              record.status != 'Task' &&
-              record.status != 'Day Off'
-          ).length;
-
-          const daysOff = allRecords.filter(
-            (record: any) => record.status == 'Day Off'
-          ).length;
-
-          const excusedDays = allRecords.filter(
-            (record: any) =>
-              record.status == 'Late & Early Excused' ||
-              record.status == 'Late Excused' ||
-              record.status == 'Early Excused'
-          ).length;
-
-          const totalExcuseHours = this.calaulateExcuseHours(allRecords);
-          const remainingExcuseHours = 4 * 60 * 60 * 1000 - totalExcuseHours;
-
-          return {
-            workDays,
-            daysOff,
-            excusedDays,
-            remainingExcuseHours,
-          };
-        })
-        .catch((err) => {
-          console.log('Something went wrong.', err);
-          return {
-            workDays: 0,
-            daysOff: 0,
-            excusedDays: 0,
-            remainingExcuseHours: 0,
-          };
-        });
-    }
-
-    return {
-      workDays: 0,
-      daysOff: 0,
-      excusedDays: 0,
-      remainingExcuseHours: 0,
+    // Paid days off in each of the last 12 calendar months
+    const now = new Date();
+    const months = Array.from({ length: 12 }, (_, i) => new Date(now.getFullYear(), now.getMonth() - 11 + i, 1));
+    this.daysOffChartData = {
+      labels: months.map((m) => MONTHS[m.getMonth()].slice(0, 3)),
+      datasets: [
+        {
+          data: months.map(
+            (m) => this.allDaysOff.filter((d) => d.getFullYear() === m.getFullYear() && d.getMonth() === m.getMonth()).length
+          ),
+          backgroundColor: months.map((_, i) => (i === 11 ? strong : soft)),
+          borderRadius: 3,
+          barPercentage: 0.55,
+        },
+      ],
     };
+    this.daysOffChartOptions = baseOptions;
   }
 
-  private calculateViolations() {
-    const violations: AttendanceViolations = {
-      under15Minutes: 0,
-      between16And30Minutes: 0,
-      between31And60Minutes: 0,
-      over60Minutes: 0
-    };
-
-    this.allRecords.forEach(record => {
-      if (record.status === 'Late') {
-        const checkIn = moment.default(record.checkIn, 'hh:mm').toDate();
-        const scheduledStart = moment.default('09:00', 'hh:mm').toDate();
-        const lateMinutes = Math.max(0, (checkIn.getTime() - scheduledStart.getTime()) / (1000 * 60));
-
-        if (lateMinutes > 60) {
-          violations.over60Minutes++;
-        } else if (lateMinutes > 30) {
-          violations.between31And60Minutes++;
-        } else if (lateMinutes > 0) {
-          if (lateMinutes <= 15) {
-            violations.under15Minutes++;
-          } else {
-            violations.between16And30Minutes++;
-          }
-        }
-      }
-    });
-
-    this.attendanceViolations = violations;
-    return violations;
+  private toast(severity: 'success' | 'info' | 'warn' | 'error', summary: string, detail: string) {
+    this.messageService.add({ severity, summary, detail, life: 3500 });
   }
 }

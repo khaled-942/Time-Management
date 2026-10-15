@@ -1,12 +1,71 @@
-<div class="navbar">
-  <div class="navbar-left">
-    <!-- <h3>Page name</h3> -->
-    <i class="pi pi-link logo"></i>
-    <h2>Time I/O</h2>
+<header class="topbar">
+  <div class="topbar-left">
+    <button type="button" class="icon-btn menu-btn" (click)="menuToggle.emit()" aria-label="Open menu">
+      <i class="pi pi-bars"></i>
+    </button>
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <span class="muted">{{ section }}</span>
+      <i class="pi pi-angle-right"></i>
+      <strong>{{ title }}</strong>
+    </nav>
   </div>
-  <div class="navbar-right">
-    <span> Hi, {{ user?.name }}</span>
-    <p-avatar styleClass="mr-2" [image]="user?.currentAvatar" size="large" shape="circle"
-      [style]="{ 'margin-left': '10px' }" (click)="onProfile()"></p-avatar>
+
+  <div class="topbar-right">
+    <button type="button" class="icon-btn" (click)="theme.toggle()"
+      [attr.aria-label]="theme.mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+      [pTooltip]="theme.mode === 'dark' ? 'Light mode' : 'Dark mode'" tooltipPosition="bottom">
+      <i class="pi" [class.pi-sun]="theme.mode === 'dark'" [class.pi-moon]="theme.mode !== 'dark'"></i>
+    </button>
+
+    <button type="button" class="icon-btn" (click)="refreshReminder(); panel.toggle($event)" aria-label="Notifications">
+      <i class="pi pi-bell"></i>
+      @if (unreadCount > 0) {
+      <span class="badge mono">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
+      }
+    </button>
+
+    <a class="avatar-link" routerLink="/profile" aria-label="Profile">
+      <img [src]="user?.currentAvatar" [alt]="user?.name || 'Avatar'" />
+    </a>
   </div>
-</div>
+</header>
+
+<p-overlayPanel #panel styleClass="notifications-panel" appendTo="body">
+  <div class="notifications">
+    <div class="notifications-header">
+      <span class="eyebrow">Notifications</span>
+      @if (notifications.length) {
+      <button type="button" class="link-btn" (click)="markAllRead()">Mark all read</button>
+      }
+    </div>
+
+    <div class="notifications-list">
+      @if (checkoutReminder) {
+      <button type="button" class="notification unread" (click)="goToDashboard(panel)">
+        <i class="pi pi-clock warning"></i>
+        <span class="notification-text">
+          <strong>You haven't checked out today</strong>
+          <small>Your scheduled day has ended. Check out from the dashboard.</small>
+        </span>
+      </button>
+      }
+      @for (n of notifications; track n.id) {
+      <button type="button" class="notification" [class.unread]="!isRead(n)" (click)="open(n, panel)">
+        <i [class]="n.icon || 'pi pi-info-circle'"></i>
+        <span class="notification-text">
+          <strong>{{ n.title }}</strong>
+          <small>{{ n.body }}</small>
+          <small class="time">{{ timeAgo(n) }}</small>
+        </span>
+      </button>
+      }
+      @if (!notifications.length && !checkoutReminder) {
+      <div class="empty-state">
+        <i class="pi pi-bell"></i>
+        <strong>You're all caught up</strong>
+        <span>Payslip notices will show up here.</span>
+      </div>
+      }
+    </div>
+  </div>
+</p-overlayPanel>

@@ -1,0 +1,697 @@
+// Restyle the PrimeNG Lara theme with the app tokens (works in light and dark).
+
+.p-component {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+}
+
+/* ---------- Buttons ---------- */
+.p-button {
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.9rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  gap: 0.4rem;
+  box-shadow: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:enabled:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: var(--primary-foreground);
+  }
+
+  &:focus-visible,
+  &:focus {
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+  }
+
+  .p-button-icon-left {
+    margin-right: 0;
+  }
+
+  &.p-button-outlined,
+  &.p-button-secondary {
+    background: var(--card);
+    border-color: var(--border);
+    color: var(--foreground);
+
+    &:enabled:hover {
+      background: var(--accent);
+      border-color: var(--border-strong);
+      color: var(--foreground);
+    }
+  }
+
+  &.p-button-text {
+    background: transparent;
+    border-color: transparent;
+    color: var(--foreground);
+
+    &:enabled:hover {
+      background: var(--accent);
+      border-color: transparent;
+      color: var(--foreground);
+    }
+  }
+
+  &.p-button-danger {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: #fff;
+
+    &.p-button-text,
+    &.p-button-outlined {
+      background: transparent;
+      color: var(--danger);
+      border-color: transparent;
+
+      &:enabled:hover {
+        background: var(--danger-bg);
+        color: var(--danger);
+      }
+    }
+  }
+
+  &.p-button-success {
+    background: var(--success);
+    border-color: var(--success);
+    color: #fff;
+  }
+
+  &.p-button-sm {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+  }
+
+  &.p-button-lg {
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+  }
+
+  &.p-button-icon-only {
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+  }
+}
+
+/* ---------- Inputs ---------- */
+.p-inputtext,
+.p-inputtextarea {
+  background: var(--input);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: var(--font-sans);
+
+  &::placeholder {
+    color: var(--subtle-foreground);
+  }
+
+  &:enabled:hover {
+    border-color: var(--border-strong);
+  }
+
+  &:enabled:focus {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 12%, transparent);
+  }
+
+  &.ng-invalid.ng-touched,
+  &.p-invalid {
+    border-color: var(--danger);
+  }
+
+  &[readonly] {
+    background: var(--muted);
+    color: var(--muted-foreground);
+  }
+}
+
+.p-inputnumber,
+.p-calendar,
+.p-inputmask,
+.p-dropdown {
+  width: 100%;
+}
+
+/* ---------- Dropdown ---------- */
+.p-dropdown {
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+
+  &:not(.p-disabled):hover {
+    border-color: var(--border-strong);
+  }
+
+  &:not(.p-disabled).p-focus {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 12%, transparent);
+  }
+
+  .p-dropdown-label {
+    background: transparent;
+    border: none;
+    color: var(--foreground);
+  }
+
+  .p-dropdown-trigger {
+    color: var(--muted-foreground);
+    width: 2.25rem;
+  }
+}
+
+.p-dropdown-panel,
+.p-multiselect-panel,
+.p-overlaypanel,
+.p-menu,
+.p-datepicker:not(.p-datepicker-inline) {
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+
+.p-dropdown-panel .p-dropdown-items,
+.p-multiselect-panel .p-multiselect-items {
+  padding: 0.3rem;
+
+  .p-dropdown-item,
+  .p-multiselect-item {
+    color: var(--foreground);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.65rem;
+
+    &:not(.p-highlight):not(.p-disabled):hover {
+      background: var(--accent);
+      color: var(--foreground);
+    }
+
+    &.p-highlight {
+      background: var(--accent);
+      color: var(--foreground);
+      font-weight: 600;
+    }
+  }
+}
+
+.p-multiselect {
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 100%;
+
+  .p-multiselect-label {
+    color: var(--foreground);
+  }
+}
+
+.p-multiselect-panel .p-multiselect-header {
+  background: var(--card-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---------- Menu ---------- */
+.p-menu {
+  padding: 0.3rem;
+  width: 14rem;
+
+  .p-menuitem > .p-menuitem-content {
+    border-radius: var(--radius-sm);
+    color: var(--foreground);
+
+    .p-menuitem-link {
+      padding: 0.55rem 0.65rem;
+
+      .p-menuitem-text,
+      .p-menuitem-icon {
+        color: var(--foreground);
+      }
+    }
+  }
+
+  .p-menuitem:not(.p-highlight):not(.p-disabled) > .p-menuitem-content:hover {
+    background: var(--accent);
+  }
+
+  .p-menuitem.p-focus > .p-menuitem-content {
+    background: var(--accent);
+  }
+
+  .p-menu-separator {
+    border-top-color: var(--border);
+  }
+}
+
+/* ---------- Checkbox / switch ---------- */
+.p-checkbox .p-checkbox-box {
+  background: var(--input);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+
+  &.p-highlight {
+    background: var(--primary);
+    border-color: var(--primary);
+
+    .p-checkbox-icon {
+      color: var(--primary-foreground);
+    }
+  }
+}
+
+.p-checkbox:not(.p-checkbox-disabled) .p-checkbox-box.p-highlight:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.p-checkbox-label {
+  margin-left: 0.5rem;
+  cursor: pointer;
+}
+
+.p-inputswitch {
+  width: 2.5rem;
+  height: 1.4rem;
+
+  .p-inputswitch-slider {
+    background: var(--border-strong);
+    border-radius: 999px;
+
+    &::before {
+      width: 1rem;
+      height: 1rem;
+      left: 0.2rem;
+      margin-top: -0.5rem;
+      background: #fff;
+    }
+  }
+
+  &.p-inputswitch-checked .p-inputswitch-slider {
+    background: var(--primary);
+
+    &::before {
+      transform: translateX(1.1rem);
+      background: var(--primary-foreground);
+    }
+  }
+
+  &.p-inputswitch-checked:not(.p-disabled):hover .p-inputswitch-slider {
+    background: var(--primary-hover);
+  }
+}
+
+/* ---------- Tables ---------- */
+.p-datatable {
+  .p-datatable-wrapper {
+    border-radius: var(--radius);
+  }
+
+  .p-datatable-thead > tr > th {
+    background: var(--card-muted);
+    color: var(--muted-foreground);
+    border-color: var(--border);
+    border-width: 0 0 1px 0;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.7rem 0.9rem;
+  }
+
+  .p-datatable-tbody > tr {
+    background: var(--card);
+    color: var(--foreground);
+
+    > td {
+      border-color: var(--border);
+      border-width: 0 0 1px 0;
+      padding: 0.75rem 0.9rem;
+    }
+
+    &:last-child > td {
+      border-bottom: none;
+    }
+  }
+
+  &.p-datatable-hoverable-rows .p-datatable-tbody > tr:not(.p-highlight):hover {
+    background: var(--card-muted);
+    color: var(--foreground);
+  }
+
+  .p-sortable-column {
+    &:not(.p-highlight):hover {
+      background: var(--accent);
+      color: var(--foreground);
+    }
+
+    &.p-highlight {
+      background: var(--accent);
+      color: var(--foreground);
+
+      .p-sortable-column-icon {
+        color: var(--foreground);
+      }
+    }
+
+    .p-sortable-column-icon {
+      color: var(--subtle-foreground);
+    }
+  }
+
+  .p-paginator-bottom {
+    border-width: 1px 0 0 0;
+    border-color: var(--border);
+  }
+}
+
+.p-paginator {
+  background: transparent;
+  color: var(--muted-foreground);
+  padding: 0.5rem 0 0;
+
+  .p-paginator-pages .p-paginator-page,
+  .p-paginator-first,
+  .p-paginator-prev,
+  .p-paginator-next,
+  .p-paginator-last {
+    color: var(--muted-foreground);
+    border-radius: var(--radius-sm);
+    min-width: 2rem;
+    height: 2rem;
+
+    &:not(.p-disabled):not(.p-highlight):hover {
+      background: var(--accent);
+      color: var(--foreground);
+    }
+  }
+
+  .p-paginator-pages .p-paginator-page.p-highlight {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .p-paginator-current {
+    color: var(--muted-foreground);
+  }
+}
+
+/* ---------- Dialog ---------- */
+.p-dialog-mask.p-component-overlay {
+  background: var(--overlay);
+}
+
+.p-dialog {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+  max-width: calc(100vw - 2rem);
+
+  .p-dialog-header,
+  .p-dialog-content,
+  .p-dialog-footer {
+    background: var(--card);
+    color: var(--foreground);
+  }
+
+  .p-dialog-header {
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
+    padding: 1.1rem 1.25rem 0.75rem;
+
+    .p-dialog-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    .p-dialog-header-icon {
+      color: var(--muted-foreground);
+
+      &:enabled:hover {
+        background: var(--accent);
+        color: var(--foreground);
+      }
+    }
+  }
+
+  .p-dialog-content {
+    padding: 0 1.25rem 1.25rem;
+
+    &:last-of-type {
+      border-bottom-left-radius: var(--radius-lg);
+      border-bottom-right-radius: var(--radius-lg);
+    }
+  }
+
+  .p-dialog-footer {
+    border-bottom-left-radius: var(--radius-lg);
+    border-bottom-right-radius: var(--radius-lg);
+    padding: 0.75rem 1.25rem 1.1rem;
+  }
+}
+
+/* ---------- Date picker ---------- */
+.p-datepicker {
+  background: var(--card);
+  color: var(--foreground);
+  padding: 0.5rem;
+
+  &.p-datepicker-inline {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .p-datepicker-header {
+    background: transparent;
+    color: var(--foreground);
+    border-bottom: 1px solid var(--border);
+
+    .p-datepicker-title button {
+      color: var(--foreground);
+    }
+
+    .p-datepicker-prev,
+    .p-datepicker-next {
+      color: var(--muted-foreground);
+
+      &:enabled:hover {
+        background: var(--accent);
+        color: var(--foreground);
+      }
+    }
+  }
+
+  table {
+    th {
+      color: var(--muted-foreground);
+    }
+
+    td > span {
+      color: var(--foreground);
+      border-radius: var(--radius-sm);
+
+      &.p-highlight {
+        background: var(--primary);
+        color: var(--primary-foreground);
+      }
+    }
+
+    td.p-datepicker-today > span {
+      background: var(--accent);
+      color: var(--foreground);
+
+      &.p-highlight {
+        background: var(--primary);
+        color: var(--primary-foreground);
+      }
+    }
+  }
+
+  &:not(.p-disabled) table td span:not(.p-highlight):not(.p-disabled):hover {
+    background: var(--accent);
+  }
+
+  .p-timepicker {
+    border-top: none;
+
+    span {
+      font-family: var(--font-mono);
+      font-size: 1.4rem;
+      color: var(--foreground);
+    }
+
+    button {
+      color: var(--muted-foreground);
+
+      &:enabled:hover {
+        background: var(--accent);
+        color: var(--foreground);
+      }
+    }
+  }
+
+  .p-monthpicker .p-monthpicker-month,
+  .p-yearpicker .p-yearpicker-year {
+    color: var(--foreground);
+
+    &.p-highlight {
+      background: var(--primary);
+      color: var(--primary-foreground);
+    }
+  }
+}
+
+.p-calendar-w-btn .p-datepicker-trigger {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--muted-foreground);
+}
+
+/* ---------- Tabs ---------- */
+.p-tabview {
+  .p-tabview-nav {
+    background: transparent;
+    border-color: var(--border);
+    gap: 0.25rem;
+    flex-wrap: nowrap;
+
+    li .p-tabview-nav-link {
+      background: transparent;
+      border-color: transparent;
+      color: var(--muted-foreground);
+      padding: 0.75rem 0.9rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    li:not(.p-highlight):not(.p-disabled):hover .p-tabview-nav-link {
+      background: transparent;
+      color: var(--foreground);
+      border-color: transparent;
+    }
+
+    li.p-highlight .p-tabview-nav-link {
+      background: transparent;
+      color: var(--foreground);
+      border-color: var(--foreground);
+    }
+  }
+
+  .p-tabview-ink-bar {
+    background: var(--foreground);
+  }
+
+  .p-tabview-nav-content {
+    overflow-x: auto;
+  }
+
+  .p-tabview-panels {
+    background: transparent;
+    color: var(--foreground);
+    padding: 1rem 0 0;
+  }
+}
+
+/* ---------- Toast ---------- */
+.p-toast {
+  .p-toast-message {
+    background: var(--card);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: none;
+
+    .p-toast-message-content {
+      padding: 0.85rem 1rem;
+    }
+
+    .p-toast-message-text .p-toast-summary {
+      font-weight: 600;
+    }
+
+    .p-toast-icon-close {
+      color: var(--muted-foreground);
+    }
+
+    &.p-toast-message-success {
+      border-left-color: var(--success);
+
+      .p-toast-message-icon {
+        color: var(--success);
+      }
+    }
+
+    &.p-toast-message-error {
+      border-left-color: var(--danger);
+
+      .p-toast-message-icon {
+        color: var(--danger);
+      }
+    }
+
+    &.p-toast-message-warn {
+      border-left-color: var(--warning);
+
+      .p-toast-message-icon {
+        color: var(--warning);
+      }
+    }
+
+    &.p-toast-message-info {
+      border-left-color: var(--info);
+
+      .p-toast-message-icon {
+        color: var(--info);
+      }
+    }
+  }
+}
+
+/* ---------- Misc ---------- */
+.p-avatar {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.p-tooltip .p-tooltip-text {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.8rem;
+  border-radius: var(--radius-sm);
+}
+
+.p-selectbutton .p-button {
+  background: var(--muted);
+  border-color: var(--border);
+  color: var(--muted-foreground);
+
+  &.p-highlight {
+    background: var(--card);
+    color: var(--foreground);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+.p-badge {
+  background: var(--danger);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  line-height: 1.1rem;
+}

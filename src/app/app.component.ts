@@ -11,13 +11,12 @@ import {
 import { NavBarComponent } from './layout/nav-bar/nav-bar.component';
 import { SideBarComponent } from './layout/side-bar/side-bar.component';
 import { AuthService } from './auth/auth.service';
-import { LoaderComponent } from './shared/loader/loader.component';
 import { UserService } from './shared/services/user.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, NavBarComponent, SideBarComponent, LoaderComponent],
+  imports: [RouterOutlet, NavBarComponent, SideBarComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
@@ -25,6 +24,7 @@ export class AppComponent implements OnInit {
   title = 'Time-Management';
   isLoggedIn = false;
   isLoading = false;
+  sidebarOpen = false;
   constructor(
     private authService: AuthService,
     private router: Router,
@@ -56,6 +56,12 @@ export class AppComponent implements OnInit {
       if (userData) {
         let uid: any = JSON.parse(userData).id;
         this.authService.getUserById(uid).then((res: any) => {
+          if (!res[0]) return;
+          // Deactivated accounts are signed out
+          if (res[0].active === false) {
+            this.authService.logout();
+            return;
+          }
           // convert timestamp to Data <<<<0_0>>>>
           res[0].birthDate = res[0].birthDate?.toDate();
           this.userService.setUser(res[0]);

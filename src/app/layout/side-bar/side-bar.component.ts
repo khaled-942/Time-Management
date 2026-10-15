@@ -1,12 +1,12 @@
-import { Component } from '@angular/core';
+import { Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MenuModule } from 'primeng/menu';
-import { ButtonModule } from 'primeng/button';
-import { Router } from '@angular/router';
+import { MenuItem } from 'primeng/api';
+import { Subscription } from 'rxjs';
 import { AuthService } from '../../auth/auth.service';
 import { UserService } from '../../shared/services/user.service';
-import { LoaderComponent } from "../../shared/loader/loader.component";
+import { FEATURES } from '../../shared/features';
 
 interface SidebarItem {
   label: string;
@@ -14,51 +14,79 @@ interface SidebarItem {
   icon: string;
 }
 
+interface SidebarSection {
+  title: string;
+  items: SidebarItem[];
+  adminOnly?: boolean;
+}
+
 @Component({
   selector: 'app-side-bar',
-  imports: [MenuModule, ButtonModule, CommonModule, RouterModule, LoaderComponent],
+  imports: [CommonModule, RouterModule, MenuModule],
   templateUrl: './side-bar.component.html',
   styleUrl: './side-bar.component.scss',
   standalone: true,
 })
-export class SideBarComponent {
+export class SideBarComponent implements OnInit, OnDestroy {
+  /** Emitted when a link is followed, so the mobile drawer can close. */
+  @Output() navigate = new EventEmitter<void>();
+
   user: any = null;
-  isExpanded = false;
-  isLoading = true;
   isAdmin = false;
+  private subscription?: Subscription;
+
+  sections: SidebarSection[] = [
+    {
+      title: 'Main Menu',
+      items: [
+        { icon: 'pi pi-th-large', label: 'Dashboard', route: '/dashboard' },
+        { icon: 'pi pi-calendar', label: 'Calendar', route: '/home' },
+        ...(FEATURES.leaveRequests ? [{ icon: 'pi pi-send', label: 'Leave Requests', route: '/leave' }] : []),
+      ],
+    },
+    {
+      title: 'Work',
+      items: [
+        { icon: 'pi pi-check-square', label: 'My Tasks', route: '/my-tasks' },
+        { icon: 'pi pi-briefcase', label: 'Projects', route: '/projects' },
+      ],
+    },
+    {
+      title: 'Company',
+      items: [{ icon: 'pi pi-flag', label: 'National Days', route: '/nation-days' }],
+    },
+    {
+      title: 'Management',
+      adminOnly: true,
+      items: [{ icon: 'pi pi-users', label: 'Admin', route: '/admin' }],
+    },
+  ];
+
+  accountMenu: MenuItem[] = [
+    { label: 'Profile', icon: 'pi pi-user', routerLink: '/profile', command: () => this.navigate.emit() },
+    { separator: true },
+    { label: 'Log out', icon: 'pi pi-sign-out', command: () => this.logout() },
+  ];
 
   constructor(
-    private router: Router,
     private authService: AuthService,
     private userService: UserService
   ) { }
 
   ngOnInit(): void {
-
-    this.userService.user$.subscribe((user) => {
+    this.subscription = this.userService.user$.subscribe((user) => {
       this.user = user; // Update user when the value is emitted
       this.isAdmin = this.user?.isAdmin ? this.user?.isAdmin : false;
       if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
         localStorage.setItem('isAdmin', JSON.stringify(this.isAdmin));
       }
-      this.isLoading = false
     });
   }
 
-
-  // Toggle sidebar expansion
-  toggleSidebar() {
-    this.isExpanded = !this.isExpanded;
+  ngOnDestroy(): void {
+    this.subscription?.unsubscribe();
   }
 
-  // Navigation items
-  sidebarItems: SidebarItem[] = [
-    { icon: 'pi pi-home', label: 'Dashboard', route: '/dashboard' },
-    { icon: 'pi pi-calendar', label: 'Calendar', route: '/home' },
-    { icon: 'pi pi-file', label: 'Admin', route: '/admin' },
-    { icon: 'pi pi-flag', label: 'National Days', route: '/nation-days' },
-    // Salary page removed — calculator available on the dashboard
-  ];
   logout() {
     this.authService.logout();
   }

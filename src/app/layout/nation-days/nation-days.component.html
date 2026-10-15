@@ -1,55 +1,60 @@
-<div class="national-days-container">
-  <!-- Header Card -->
-  <div class="header-card">
-    <p-card styleClass="shadow-2 border-round-xl">
-      <ng-template pTemplate="header">
-        <div class="card-header">
-          <h1 class="text-3xl font-semibold text-900">National Days of Egypt</h1>
-          <p class="text-color-secondary mt-2">
-            A comprehensive list of national, religious, and cultural days that reflect Egypt's rich historical
-            heritage.
-          </p>
-        </div>
-      </ng-template>
-    </p-card>
+@if (loading) {
+<app-loader></app-loader>
+}
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>National days</h1>
+      <p>National, religious and cultural holidays. These are days off for everyone.</p>
+    </div>
   </div>
 
-  <!-- Calendar Table -->
-  <div class="calendar-card">
-    <p-card styleClass="shadow-2 border-round-xl">
-      @if(!loading) {
-      <p-table [value]="nationalDays" [tableStyle]="{'min-width': '50rem'}" [sortField]="'date'" [paginator]="true"
-        [rows]="10" [showCurrentPageReport]="true"
-        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} days" styleClass="p-datatable-gridlines">
+  @if (upcoming) {
+  <section class="card next-holiday">
+    <span class="eyebrow">Next holiday</span>
+    <div class="next-row">
+      <strong>{{ upcoming.name }}</strong>
+      <span class="mono">{{ upcoming.date | date: 'EEEE, MMM d' }}</span>
+      <span class="pill info">{{ daysUntil(upcoming.date) === 0 ? 'Today' : 'In ' + daysUntil(upcoming.date) + ' days' }}</span>
+    </div>
+  </section>
+  }
+
+  <section class="card">
+    <div class="card-header">
+      <span class="card-title">All holidays</span>
+      <span class="muted">{{ nationalDays.length }} total</span>
+    </div>
+    @if (!loading && nationalDays.length) {
+    <div class="table-scroll">
+      <p-table [value]="nationalDays" [tableStyle]="{ 'min-width': '32rem' }" sortField="date" [sortOrder]="-1"
+        [paginator]="nationalDays.length > 10" [rows]="10" [rowHover]="true">
         <ng-template pTemplate="header">
           <tr>
-            <th pSortableColumn="date" class="text-left">
-              Date
-              <p-sortIcon field="date"></p-sortIcon>
-            </th>
-            <th pSortableColumn="name" class="text-left">
-              Name
-              <p-sortIcon field="name"></p-sortIcon>
-            </th>
-            <th pSortableColumn="type" class="text-left">
-              Type
-              <p-sortIcon field="type"></p-sortIcon>
-            </th>
+            <th pSortableColumn="date">Date <p-sortIcon field="date"></p-sortIcon></th>
+            <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
+            <th>Type</th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-day>
-          <tr>
-            <td>{{ day.date | date: 'EEE dd MMM yyyy'}}</td>
+          <tr [class.past]="isPast(day.date)">
+            <td class="mono">{{ day.date | date: 'EEE, MMM d, y' }}</td>
             <td>{{ day.name }}</td>
             <td>
-              <span [ngClass]="getTypeClass(day.type)" class="type-badge">
-                {{ day.type }}
-              </span>
+              @for (tag of tagList(day.type); track tag) {
+              <span class="pill mr-1" [ngClass]="tagTone(tag)">{{ tag | titlecase }}</span>
+              }
             </td>
           </tr>
         </ng-template>
       </p-table>
-      }
-    </p-card>
-  </div>
+    </div>
+    } @else if (!loading) {
+    <div class="empty-state">
+      <i class="pi pi-flag"></i>
+      <strong>No holidays added yet</strong>
+      <span>An admin can add them from the Admin page.</span>
+    </div>
+    }
+  </section>
 </div>

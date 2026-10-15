@@ -1,22 +1,18 @@
 @if (isLoading) {
-<app-loader></app-loader>
+<div class="route-progress"><span></span></div>
 }
-<div class="flex h-screen">
-  <!-- Sidebar -->
-  @if (isLoggedIn) {
-  <app-side-bar></app-side-bar>
-  }
+@if (isLoggedIn) {
+<div class="shell" [class.sidebar-open]="sidebarOpen">
+  <app-side-bar (navigate)="sidebarOpen = false"></app-side-bar>
+  <div class="sidebar-backdrop" (click)="sidebarOpen = false"></div>
 
-  <!-- Main Content Area -->
-  <div class="main-content flex flex-column w-full">
-    <!-- Navbar -->
-    @if (isLoggedIn) {
-    <appNavbar></appNavbar>
-    }
-
-    <!-- Content Area -->
-    <div [class.content-wrapper]="isLoggedIn">
+  <div class="shell-main">
+    <appNavbar (menuToggle)="sidebarOpen = !sidebarOpen"></appNavbar>
+    <main class="shell-content">
       <router-outlet />
-    </div>
+    </main>
   </div>
 </div>
+} @else {
+<router-outlet />
+}

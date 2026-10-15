@@ -1,42 +1,35 @@
-@if (isLoading) {
-<app-loader></app-loader>
-}
-<!-- sidebar.component.html -->
-<div class="sidebar" [class.collapsed]="!isExpanded">
-  <div class="sidebar-content">
-    <div class="site-name">
-      <!-- <h2 *ngIf="isExpanded"><i class="pi pi-link logo"></i> Time I/O</h2> -->
-      <!-- <h2 *ngIf="!isExpanded"><i class="pi pi-link logo"></i></h2> -->
+<aside class="sidebar">
+  <a class="brand" routerLink="/dashboard" (click)="navigate.emit()">
+    <span class="brand-mark"><i class="pi pi-stopwatch"></i></span>
+    <span class="brand-text">
+      <small>Attendance</small>
+      <strong>Time I/O</strong>
+    </span>
+  </a>
+
+  <nav class="sidebar-nav" aria-label="Main">
+    @for (section of sections; track section.title) {
+    @if (!section.adminOnly || isAdmin) {
+    <div class="nav-section">
+      <span class="nav-section-title">{{ section.title }}</span>
+      @for (item of section.items; track item.route) {
+      <a class="nav-item" [routerLink]="item.route" routerLinkActive="active" (click)="navigate.emit()">
+        <i [class]="item.icon"></i>
+        <span>{{ item.label }}</span>
+      </a>
+      }
     </div>
+    }
+    }
+  </nav>
 
-    <nav class="sidebar-nav" [class.small]="!isExpanded">
-      <ul>
-        @for (item of sidebarItems; track $index) {
-        <li [class.item-hide]="item.label == 'Admin' && !isAdmin">
-          <a [routerLink]="item.route" class="nav-item" routerLinkActive="active">
-            <i [class]="item.icon"></i>
-            <span *ngIf="isExpanded">{{ item.label }}</span>
-          </a>
-        </li>
-        }
-      </ul>
-    </nav>
-
-    <!-- <div class="nav-item" routerLink="/salary/calculator" routerLinkActive="active">
-      <i class="fas fa-calculator"></i>
-      <span>Salary Calculator</span>
-    </div> -->
-  </div>
-
-
-  <div class="logout">
-    <div class="nav-item" (click)="logout()">
-      <i class="pi pi-sign-out"></i>
-      <span *ngIf="isExpanded">Logout</span>
-    </div>
-  </div>
-
-  <div class="sidebar-toggle" (click)="toggleSidebar()">
-    <i class="pi" [class.pi-chevron-left]="isExpanded" [class.pi-chevron-right]="!isExpanded"></i>
-  </div>
-</div>
+  <button type="button" class="user-card" (click)="menu.toggle($event)" aria-haspopup="true">
+    <img class="user-avatar" [src]="user?.currentAvatar" [alt]="user?.name || 'Avatar'" />
+    <span class="user-text">
+      <strong>{{ user?.name }}</strong>
+      <small>{{ isAdmin ? 'Administrator' : (user?.position || 'Employee') }}</small>
+    </span>
+    <i class="pi pi-chevron-up"></i>
+  </button>
+  <p-menu #menu [model]="accountMenu" [popup]="true" appendTo="body"></p-menu>
+</aside>

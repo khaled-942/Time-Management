@@ -1,0 +1,374 @@
+@import '../../../styles/theme';
+
+// Every block coloured by a project falls back to a neutral tone when it has none
+:host {
+  --project-color: var(--muted-foreground);
+}
+
+.page-header p .pi {
+  font-size: 0.8rem;
+}
+
+.small {
+  font-size: 0.8rem;
+}
+
+/* ---------- Running timer ---------- */
+.running-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  border-left: 3px solid var(--project-color);
+
+  @include mobile {
+    flex-wrap: wrap;
+  }
+}
+
+.running-dot {
+  flex: none;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.running-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.running-time {
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.running-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+
+  @include mobile {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* ---------- Week strip ---------- */
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.week-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+
+  span {
+    font-size: 0.75rem;
+  }
+}
+
+.date-input {
+  height: 2rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.85rem;
+  color-scheme: light dark;
+
+  @include mobile {
+    order: 10;
+    flex: 1;
+  }
+}
+
+.week-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.week-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.5rem 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--accent);
+  }
+
+  &.today .week-day-num {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  &.selected {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+
+    .week-day-name,
+    .week-day-total {
+      color: inherit;
+      opacity: 0.8;
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+.week-day-name {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+
+.week-day-num {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.week-day-total {
+  font-size: 0.68rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+
+  @include mobile {
+    font-size: 0.58rem;
+  }
+}
+
+/* ---------- Day ---------- */
+.tasks-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+
+  @media (max-width: 1000px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.entry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.entry {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--project-color);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  &.is-running .entry-duration {
+    color: var(--danger);
+  }
+
+  @include mobile {
+    grid-template-columns: minmax(0, 1fr) auto;
+
+    .entry-time {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+.entry-time {
+  font-size: 0.85rem;
+}
+
+.entry-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+
+.entry-note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.entry-duration {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.project-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+
+  i {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 3px;
+    // Dropdown items render outside :host, so they need their own fallback
+    background: var(--project-color, var(--muted-foreground));
+  }
+}
+
+/* ---------- By project ---------- */
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.breakdown-row {
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) 4rem;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+
+  .mono {
+    text-align: right;
+  }
+}
+
+.breakdown-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.breakdown-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--muted);
+  overflow: hidden;
+
+  span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--project-color);
+  }
+}
+
+/* ---------- Dialog ---------- */
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-weight: 500;
+  min-width: 0;
+
+  input,
+  textarea {
+    width: 100%;
+  }
+}
+
+.time-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+
+    .field:first-child {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+:host ::ng-deep .p-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+
+  .p-button {
+    margin: 0;
+  }
+}
+
+// Delete sits on the left, away from Save
+:host ::ng-deep p-button:has(.delete-btn) {
+  margin-right: auto;
+}

@@ -23,7 +23,9 @@ import {
 import { InputTextModule } from 'primeng/inputtext';
 import { LoaderComponent } from "../../shared/loader/loader.component";
 import { AuthService } from '../../auth/auth.service';
+import { HttpRequestsService } from '../../shared/services/http-requests.service';
 import { CardModule } from 'primeng/card';
+import { ButtonModule } from 'primeng/button';
 
 @Component({
   selector: 'app-user-profile',
@@ -43,7 +45,8 @@ import { CardModule } from 'primeng/card';
     InputMaskModule,
     InputTextareaModule,
     LoaderComponent,
-    CardModule
+    CardModule,
+    ButtonModule
   ],
   providers: [MessageService],
   templateUrl: './profile.component.html',
@@ -63,6 +66,11 @@ export class ProfileComponent implements OnInit {
   avatars: Avatar[] = [];
   displayAvatarDialog = false;
   isLoading = false;
+  // Monthly salary, kept apart from the profile so only its owner can see it
+  salary: number | null = null;
+  savedSalary: number | null = null;
+  salaryLoaded = false;
+  salarySaving = false;
   genderOptions = [
     { label: 'Male', value: 'male' },
     { label: 'Female', value: 'female' },
@@ -73,6 +81,7 @@ export class ProfileComponent implements OnInit {
     private avatarService: AvatarService,
     private messageService: MessageService,
     private userService: UserService,
+    private httpRequestsService: HttpRequestsService,
     private fb: FormBuilder
   ) {
     this.profileForm = this.fb.group({
@@ -81,7 +90,6 @@ export class ProfileComponent implements OnInit {
       gender: [''],
       birthDate: [null],
       position: [''],
-      salary: [null, [Validators.min(0)]],
       phone: [''],
       location: [''],
       bio: ['', Validators.maxLength(500)],
@@ -97,6 +105,7 @@ export class ProfileComponent implements OnInit {
         this.loadAvatars();
         this.isLoading = false;
         this.initializeForm();
+        if (!this.salaryLoaded) this.loadSalary();
       }
     });
   }
@@ -128,21 +137,12 @@ export class ProfileComponent implements OnInit {
 
   initializeForm() {
     if (this.user != null) {
-      // Ensure salary is numeric when loading into the form (strip formatting if needed)
-      let salaryValue: number | null = null;
-      if (this.user.salary !== undefined && this.user.salary !== null) {
-        const raw = String(this.user.salary);
-        const parsed = parseFloat(raw.replace(/[^0-9.\-]/g, ''));
-        salaryValue = isNaN(parsed) ? null : parsed;
-      }
-
       this.profileForm = this.fb.group({
         name: [this.user.name, [Validators.required, Validators.minLength(2)]],
         email: [this.user.email, [Validators.required, Validators.email]],
         gender: [this.user.gender || ''],
         birthDate: [this.user.birthDate || null],
         position: [this.user.position || ''],
-        salary: [salaryValue, [Validators.min(0)]],
         phone: [this.user.phone || ''],
         location: [this.user.location || ''],
         bio: [this.user.bio || '', Validators.maxLength(500)],
@@ -168,19 +168,11 @@ export class ProfileComponent implements OnInit {
     const formData = this.profileForm.value;
     formData.currentAvatar = this.user.currentAvatar;
     formData.userId = this.user.userId;
-    // Ensure salary is a plain number (strip currency formatting if present)
-    if (formData.salary !== null && formData.salary !== undefined) {
-      const raw = String(formData.salary);
-      const parsed = parseFloat(raw.replace(/[^0-9.\-]/g, ''));
-      formData.salary = isNaN(parsed) ? null : parsed;
-    }
 
     if (this.profileForm.valid && (!this.compareObjects(formData, this.editableUser()) || this.oldAvatar != this.user.currentAvatar)) {
       console.log('Profile Data that will be change ====> ', formData);
       this.isLoading = true;
-      // Salary is managed by an admin, so it is never sent from the profile page
-      const { salary, ...updateData } = formData;
-      this.authService.updateUserById(this.user.userId, updateData).then(onfulfilled => {
+      this.authService.updateUserById(this.user.userId, formData).then(onfulfilled => {
         console.log(onfulfilled);
         if (onfulfilled.val) {
           // Keep fields the form doesn't edit (e.g. isAdmin) on the shared user
@@ -208,8 +200,37 @@ export class ProfileComponent implements OnInit {
 
   // The user without fields the profile form doesn't edit, for change detection
   private editableUser(): any {
-    const { isAdmin, verified, ...editable } = this.user ?? {};
+    const { isAdmin, verified, salary, active, ...editable } = this.user ?? {};
     return editable;
+  }
+
+  private async loadSalary() {
+    this.salaryLoaded = true;
+    try {
+      this.savedSalary = await this.httpRequestsService.getSalary(this.user.userId);
+      this.salary = this.savedSalary;
+    } catch (error) {
+      console.error('Error loading salary:', error);
+    }
+  }
+
+  get salaryDirty(): boolean {
+    return this.salary !== null && this.salary !== undefined && this.salary > 0 && this.salary !== this.savedSalary;
+  }
+
+  async saveSalary() {
+    if (!this.salaryDirty) return;
+    this.salarySaving = true;
+    try {
+      await this.httpRequestsService.setSalary(this.user.userId, this.salary!);
+      this.savedSalary = this.salary;
+      this.messageService.add({ severity: 'success', summary: 'Salary saved', detail: 'Your pay will use the new amount.' });
+    } catch (error) {
+      console.error('Error saving salary:', error);
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: "Couldn't save your salary. Please try again." });
+    } finally {
+      this.salarySaving = false;
+    }
   }
 
   compareObjects(obj1: any, obj2: any): boolean {

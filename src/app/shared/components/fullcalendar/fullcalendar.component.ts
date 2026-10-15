@@ -2,6 +2,7 @@ import {
   ChangeDetectorRef,
   Component,
   Inject,
+  OnDestroy,
   PLATFORM_ID,
   ViewChild,
 } from '@angular/core';
@@ -11,16 +12,16 @@ import {
 } from '@fullcalendar/angular';
 import {
   CalendarOptions,
-  DateSelectArg,
-  DatesSetArg,
   EventApi,
+  EventClickArg,
+  EventContentArg,
 } from '@fullcalendar/core';
-import interactionPlugin from '@fullcalendar/interaction';
+import interactionPlugin, { DateClickArg } from '@fullcalendar/interaction';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import { createEventId } from './event-needs/event';
-import { isPlatformBrowser } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
@@ -29,15 +30,33 @@ import { InputTextModule } from 'primeng/inputtext';
 import { CalendarModule } from 'primeng/calendar';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DropdownModule } from 'primeng/dropdown';
-import { HttpRequestsService } from '../../services/http-requests.service';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
+import { HttpRequestsService, PERIOD_LOCKED } from '../../services/http-requests.service';
 import { UserService } from '../../services/user.service';
+import { PayrollService } from '../../services/payroll.service';
 import { LoaderComponent } from "../../loader/loader.component";
-import { isFriday, parseLocalDate, scheduledEnd, toDateString, WORK_START } from '../../utils/work-schedule';
-import { log } from 'node:console';
+import { isFriday, parseLocalDate, periodKeyOfDay, scheduledEnd, toDateString, WORK_START } from '../../utils/work-schedule';
+import { dayStatus, STATUS_LEGEND, timePart } from '../../utils/day-status';
+import { DayOffType } from '../../models';
+
+// Phones get a one-row toolbar, the view switch at the bottom and short entry labels
+const MOBILE_QUERY = '(max-width: 640px)';
+const DESKTOP_TOOLBARS = {
+  headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listMonth' },
+  footerToolbar: false as const,
+};
+const MOBILE_TOOLBARS = {
+  headerToolbar: { left: 'title', center: '', right: 'today prev,next' },
+  footerToolbar: { left: '', center: 'dayGridMonth,listMonth', right: '' },
+};
+// Labels short enough for a phone-width day cell
+const SHORT_DAY_OFF: Record<string, string> = { leave: 'Leave', absent: 'Absent', task: 'Task' };
 
 @Component({
   selector: 'app-fullcalendar',
   imports: [
+    CommonModule,
     FullCalendarModule,
     InputSwitchModule,
     FormsModule,
@@ -47,26 +66,30 @@ import { log } from 'node:console';
     InputTextModule,
     CalendarModule,
     CheckboxModule,
+    ToastModule,
     LoaderComponent
   ],
+  providers: [MessageService],
   templateUrl: './fullcalendar.component.html',
   styleUrl: './fullcalendar.component.scss',
   standalone: true,
 })
-export class FullcalendarComponent {
+export class FullcalendarComponent implements OnDestroy {
   @ViewChild(FullCalendarComponent) calendarComponent?: FullCalendarComponent;
   isLoading = false;
+  isSaving = false;
   userId: any;
   check_In_time: Date | null = null;
   check_Out_time: Date | null = null;
-  checked: boolean = false;
-  checked2: boolean = false;
   selectedDate: string = '';
   calendarVisible = true;
   visible: boolean = false;
   isBrowser: boolean;
+  legend = STATUS_LEGEND;
 
   nationalDays: any[] = [];
+  private nationalDaysLoaded?: Promise<void>;
+  private lockedPeriods = new Set<string>();
 
   timing: any[] = [];
   // Resolves once the user's saved days are in `timing`, so calendar events never render without them
@@ -76,9 +99,9 @@ export class FullcalendarComponent {
   isDayOff: boolean = false;
   dayOffName = '';
   dayOffTags = [
-    { name: 'Paid', value: 0 },
-    { name: 'Apsent', value: -1 },
-    { name: 'Task', value: 1 },
+    { name: 'Paid leave', value: DayOffType.Paid },
+    { name: 'Absent', value: DayOffType.Absent },
+    { name: 'Task', value: DayOffType.Task },
   ];
   selectedTags: number = 0;
 
@@ -92,204 +115,147 @@ export class FullcalendarComponent {
 
   calendarOptions: CalendarOptions = {
     plugins: [interactionPlugin, dayGridPlugin, timeGridPlugin, listPlugin],
-    headerToolbar: {
-      left: 'prev,next today',
-      center: 'title',
-      right: '',
-    },
+    ...DESKTOP_TOOLBARS,
+    buttonText: { today: 'Today', month: 'Month', list: 'List' },
     initialView: 'dayGridMonth',
-    initialEvents: this.timing,
     weekends: true,
     editable: false,
-    selectable: true,
-    selectMirror: true,
+    // dateClick (not select) so a normal tap opens a day on touch screens; select needs a long press there
+    selectable: false,
     dayMaxEvents: true,
+    height: 'auto',
     hiddenDays: [],
     firstDay: 6,
-    dateClick: (info) => {
-      this.selectedDate = info.dateStr;
-    },
-    select: this.handleDateSelect.bind(this),
+    dateClick: this.handleDateClick.bind(this),
+    eventClick: this.handleEventClick.bind(this),
+    eventContent: this.renderEventContent.bind(this),
     eventsSet: this.handleEvents.bind(this),
     events: async (info, successCallback, failureCallback) => {
       try {
         const fridayEvents = this.generateFridays(info.start, info.end);
-
-        // Then, get the national holidays events asynchronously
-        const nationalDays = await this.getNationalDays();  // Wait for the holidays to load
-        // console.log("Holidays", nationalDays);
-
+        const nationalDays = await this.getNationalDays();
         await this.timingLoaded;
-        const userEvents = this.getUserEvents();
-
-        // Combine both the Friday and national days events
-        const events = [...fridayEvents, ...nationalDays, ...userEvents];
-        successCallback(events);
+        successCallback([...fridayEvents, ...nationalDays, ...this.getUserEvents()]);
       } catch (error: any) {
-        // Handle error if any
         failureCallback(error);
       }
-
     },
   };
 
   currentEvents: EventApi[] = [];
+  private mobileQuery?: MediaQueryList;
+  private onMobileChange = (event: MediaQueryListEvent | MediaQueryList) => this.applyLayout(event.matches);
 
   constructor(
     private changeDetector: ChangeDetectorRef,
     private httpRequestsService: HttpRequestsService,
     private userService: UserService,
+    private payroll: PayrollService,
+    private messageService: MessageService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
-  }
-
-  ngOnInit() {
-    this.isLoading = true;
-    const isBrowser = isPlatformBrowser(this.platformId);
-    const userData = isBrowser ? localStorage.getItem('user') : null;
-    if (userData) {
-      this.userId = JSON.parse(userData).id;
-      this.timingLoaded = this.httpRequestsService.getUserDays(this.userId).then((res: any) => {
-        this.timing = res;
-      }).catch(err => {
-        console.error('Error loading saved days:', err);
-      }).finally(() => {
-        this.isLoading = false;
-      });
-    } else {
-      this.isLoading = false;
+    if (this.isBrowser) {
+      this.mobileQuery = window.matchMedia(MOBILE_QUERY);
+      this.onMobileChange(this.mobileQuery);
+      this.mobileQuery.addEventListener('change', this.onMobileChange);
     }
   }
 
-
-  getUserDays(date: Date) {
-
+  ngOnDestroy() {
+    this.mobileQuery?.removeEventListener('change', this.onMobileChange);
   }
 
+  private applyLayout(mobile: boolean) {
+    this.calendarOptions = { ...this.calendarOptions, ...(mobile ? MOBILE_TOOLBARS : DESKTOP_TOOLBARS) };
+  }
 
+  // Full label plus a short one; CSS shows the short one on phones
+  private renderEventContent(arg: EventContentArg) {
+    if (arg.event.display === 'background') return undefined;
+    const full = document.createElement('span');
+    full.className = 'ev-full';
+    full.textContent = arg.event.title;
+    const short = document.createElement('span');
+    short.className = 'ev-short';
+    short.textContent = arg.event.extendedProps['short'] ?? arg.event.title;
+    return { domNodes: [full, short] };
+  }
+
+  ngOnInit() {
+    const userData = this.isBrowser ? localStorage.getItem('user') : null;
+    if (!userData) return;
+
+    this.isLoading = true;
+    this.userId = JSON.parse(userData).id;
+    this.timingLoaded = this.httpRequestsService.getUserDays(this.userId).then((res: any) => {
+      this.timing = res;
+    }).catch(err => {
+      console.error('Error loading saved days:', err);
+      this.toast('error', 'Could not load your days', 'Please refresh the page.');
+    }).finally(() => {
+      this.isLoading = false;
+    });
+
+    this.payroll.getLocks()
+      .then((locks) => (this.lockedPeriods = new Set(locks.keys())))
+      .catch((err) => console.error('Error loading locked periods:', err));
+  }
+
+  // One block per saved day, coloured by its status
   getUserEvents() {
-    // console.log(this.timing);
-
-    const events: any[] = [];
-    this.timing.forEach(day => {
-      if (day.isDayOff) {
-        // add day off event to calender
-        events.push({
-          id: day.id,
-          title: day.dayOffType == -1 ? 'Absent' : 'dayOff',
-          start: day.start,
-          backgroundColor: day.dayOffType == -1 ? 'red' : day.dayOffType == 1 ? '#8fdf82' : '',
-        });
-      } else {
-        // add default check-in to calender
-        events.push({
-          id: day.id + 'IN',
-          title: 'Check-in',
-          start: day.in,
-          color: day.isLate ? 'red' : 'default'
-        });
-
-        // add default check-out to calender
-        events.push({
-          id: day.id + 'OUT',
-          title: 'Check-out',
-          start: day.out,
-          color: day.isEarlyLeave ? 'red' : 'default'
-        });
-
-        // add excuse event to calender
-        if (day.earlyLeaveExcuse || day.lateExcuse) {
-          events.push({
-            id: day.id + 'Excuse',
-            title: 'Excuse',
-            start: day.start,
-            backgroundColor: "red"
-          });
-        }
-
-      }
-
-    })
-    return events;
-  }
-
-  getNationalDays(): Promise<any[]> {
-    const events: any[] = [];
-    return this.httpRequestsService.getHolidays().then((holidays) => {
-
-      this.nationalDays = holidays.map((item: any) => {
-        return {
-          date: item.date.toDate(), // Assuming item.date is a Firestore Timestamp object
-          name: item.name,
-          type: item.tags,
-          id: item.id,
-        };
-      });
-
-
-
-      // Loop through nationalDays and create events for the calendar
-      this.nationalDays.forEach((day: any) => {
-        events.push({
-          start: day.date.getFullYear().toString() + (day.date.getMonth() + 1).toString().padStart(2, '0') + day.date.getDate().toString().padStart(2, '0'), // Format as YYYY-MM-DD
-          display: 'background',
-          title: `${day.type}`,
-        })
-        events.push({
-          start: day.date.getFullYear().toString() + (day.date.getMonth() + 1).toString().padStart(2, '0') + day.date.getDate().toString().padStart(2, '0'),
-          title: day.name,
-          color: '#8fdf82',
-          textColor: 'black',
-        })
-      })
-
-      return events;
-    }).catch((error) => {
-
-      console.error('Error fetching users', error);
-      return events;
+    return this.timing.map((day) => {
+      const status = dayStatus(day);
+      const checkIn = timePart(day.in);
+      const checkOut = timePart(day.out);
+      const title = day.isDayOff ? status.label : checkOut ? `${checkIn} – ${checkOut}` : `In ${checkIn}`;
+      return {
+        id: day.id,
+        title,
+        start: day.start,
+        allDay: true,
+        classNames: ['day-block', `status-${status.key}`],
+        extendedProps: { kind: 'day', status: status.label, short: day.isDayOff ? SHORT_DAY_OFF[status.key] : checkIn },
+      };
     });
   }
 
-  // Function to generate background events for all Fridays
+  getNationalDays(): Promise<any[]> {
+    this.nationalDaysLoaded ??= this.httpRequestsService.getHolidays().then((holidays) => {
+      this.nationalDays = holidays.map((item: any) => ({
+        date: item.date.toDate(), // Firestore Timestamp
+        name: item.name,
+        type: item.tags,
+        id: item.id,
+      }));
+    }).catch((error) => {
+      console.error('Error fetching holidays', error);
+    });
+
+    return this.nationalDaysLoaded.then(() =>
+      this.nationalDays.flatMap((day: any) => {
+        const start = toDateString(day.date);
+        return [
+          { start, display: 'background', classNames: ['holiday-bg'] },
+          { start, title: day.name, allDay: true, classNames: ['holiday-block'], extendedProps: { kind: 'holiday' } },
+        ];
+      })
+    );
+  }
+
+  // Background shading for Fridays (the weekly day off)
   generateFridays(start: Date, end: Date) {
     const events = [];
-    let currentDate = new Date(start);
-
-    while (currentDate < end) {
+    for (let currentDate = new Date(start); currentDate < end; currentDate.setDate(currentDate.getDate() + 1)) {
       if (isFriday(currentDate)) {
         events.push({
           start: toDateString(currentDate), // Local YYYY-MM-DD
           display: 'background',
-          backgroundColor: 'lightblue', // Optional: Custom background color
+          classNames: ['friday-bg'],
         });
       }
-      currentDate.setDate(currentDate.getDate() + 1); // Move to the next day
     }
-
     return events;
-  }
-
-  handleCalendarToggle() {
-    this.calendarVisible = !this.calendarVisible;
-  }
-
-  handleWeekendsToggle() {
-    const { calendarOptions } = this;
-    if (calendarOptions.hiddenDays?.length === 0) {
-      calendarOptions.hiddenDays = [5];
-    } else {
-      calendarOptions.hiddenDays = [];
-    }
-  }
-
-  getCurrentDate(): any {
-    if (this.calendarComponent) {
-      const calendarApi = this.calendarComponent.getApi();
-      const currentDate = calendarApi.getDate(); // Get current date
-      return currentDate // Log current date
-    }
   }
 
   compareDates(date1: Date, date2: Date) {
@@ -305,38 +271,65 @@ export class FullcalendarComponent {
     }
   }
 
-  // Handle date selection in FullCalendar
-  handleDateSelect(selectInfo: DateSelectArg) {
-    // Store the selected date
-    this.selectedDate = selectInfo.startStr;
+  handleDateClick(info: DateClickArg) {
+    this.openDay(info.dateStr);
+  }
 
-    const selected = parseLocalDate(this.selectedDate);
+  handleEventClick(info: EventClickArg) {
+    if (info.event.extendedProps['kind'] === 'day') {
+      this.openDay(info.event.startStr.split('T')[0]);
+    }
+  }
 
-    const notNationalDay = this.nationalDays.findIndex((item) => this.compareDates(new Date(selected), new Date(item.date)) == 0) == -1;
+  get selectedDateLabel(): string {
+    return this.selectedDate
+      ? parseLocalDate(this.selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })
+      : '';
+  }
 
-    if (!isFriday(selected) && notNationalDay && this.compareDates(new Date(selected), new Date()) <= 0) {
-      // in Day We can click
-      const { timeIn, timeOut } = this.scheduledTimes();
+  // Open the edit dialog for a day, or explain why that day can't be edited
+  private openDay(date: string) {
+    const selected = parseLocalDate(date);
+    const isNationalDay = this.nationalDays.some((item) => this.compareDates(new Date(selected), new Date(item.date)) == 0);
 
-      let index = this.timing.findIndex((item) => item.start == this.selectedDate);
-
-      this.check_Out_time = index == -1 ? timeOut : new Date(this.timing[index].out);
-      this.check_In_time = index == -1 ? timeIn : new Date(this.timing[index].in);
-
-      if (index != -1) {
-        this.isDayOff = this.timing[index].isDayOff;
-        if (this.isDayOff) this.selectedTags = this.timing[index].dayOffType;
-        this.isLate = this.timing[index].isLate;
-        this.isEarlyLeave = this.timing[index].isEarlyLeave;
-        this.earlyLeaveExcuse = this.timing[index].earlyLeaveExcuse;
-        this.lateExcuse = this.timing[index].lateExcuse;
-      }
-
-      this.showDialog();
+    if (isFriday(selected)) {
+      this.toast('info', 'Friday is the weekly day off', 'There is nothing to record on Fridays.');
+      return;
+    }
+    if (isNationalDay) {
+      this.toast('info', 'National holiday', 'Holidays are days off for everyone.');
+      return;
+    }
+    if (this.compareDates(new Date(selected), new Date()) > 0) {
+      this.toast('info', 'That day is in the future', 'You can only record today or earlier.');
+      return;
+    }
+    if (!this.userService.current?.isAdmin && this.lockedPeriods.has(periodKeyOfDay(date))) {
+      this.toast('warn', 'This payroll period is closed', 'Ask an admin if this day needs a correction.');
+      return;
     }
 
-    // Clear the calendar selection
-    selectInfo.view.calendar.unselect();
+    this.selectedDate = date;
+    this.resetFields();
+    const { timeIn, timeOut } = this.scheduledTimes();
+    const saved = this.timing.find((item) => item.start == this.selectedDate);
+
+    this.check_In_time = saved?.in ? new Date(saved.in) : timeIn;
+    this.check_Out_time = saved?.out ? new Date(saved.out) : timeOut;
+
+    if (saved) {
+      this.isDayOff = saved.isDayOff;
+      if (this.isDayOff) this.selectedTags = saved.dayOffType;
+      this.isLate = !!saved.isLate;
+      this.isEarlyLeave = !!saved.isEarlyLeave;
+      this.earlyLeaveExcuse = !!saved.earlyLeaveExcuse;
+      this.lateExcuse = !!saved.lateExcuse;
+    } else {
+      this.validateCheckIn();
+      this.validateCheckOut();
+    }
+
+    this.showDialog();
   }
 
   // Default check-in/out for the selected day (09:00 → 17:00, or 13:30 on the short day)
@@ -370,98 +363,37 @@ export class FullcalendarComponent {
   // Validate Check-In Time
   validateCheckIn() {
     if (!this.check_In_time) return;
-    // Standard work timings (can be configured)
-    let standardCheckInTime: Date = new Date(2024, 0, 1, 9, 0); // 9:00 AM
-    // Compare check-in time with standard check-in time
-    const checkInHours = this.check_In_time.getHours();
-    const checkInMinutes = this.check_In_time.getMinutes();
-    const standardHours = standardCheckInTime.getHours();
-    const standardMinutes = standardCheckInTime.getMinutes();
-
-    this.isLate = (checkInHours > standardHours) || (checkInHours === standardHours && checkInMinutes > standardMinutes);
+    const checkInMinutes = this.check_In_time.getHours() * 60 + this.check_In_time.getMinutes();
+    this.isLate = checkInMinutes > WORK_START.hours * 60 + WORK_START.minutes;
+    if (!this.isLate) this.lateExcuse = false;
   }
 
   // Validate Check-Out Time
   validateCheckOut() {
     if (!this.check_Out_time) return;
-    const { hours: standardHours, minutes: standardMinutes } = scheduledEnd(parseLocalDate(this.selectedDate));
-    // Compare check-out time with standard check-out time
-    const checkOutHours = this.check_Out_time.getHours();
-    const checkOutMinutes = this.check_Out_time.getMinutes();
-
-    this.isEarlyLeave = (checkOutHours < standardHours) || (checkOutHours === standardHours && checkOutMinutes < standardMinutes);
+    const end = scheduledEnd(parseLocalDate(this.selectedDate));
+    const checkOutMinutes = this.check_Out_time.getHours() * 60 + this.check_Out_time.getMinutes();
+    this.isEarlyLeave = checkOutMinutes < end.hours * 60 + end.minutes;
+    if (!this.isEarlyLeave) this.earlyLeaveExcuse = false;
   }
 
   // Method to handle dialog submission
   async onDialogSubmit() {
-
-    // Perform submission logic here
-    this.visible = false;
-
     if (!this.check_In_time || !this.check_Out_time) {
-      console.error('Please select both check-in and check-out times');
+      this.toast('warn', 'Missing times', 'Please set both check-in and check-out.');
+      return;
+    }
+    if (!this.isDayOff && this.check_Out_time <= this.check_In_time) {
+      this.toast('warn', 'Check-out is before check-in', 'Please correct the times.');
       return;
     }
 
-    // Get the calendar API from the ViewChild reference
-    const calendarApi = this.calendarComponent?.getApi();
-
-    if (!calendarApi) {
-      console.error('Calendar API not available');
-      return;
-    }
-
-    // Get formatted times
     const checkInTime = this.convertTime(this.check_In_time);
     const checkOutTime = this.convertTime(this.check_Out_time);
-    // Add event to calendar
+    const existing = this.timing.find((item) => item.start == this.selectedDate);
 
-    calendarApi.getEvents().filter((i) => i.startStr.split('T')[0] == this.selectedDate).forEach((event) => event.remove());
-
-    let eventID = createEventId();
-
-    if (this.isDayOff) {
-      // add day off event to calender
-      calendarApi.addEvent({
-        id: eventID,
-        title: this.selectedTags == -1 ? 'Absent' : 'dayOff',
-        start: this.selectedDate,
-        backgroundColor: this.selectedTags == -1 ? 'red' : this.selectedTags == 1 ? '#8fdf82' : ''
-      });
-    } else {
-      // add default check-in to calender
-      calendarApi.addEvent({
-        id: eventID + 'IN',
-        title: 'Check-in',
-        start: `${this.selectedDate}T${checkInTime}`,
-        color: this.isLate ? 'red' : 'default'
-      });
-
-      // add default check-out to calender
-      calendarApi.addEvent({
-        id: eventID + 'OUT',
-        title: 'Check-out',
-        start: `${this.selectedDate}T${checkOutTime}`,
-        color: this.isEarlyLeave ? 'red' : 'default'
-      });
-
-      // add excuse event to calender
-      if (this.earlyLeaveExcuse || this.lateExcuse) {
-        calendarApi.addEvent({
-          id: eventID + 'Excuse',
-          title: 'Excuse',
-          start: this.selectedDate,
-          backgroundColor: "red"
-        });
-      }
-
-    }
-
-    let index = this.timing.findIndex((item) => item.start == this.selectedDate);
-
-    // Add to timing array
-    let eventData: any = {
-      id: eventID,
+    const eventData: any = {
+      id: existing?.id ?? createEventId(),
       title: 'Day Event',
       start: this.selectedDate,
       in: `${this.selectedDate}T${checkInTime}`,
@@ -475,27 +407,31 @@ export class FullcalendarComponent {
     if (this.isDayOff) {
       eventData.dayOffType = this.selectedTags;
     }
+
+    this.isSaving = true;
+    try {
+      await this.httpRequestsService.saveDayEvent(this.userId, this.selectedDate, eventData);
+    } catch (error: any) {
+      // Keep the dialog open so nothing typed is lost
+      this.toast(
+        'error',
+        'Day not saved',
+        error?.message === PERIOD_LOCKED ? 'This payroll period is closed.' : 'Please check your connection and try again.'
+      );
+      return;
+    } finally {
+      this.isSaving = false;
+    }
+
+    const index = this.timing.findIndex((item) => item.start == this.selectedDate);
     if (index == -1) {
       this.timing.push(eventData);
     } else {
-      this.timing[index] = eventData;
+      this.timing[index] = { ...this.timing[index], ...eventData };
     }
+    this.calendarComponent?.getApi().refetchEvents();
+    this.toast('success', 'Day saved', this.selectedDateLabel);
 
-    try {
-      // console.log(this.userId);
-
-      await this.httpRequestsService.saveDayEvent(this.userId, this.selectedDate, eventData);
-      console.log('Event saved successfully!');
-    } catch (error) {
-      console.error('Error saving event:', error);
-    }
-
-    console.log("Timing List", this.timing);
-
-    console.log("Events List", calendarApi.getEvents());
-
-
-    // Close the dialog and reset times
     this.visible = false;
     this.resetFields();
   }
@@ -534,4 +470,7 @@ export class FullcalendarComponent {
     this.visible = true;
   }
 
+  private toast(severity: 'success' | 'info' | 'warn' | 'error', summary: string, detail: string) {
+    this.messageService.add({ severity, summary, detail, life: 3500 });
+  }
 }

@@ -1,0 +1,196 @@
+@if (loading) {
+<app-loader></app-loader>
+}
+<p-toast position="bottom-right"></p-toast>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>My tasks</h1>
+      <p><i class="pi pi-lock"></i> Private: only you can see what you log here.</p>
+    </div>
+    <div class="page-actions">
+      @if (!running) {
+      <p-button label="Start timer" icon="pi pi-play" styleClass="p-button-outlined" (onClick)="openStartTimer()" />
+      }
+      <p-button label="Add task" icon="pi pi-plus" (onClick)="openNew()" />
+    </div>
+  </div>
+
+  <!-- Running timer -->
+  @if (running) {
+  <section class="card running-card" [style.--project-color]="project(running.projectId)?.color || null">
+    <span class="running-dot" aria-hidden="true"></span>
+    <div class="running-body">
+      <span class="eyebrow">Running since {{ formatTime12(running.start) }}{{ running.date !== today ? ' · ' + (running.date | date: 'MMM d') : '' }}</span>
+      <strong>{{ running.title }}</strong>
+      @if (project(running.projectId); as p) {
+      <span class="muted">{{ p.name }}</span>
+      }
+    </div>
+    <span class="running-time mono">{{ formatMinutes(minutes(running)) }}</span>
+    <div class="running-actions">
+      <p-button icon="pi pi-pencil" styleClass="p-button-text" ariaLabel="Edit running task" (onClick)="openEdit(running)" />
+      <p-button label="Stop" icon="pi pi-stop" styleClass="p-button-danger" [loading]="saving" (onClick)="stopTimer()" />
+    </div>
+  </section>
+  }
+
+  <!-- Week strip -->
+  <section class="card week-card">
+    <div class="week-nav">
+      <p-button icon="pi pi-chevron-left" styleClass="p-button-text p-button-sm" ariaLabel="Previous day" (onClick)="shiftDay(-1)" />
+      <div class="week-title">
+        <strong>{{ selectedLabel }}</strong>
+        <span class="muted mono">{{ weekLabel }} · {{ formatMinutes(weekMinutes) }} this week</span>
+      </div>
+      <p-button icon="pi pi-chevron-right" styleClass="p-button-text p-button-sm" ariaLabel="Next day" (onClick)="shiftDay(1)" />
+      <input type="date" class="date-input" [ngModel]="selectedDate" (ngModelChange)="selectDate($event)" aria-label="Pick a date" />
+      @if (selectedDate !== today) {
+      <p-button label="Today" styleClass="p-button-outlined p-button-sm" (onClick)="selectDate(today)" />
+      }
+    </div>
+    <div class="week-days" role="tablist">
+      @for (d of week; track d.date) {
+      <button type="button" class="week-day" role="tab" [attr.aria-selected]="d.date === selectedDate"
+        [class.selected]="d.date === selectedDate" [class.today]="d.date === today" (click)="selectDate(d.date)">
+        <span class="week-day-name">{{ d.weekday }}</span>
+        <span class="week-day-num">{{ d.day }}</span>
+        <span class="week-day-total mono">{{ d.minutes ? formatMinutes(d.minutes) : '—' }}</span>
+      </button>
+      }
+    </div>
+  </section>
+
+  <div class="tasks-grid">
+    <!-- Entries for the day -->
+    <section class="card">
+      <div class="card-header">
+        <span class="card-title">{{ selectedLabel }}</span>
+        <span class="mono muted">{{ formatMinutes(dayMinutes) }}</span>
+      </div>
+
+      @if (dayEntries.length) {
+      <ul class="entry-list">
+        @for (entry of dayEntries; track entry.id) {
+        <li>
+          <button type="button" class="entry" [class.is-running]="!entry.end"
+            [style.--project-color]="project(entry.projectId)?.color || null" (click)="openEdit(entry)">
+            <span class="entry-time mono">
+              {{ entry.start }}<span class="muted">–{{ entry.end || 'now' }}</span>
+            </span>
+            <span class="entry-main">
+              <strong>{{ entry.title }}</strong>
+              <span class="entry-meta">
+                @if (project(entry.projectId); as p) {
+                <span class="project-tag"><i></i>{{ p.name }}</span>
+                } @else {
+                <span class="muted">No project</span>
+                }
+                @if (entry.note) {
+                <span class="entry-note muted">{{ entry.note }}</span>
+                }
+              </span>
+            </span>
+            <span class="entry-duration mono">{{ formatMinutes(minutes(entry)) }}</span>
+          </button>
+        </li>
+        }
+      </ul>
+      } @else if (!loading) {
+      <div class="empty-state">
+        <i class="pi pi-check-square"></i>
+        <strong>Nothing logged {{ selectedDate === today ? 'today' : 'on this day' }}</strong>
+        <span>Add what you worked on, or start a timer when you begin a task.</span>
+      </div>
+      }
+    </section>
+
+    <!-- Per-project breakdown -->
+    <section class="card">
+      <div class="card-header">
+        <span class="card-title">By project</span>
+      </div>
+      @if (byProject.length) {
+      <div class="breakdown">
+        @for (row of byProject; track $index) {
+        <div class="breakdown-row" [style.--project-color]="row.project?.color || null">
+          <span class="breakdown-label">{{ row.project?.name ?? 'No project' }}</span>
+          <div class="breakdown-bar"><span [style.width.%]="dayMinutes ? (row.minutes / dayMinutes) * 100 : 0"></span></div>
+          <span class="mono">{{ formatMinutes(row.minutes) }}</span>
+        </div>
+        }
+      </div>
+      } @else {
+      <p class="muted">Your time per project shows up here.</p>
+      }
+      @if (!projects.length && !loading) {
+      <p class="muted small">No projects yet. <a routerLink="/projects">See projects</a></p>
+      }
+    </section>
+  </div>
+</div>
+
+<!-- Add / edit / start timer -->
+<p-dialog [visible]="!!form" (visibleChange)="!$event && (form = null)" [modal]="true" [draggable]="false"
+  [style]="{ width: '30rem' }" [breakpoints]="{ '640px': '94vw' }"
+  [header]="startingTimer ? 'Start timer' : editingId ? 'Edit task' : 'Add task'">
+  @if (form) {
+  <div class="form-stack">
+    <label class="field">
+      <span>What are you working on?</span>
+      <input pInputText [(ngModel)]="form.title" placeholder="e.g. Login page API integration" maxlength="200" />
+    </label>
+    <label class="field">
+      <span>Project</span>
+      <p-dropdown [options]="projectOptions" [(ngModel)]="form.projectId" optionLabel="label" optionValue="value"
+        [filter]="projectOptions.length > 8" filterBy="label" styleClass="w-full" appendTo="body">
+        <ng-template let-option pTemplate="item">
+          <span class="project-tag" [style.--project-color]="option.color || null"><i></i>{{ option.label }}</span>
+        </ng-template>
+      </p-dropdown>
+    </label>
+
+    @if (!startingTimer) {
+    <div class="time-row">
+      <label class="field">
+        <span>Date</span>
+        <input pInputText type="date" [(ngModel)]="form.date" [max]="today" />
+      </label>
+      <label class="field">
+        <span>Start</span>
+        <input pInputText type="time" [(ngModel)]="form.start" />
+      </label>
+      <label class="field">
+        <span>End @if (editingRunning) { <small class="muted">(empty = running)</small> }</span>
+        <input pInputText type="time" [(ngModel)]="form.end" />
+      </label>
+    </div>
+    @if (formMinutes) {
+    <span class="muted mono small">{{ formatMinutes(formMinutes) }}</span>
+    }
+    <label class="field">
+      <span>Note <small class="muted">(optional)</small></span>
+      <textarea pInputTextarea [(ngModel)]="form.note" rows="3" maxlength="1000"
+        placeholder="Branch, PR link, what's left…"></textarea>
+    </label>
+    }
+
+    @if (overlaps.length) {
+    <div class="callout warning">
+      <i class="pi pi-exclamation-triangle"></i>
+      <span>Overlaps with {{ overlaps[0].title }} ({{ overlaps[0].start }}–{{ overlaps[0].end || 'now' }}){{ overlaps.length > 1 ? ' and ' + (overlaps.length - 1) + ' more' : '' }}.</span>
+    </div>
+    }
+  </div>
+  }
+  <ng-template pTemplate="footer">
+    @if (editingId) {
+    <p-button icon="pi pi-trash" styleClass="p-button-danger p-button-text delete-btn" ariaLabel="Delete task"
+      [disabled]="saving" (onClick)="remove()" />
+    }
+    <p-button label="Cancel" styleClass="p-button-outlined" (onClick)="form = null" />
+    <p-button [label]="startingTimer ? 'Start' : 'Save'" [icon]="startingTimer ? 'pi pi-play' : 'pi pi-check'"
+      [loading]="saving" [disabled]="!!formError" [pTooltip]="formError" tooltipPosition="top" (onClick)="save()" />
+  </ng-template>
+</p-dialog>

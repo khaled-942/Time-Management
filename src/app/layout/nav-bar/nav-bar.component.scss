@@ -1,50 +1,208 @@
-.navbar {
-  z-index: 1;
+@import '../../../styles/theme';
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  // Grows by the status-bar inset when installed as an app on a phone with a notch
+  height: calc(var(--topbar-height) + env(safe-area-inset-top, 0px));
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  background-color: var(--background);
-  color: var(--foreground);
-  padding: 0.5rem 1rem;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: env(safe-area-inset-top, 0px) 1.5rem 0;
+  background: color-mix(in srgb, var(--background) 85%, transparent);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
-  position: fixed;
-  width: 100%;
 
-  .navbar-left {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-
-    h2 {
-      margin: 0;
-      color: var(--foreground);
-    }
-
-    i.logo {
-      font-size: xx-large;
-      color: var(--primary);
-      margin-right: 10px;
-    }
-  }
-
-  .navbar-right {
-    display: flex;
-    align-items: center;
-
-    button {
-      margin: 0 5px;
-
-      &.logout {
-        color: #d9534f;
-      }
-    }
-    p-avatar {
-      cursor: pointer;
-    }
+  @include mobile {
+    padding: env(safe-area-inset-top, 0px) calc(1rem + env(safe-area-inset-right, 0px)) 0
+      calc(1rem + env(safe-area-inset-left, 0px));
   }
 }
 
-.item-hide {
+.topbar-left,
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  overflow: hidden;
+
+  i {
+    font-size: 0.7rem;
+    color: var(--subtle-foreground);
+  }
+
+  strong {
+    font-weight: 600;
+  }
+}
+
+.icon-btn {
+  position: relative;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--accent);
+  }
+
+  .badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 0.65rem;
+    line-height: 1.1rem;
+    text-align: center;
+  }
+}
+
+.menu-btn {
   display: none;
+
+  @media (max-width: 1024px) {
+    display: grid;
+  }
+}
+
+.avatar-link img {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--muted);
+  object-fit: cover;
+  display: block;
+}
+
+// The overlay panel is appended to <body>, so its styles must escape view encapsulation
+::ng-deep .notifications-panel.p-overlaypanel {
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: min(380px, calc(100vw - 2rem));
+
+  &::before,
+  &::after {
+    display: none;
+  }
+
+  .p-overlaypanel-content {
+    padding: 0;
+  }
+
+  .notifications-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--muted-foreground);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--foreground);
+    }
+  }
+
+  .notifications-list {
+    max-height: 420px;
+    overflow-y: auto;
+    padding: 0.35rem;
+  }
+
+  .notification {
+    display: flex;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.7rem;
+    border: none;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--foreground);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--accent);
+    }
+
+    > i {
+      margin-top: 2px;
+      color: var(--muted-foreground);
+
+      &.warning {
+        color: var(--warning);
+      }
+    }
+
+    &.unread {
+      background: var(--card-muted);
+
+      strong::after {
+        content: '';
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        margin-left: 0.4rem;
+        border-radius: 50%;
+        background: var(--danger);
+        vertical-align: middle;
+      }
+    }
+  }
+
+  .notification-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+
+    strong {
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    small {
+      color: var(--muted-foreground);
+      font-size: 0.8rem;
+    }
+
+    .time {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--subtle-foreground);
+    }
+  }
 }

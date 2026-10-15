@@ -1,124 +1,126 @@
 @if (isLoading) {
 <app-loader></app-loader>
 }
-<div class="profile-container">
-  <div class="profile-grid">
-    <!-- Profile Card -->
-    <div class="profile-card">
-      <div class="avatar-section">
-        <p-avatar (click)="showAvatarDialog()" [image]="user?.currentAvatar" size="xlarge" shape="circle"
-          class="avatar-image"></p-avatar>
+<p-toast position="bottom-right"></p-toast>
 
-        <div class="profile-info">
-          <h2 class="profile-name text-2xl font-semibold text-900">
-            {{ user?.name }}
-          </h2>
-          <span class="profile-position">{{
-            user?.position ? user?.position : "Your Position"
-            }}</span>
-          <span class="profile-email">{{ user?.email }}</span>
-        </div>
-      </div>
-
-      <!-- Bio Section -->
-      <div class="bio-section">
-        <h3 class="text-xl font-semibold text-700 mb-3">About Me</h3>
-        <p class="text-color-secondary">
-          {{ user?.bio ? user?.bio : "You can write a short bio for yourself here" }}
-        </p>
-      </div>
-    </div>
-
-    <!-- Edit Profile Form -->
-    <div class="edit-profile-card">
-      <p-card>
-        <ng-template pTemplate="header">
-          <div class="card-header">
-            <h2 class="text-2xl font-semibold text-900">Edit Profile</h2>
-          </div>
-        </ng-template>
-
-        <form [formGroup]="profileForm" class="profile-form" (ngSubmit)="handleSubmit()">
-          <div class="form-grid">
-            <!-- Personal Information -->
-            <div class="form-section">
-              <div class="form-group">
-                <label for="name" class="form-label">Full Name</label>
-                <input pInputText id="name" formControlName="name" placeholder="Enter your full name" class="w-full" />
-              </div>
-
-              <div class="form-group">
-                <label for="position" class="form-label">Job Position</label>
-                <input pInputText id="position" formControlName="position" placeholder="Your current job title"
-                  class="w-full" />
-              </div>
-
-              <div class="form-group">
-                <label for="gender" class="form-label">Gender</label>
-                <p-dropdown [options]="genderOptions" formControlName="gender" placeholder="Select Gender"
-                  optionLabel="label" optionValue="value" styleClass="w-full">
-                </p-dropdown>
-              </div>
-
-              <div class="form-group">
-                <label for="birthDate" class="form-label">Date of Birth</label>
-                <p-calendar formControlName="birthDate" dateFormat="dd/mm/yy" [showIcon]="true" styleClass="w-full">
-                </p-calendar>
-              </div>
-            </div>
-
-            <!-- Contact & Additional Info -->
-            <div class="form-section">
-              <div class="form-group">
-                <label for="salary" class="form-label">Monthly Salary (set by admin)</label>
-                <p-inputNumber formControlName="salary" [readonly]="true" placeholder="Not set yet" [min]="0" mode="currency"
-                  currency="USD" styleClass="w-full">
-                </p-inputNumber>
-              </div>
-
-              <div class="form-group">
-                <label for="phone" class="form-label">Phone Number</label>
-                <p-inputMask formControlName="phone" mask="+20 999 999 9999" placeholder="+20 xxx xxx xxxx"
-                  styleClass="w-full">
-                </p-inputMask>
-              </div>
-
-              <div class="form-group">
-                <label for="location" class="form-label">Location</label>
-                <input pInputText id="location" formControlName="location" placeholder="City, Country" class="w-full" />
-              </div>
-
-              <div class="form-group">
-                <label for="bio" class="form-label">Personal Bio</label>
-                <textarea pInputTextarea formControlName="bio" [rows]="4" placeholder="Tell us about yourself"
-                  class="w-full">
-                </textarea>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-actions">
-            <button pButton type="submit" label="Save Changes" icon="pi pi-save" [disabled]="!submitBtn"
-              class="p-button-primary">
-            </button>
-          </div>
-        </form>
-      </p-card>
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Profile</h1>
+      <p>Your personal details. Admin access is managed by an admin.</p>
     </div>
   </div>
 
-  <!-- Avatar Selection Dialog -->
-  <p-dialog [(visible)]="displayAvatarDialog" header="Choose Avatar" [modal]="true" [style]="{ width: '450px' }"
-    (onHide)="displayAvatarDialog = false">
-    <div class="avatar-grid">
-      @for (avatar of avatars; track avatar.name) {
-      <div class="avatar-item" (click)="selectAvatar(avatar)">
-        <img [src]="avatar.url" [alt]="avatar.name" class="avatar-option" />
-      </div>
-      }
-    </div>
-  </p-dialog>
+  <div class="profile-grid">
+    <!-- Summary -->
+    <section class="card profile-summary">
+      <button type="button" class="avatar-button" (click)="showAvatarDialog()" aria-label="Change avatar">
+        <img [src]="user?.currentAvatar" [alt]="user?.name" />
+        <span class="avatar-edit"><i class="pi pi-pencil"></i></span>
+      </button>
+      <h2>{{ user?.name }}</h2>
+      <span class="muted">{{ user?.position || 'No position yet' }}</span>
 
-  <!-- Toast Notifications -->
-  <p-toast></p-toast>
+      <div class="kv-list summary-list">
+        <div class="kv">
+          <span class="muted">Email</span>
+          <span class="kv-value">{{ user?.email }}</span>
+        </div>
+        <div class="kv">
+          <span class="muted">Phone</span>
+          <span class="kv-value">{{ user?.phone || '—' }}</span>
+        </div>
+        <div class="kv">
+          <span class="muted">Location</span>
+          <span class="kv-value">{{ user?.location || '—' }}</span>
+        </div>
+      </div>
+
+      <div class="bio">
+        <span class="eyebrow">About</span>
+        <p [class.muted]="!user?.bio">{{ user?.bio || 'Add a short bio in the form.' }}</p>
+      </div>
+    </section>
+
+    <!-- Edit form -->
+    <section class="card">
+      <div class="card-header">
+        <span class="card-title">Edit profile</span>
+      </div>
+
+      <form [formGroup]="profileForm" class="profile-form" (ngSubmit)="handleSubmit()">
+        <div class="form-grid">
+          <label class="field">
+            <span>Full name</span>
+            <input pInputText id="name" formControlName="name" placeholder="Enter your full name" />
+          </label>
+
+          <label class="field">
+            <span>Job position</span>
+            <input pInputText id="position" formControlName="position" placeholder="Your current job title" />
+          </label>
+
+          <label class="field">
+            <span>Gender</span>
+            <p-dropdown [options]="genderOptions" formControlName="gender" placeholder="Select gender" optionLabel="label"
+              optionValue="value" appendTo="body"></p-dropdown>
+          </label>
+
+          <label class="field">
+            <span>Date of birth</span>
+            <p-calendar formControlName="birthDate" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body"></p-calendar>
+          </label>
+
+          <label class="field">
+            <span>Phone number</span>
+            <p-inputMask formControlName="phone" mask="+20 999 999 9999" placeholder="+20 xxx xxx xxxx"></p-inputMask>
+          </label>
+
+          <label class="field">
+            <span>Location</span>
+            <input pInputText id="location" formControlName="location" placeholder="City, Country" />
+          </label>
+
+          <label class="field full">
+            <span>Bio</span>
+            <textarea pInputTextarea formControlName="bio" [rows]="4" placeholder="Tell us about yourself"></textarea>
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <button pButton type="submit" label="Save changes" icon="pi pi-check" [disabled]="!submitBtn"></button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Salary (private: only you can see it) -->
+    <section class="card salary-section">
+      <div class="card-header">
+        <span class="card-title"><i class="pi pi-lock"></i> Salary</span>
+        <span class="muted">Only you can see this</span>
+      </div>
+      <div class="salary-row">
+        <label class="field">
+          <span>Monthly salary</span>
+          <p-inputNumber [(ngModel)]="salary" placeholder="Not set yet" [min]="0" mode="currency" currency="USD"
+            inputStyleClass="mono" inputId="salary"></p-inputNumber>
+        </label>
+        <button pButton type="button" label="Save salary" icon="pi pi-check" [disabled]="!salaryDirty"
+          [loading]="salarySaving" (click)="saveSalary()"></button>
+      </div>
+    </section>
+  </div>
 </div>
+
+<!-- Avatar Selection Dialog -->
+<p-dialog [(visible)]="displayAvatarDialog" header="Choose avatar" [modal]="true" [draggable]="false"
+  [style]="{ width: '30rem' }" (onHide)="displayAvatarDialog = false">
+  <div class="avatar-grid">
+    @for (avatar of avatars; track avatar.name) {
+    <button type="button" class="avatar-item" [class.selected]="avatar.url === user?.currentAvatar"
+      (click)="selectAvatar(avatar)">
+      <img [src]="avatar.url" [alt]="avatar.name" />
+    </button>
+    }
+  </div>
+</p-dialog>

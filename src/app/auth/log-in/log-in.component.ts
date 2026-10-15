@@ -9,10 +9,12 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
 import { UserService } from '../../shared/services/user.service';
 @Component({
   selector: 'app-log-in',
-  imports: [FormsModule, ReactiveFormsModule, CommonModule, RouterModule],
+  imports: [FormsModule, ReactiveFormsModule, CommonModule, RouterModule, ButtonModule, InputTextModule],
   standalone: true,
   templateUrl: './log-in.component.html',
   styleUrl: './log-in.component.scss',
@@ -42,20 +44,25 @@ export class LogInComponent {
     this.isLoading = true;
     try {
       const { username, password } = this.loginForm.value;
-      await this.authService.login(username, password).then((res: any) => {
+      await this.authService.login(username, password).then(async (res: any) => {
         if (res._tokenResponse !== undefined) {
-          console.log('User logged in');
-          this.authService.loginStatusChanged.emit(true);
           if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
             localStorage.setItem(
               'user',
               JSON.stringify({ id: res.user.uid, token: res.user.accessToken, date: new Date() })
             );
           }
-          this.authService.getUserById(res.user.uid).then((res: any) => {
-            this.userService.setUser(res[0]);
-            this.router.navigate(['/home']);
-          });
+          const profile = (await this.authService.getUserById(res.user.uid))[0];
+          if (profile?.active === false) {
+            // Deactivated by an admin
+            this.authService.logout();
+            this.error = 'Your account has been deactivated. Please contact an admin.';
+            return;
+          }
+          if (profile?.birthDate?.toDate) profile.birthDate = profile.birthDate.toDate();
+          this.userService.setUser(profile);
+          this.authService.loginStatusChanged.emit(true);
+          this.router.navigate(['/dashboard']);
         } else if (res.code === 'auth/invalid-credential') {
           this.error = 'Invalid credentials';
           console.log('Invalid credential');

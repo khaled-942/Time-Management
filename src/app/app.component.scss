@@ -1,5 +1,65 @@
-.content-wrapper {
-  margin-top: 4.4rem;
-  margin-left: 2rem;
-  position: relative;
+@import '../styles/theme';
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.shell-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.shell-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+// Below 1024px the sidebar becomes an off-canvas drawer opened from the top bar
+@media (max-width: 1024px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar-open .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: var(--overlay);
+    z-index: 40;
+  }
+}
+
+// Thin bar shown while a lazy-loaded page is loading
+.route-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 100;
+  overflow: hidden;
+
+  span {
+    display: block;
+    width: 40%;
+    height: 100%;
+    background: var(--foreground);
+    animation: route-progress 1s ease-in-out infinite;
+  }
+}
+
+@keyframes route-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
 }

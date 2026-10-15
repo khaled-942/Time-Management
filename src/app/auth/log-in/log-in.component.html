@@ -1,84 +1,45 @@
-<!-- login.component.html -->
-<div class="login-container">
-  <div class="login-card">
-    <div class="login-header">
-      <div class="login-icon">
-        <i class="pi pi-link"></i>
-      </div>
-      <h2>Time Managment</h2>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="auth-mark"><i class="pi pi-stopwatch"></i></span>
+      <span class="eyebrow">Time I/O</span>
     </div>
+    <h1>Sign in</h1>
+    <p class="muted">Track your attendance and pay.</p>
 
-    <form
-      [formGroup]="loginForm"
-      (ngSubmit)="handleSubmit()"
-      class="login-form"
-    >
-      <div class="p-field">
-        <label for="username" class="p-sr-only">Username</label>
-        <input
-          id="username"
-          pInputText
-          type="text"
-          formControlName="username"
-          placeholder="Email"
-          [class.p-invalid]="
-            loginForm.get('username')?.invalid &&
-            loginForm.get('username')?.touched
-          "
-        />
-      </div>
+    <form [formGroup]="loginForm" (ngSubmit)="handleSubmit()" class="auth-form">
+      <label class="auth-field" for="username">
+        <span>Email</span>
+        <input id="username" pInputText type="email" formControlName="username" placeholder="you@company.com"
+          autocomplete="email" [class.p-invalid]="loginForm.get('username')?.invalid && loginForm.get('username')?.touched" />
+      </label>
 
-      <div class="p-field">
-        <label for="password" class="p-sr-only">Password</label>
-        <input
-          id="password"
-          pInputText
-          type="password"
-          formControlName="password"
-          placeholder="Password"
-          [class.p-invalid]="
-            loginForm.get('password')?.invalid &&
-            loginForm.get('password')?.touched
-          "
-        />
-      </div>
+      <label class="auth-field" for="password">
+        <span>Password</span>
+        <input id="password" pInputText type="password" formControlName="password" placeholder="••••••••"
+          autocomplete="current-password"
+          [class.p-invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched" />
+      </label>
 
       @if (error) {
-      <div class="error-message">
-        {{ error }}
+      <div class="callout danger" role="alert">
+        <i class="pi pi-exclamation-circle"></i>
+        <span>{{ error }}</span>
       </div>
       }
-      <div class="mb-1">
-        <span class="text-600 ml-auto flex flex-wrap gap-3"
-          >Don't have an account?
-          <a
-            [routerLink]="['/register']"
-            class="text-600 hover:text-primary cursor-pointer ml-auto transition-colors transition-duration-300"
-          >
-            Register</a
-          >
-        </span>
-      </div>
 
-      <button
-        pButton
-        type="submit"
-        label="Sign in"
-        [disabled]="!isFormValid() || isLoading"
-        class="login-button"
-        [ngClass]="{
-          'p-button-primary': isFormValid(),
-          'p-button-secondary': !isFormValid()
-        }"
-      >
+      <button pButton type="submit" class="auth-submit" [disabled]="!isFormValid() || isLoading">
         @if (isLoading) {
         <i class="pi pi-spin pi-spinner"></i>
         } @else {
-        <i class="pi pi-lock"></i>
+        <i class="pi pi-sign-in"></i>
         }
-        {{ isLoading ? "Signing in..." : "Sign in" }}
+        <span>{{ isLoading ? 'Signing in…' : 'Sign in' }}</span>
       </button>
-      <span></span>
     </form>
+
+    <p class="auth-switch">
+      Don't have an account? <a [routerLink]="['/register']">Create one</a>
+    </p>
   </div>
 </div>

@@ -14,8 +14,8 @@ export const allowedGuard: CanActivateFn = async (route, state) => {
   const isLoggedIn = !!user && !!localStorage.getItem('user');
 
   if (isLoggedIn) {
-    // If logged in, redirect to the home page
-    return router.createUrlTree(['/home']);
+    // If logged in, go straight to the dashboard
+    return router.createUrlTree(['/dashboard']);
   }
   return true; // Allow access
 };

@@ -41,6 +41,14 @@ export interface SalaryDeductions {
     totalDeductions: number;
 }
 
+/** One deduction, for the salary breakdown. */
+export interface DeductionLine {
+    date: string; // YYYY-MM-DD
+    reason: string;
+    days: number; // fraction of a day's salary
+    amount: number;
+}
+
 export interface SalaryCalculation {
     totalRegularHours: number;
     totalOvertimeHours: number;
@@ -52,4 +60,8 @@ export interface SalaryCalculation {
     workDays: WorkDay[];
     deductions: SalaryDeductions;
     violations: ViolationCount;
+    dailySalary: number;
+    deductionLines: DeductionLine[];
+    /** Days of salary the next 0–30 min lateness would cost (0 = warning only). */
+    nextLatePenaltyDays: number;
 }

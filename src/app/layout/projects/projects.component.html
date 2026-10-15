@@ -1,0 +1,100 @@
+@if (loading) {
+<app-loader></app-loader>
+}
+<p-toast position="bottom-right"></p-toast>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Projects</h1>
+      <p>The projects you can log time and tasks against.{{ canManage ? '' : ' Project managers keep this list up to date.' }}</p>
+    </div>
+    <div class="page-actions">
+      @if (archivedCount) {
+      <label class="switch-label">
+        <p-inputSwitch [(ngModel)]="showArchived"></p-inputSwitch>
+        <span>Show archived ({{ archivedCount }})</span>
+      </label>
+      }
+      @if (canManage) {
+      <p-button label="New project" icon="pi pi-plus" (onClick)="openNew()" />
+      }
+    </div>
+  </div>
+
+  @if (visibleProjects.length) {
+  <div class="project-grid">
+    @for (project of visibleProjects; track project.id) {
+    <section class="card project-card" [class.archived]="!project.active" [style.--project-color]="project.color">
+      <div class="project-head">
+        <span class="project-swatch"></span>
+        <div class="project-title">
+          <strong>{{ project.name }}</strong>
+          <span class="muted">{{ project.client || 'Internal' }}</span>
+        </div>
+        @if (!project.active) {
+        <span class="pill">Archived</span>
+        }
+      </div>
+
+      @if (canManage) {
+      <div class="project-actions">
+        <p-button label="Edit" icon="pi pi-pencil" styleClass="p-button-text p-button-sm" (onClick)="openEdit(project)" />
+        @if (project.active) {
+        <p-button label="Archive" icon="pi pi-inbox" styleClass="p-button-text p-button-sm"
+          pTooltip="Hidden from pickers; existing tasks keep it" tooltipPosition="top"
+          (onClick)="setActive(project, false)" />
+        } @else {
+        <p-button label="Restore" icon="pi pi-replay" styleClass="p-button-text p-button-sm"
+          (onClick)="setActive(project, true)" />
+        }
+        @if (isAdmin) {
+        <p-button icon="pi pi-trash" styleClass="p-button-danger p-button-text p-button-sm" ariaLabel="Delete project"
+          pTooltip="Delete for good" tooltipPosition="top" (onClick)="remove(project)" />
+        }
+      </div>
+      }
+    </section>
+    }
+  </div>
+  } @else if (!loading) {
+  <section class="card">
+    <div class="empty-state">
+      <i class="pi pi-briefcase"></i>
+      <strong>No projects yet</strong>
+      <span>{{ canManage ? 'Add the projects your team works on.' : 'A project manager will add them soon.' }}</span>
+    </div>
+  </section>
+  }
+</div>
+
+<p-dialog [visible]="!!form" (visibleChange)="!$event && (form = null)" [modal]="true" [draggable]="false"
+  [style]="{ width: '28rem' }" [breakpoints]="{ '640px': '94vw' }" [header]="editingId ? 'Edit project' : 'New project'">
+  @if (form) {
+  <div class="form-stack">
+    <label class="field">
+      <span>Name</span>
+      <input pInputText [(ngModel)]="form.name" placeholder="e.g. Clinic booking site" maxlength="60" />
+    </label>
+    <label class="field">
+      <span>Client <small class="muted">(optional)</small></span>
+      <input pInputText [(ngModel)]="form.client" placeholder="Leave empty for internal work" maxlength="60" />
+    </label>
+    <div class="field">
+      <span>Colour</span>
+      <div class="swatches" role="radiogroup" aria-label="Project colour">
+        @for (color of colors; track color) {
+        <button type="button" class="swatch" role="radio" [attr.aria-checked]="form.color === color"
+          [attr.aria-label]="color" [class.selected]="form.color === color" [style.background]="color"
+          (click)="form.color = color"></button>
+        }
+      </div>
+    </div>
+  </div>
+  }
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" styleClass="p-button-outlined" (onClick)="form = null" />
+    <p-button [label]="editingId ? 'Save' : 'Add project'" icon="pi pi-check" [loading]="saving"
+      [disabled]="!form?.name?.trim()" (onClick)="save()" />
+  </ng-template>
+</p-dialog>

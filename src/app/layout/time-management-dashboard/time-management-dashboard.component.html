@@ -1,180 +1,288 @@
 @if (isLoading) {
 <app-loader></app-loader>
 }
+<p-toast position="bottom-right"></p-toast>
 
-<div class="dashboard-container">
-  <!-- Month Selector -->
-  <div class="month-selector mb-4">
-    <p-card [styleClass]="'shadow-2 border-round-xl'">
-      <div class="flex align-items-center justify-content-between">
-        <label for="monthSelector" class="text-xl font-semibold text-900">Select Month</label>
-        <p-dropdown id="monthSelector" [options]="Months" [(ngModel)]="selectedMonth" (onChange)="onMonthChange($event)"
-          [styleClass]="'w-full md:w-15rem'">
-        </p-dropdown>
-      </div>
-    </p-card>
+<div class="page">
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1>Welcome back{{ firstName ? ', ' + firstName : '' }}</h1>
+      <p>{{ todayLabel }}</p>
+    </div>
+    <div class="page-actions">
+      <p-dropdown [options]="periodOptions" [(ngModel)]="selectedPeriodKey" (onChange)="onPeriodChange()"
+        optionLabel="label" optionValue="value" styleClass="period-select" ariaLabel="Payroll period"
+        appendTo="body"></p-dropdown>
+      <p-button label="Export CSV" icon="pi pi-file" styleClass="p-button-outlined" (onClick)="exportCsv()"
+        [disabled]="!records.length" />
+      <p-button label="Payslip" icon="pi pi-file-pdf" (onClick)="downloadPayslip()" [disabled]="!salary"
+        [pTooltip]="!salary ? 'Available once your salary is set' : (isLocked ? '' : 'Provisional until the period is closed')"
+        tooltipPosition="bottom" />
+    </div>
   </div>
 
-  <!-- Statistics Cards Grid -->
-  <div class="statistics-grid">
-    @for (card of statisticCards; track card.title) {
-    <div class="stat-card" [class.violation-card]="card.title.includes('Late')">
-      <div class="card-content">
-        <div class="card-header">
-          <div class="card-title">
-            <span class="block text-500 text-lg mb-2">{{ card.title }}</span>
-            <span class="block text-4xl font-bold"
-              [class.text-red-500]="card.title === 'Remaining Excuse Hours' && isExcuseHoursExceeded()"
-              [class.text-900]="!(card.title === 'Remaining Excuse Hours' && isExcuseHoursExceeded())">
-              {{ card.value }}
-            </span>
-          </div>
-          <div [class]="card.color + ' icon-container'">
-            <i [class]="card.icon + ' text-2xl'"></i>
-          </div>
+  @if (isLocked) {
+  <div class="callout info">
+    <i class="pi pi-lock"></i>
+    <span>This payroll period is closed. Your payslip is final; ask an admin if something needs correcting.</span>
+  </div>
+  }
+
+  <!-- Today + stats -->
+  <div class="top-grid">
+    <section class="card today-card" aria-label="Today">
+      <div class="card-header">
+        <span class="card-title"><i class="pi pi-clock"></i> Today</span>
+        <span class="mono muted">{{ today }}</span>
+      </div>
+
+      @switch (todayState) {
+      @case ('loading') {
+      <p class="muted">Loading…</p>
+      }
+      @case ('off') {
+      <div class="today-body">
+        <span class="today-big">Day off</span>
+        <p class="muted">Friday is the weekly day off. Enjoy it.</p>
+      </div>
+      }
+      @case ('holiday') {
+      <div class="today-body">
+        <span class="today-big">Holiday</span>
+        <p class="muted">Today is a national holiday.</p>
+      </div>
+      }
+      @case ('day-off') {
+      <div class="today-body">
+        <span class="today-big">{{ todayDayOffLabel }}</span>
+        <p class="muted">Today is recorded as a day off.</p>
+      </div>
+      }
+      @case ('locked') {
+      <div class="today-body">
+        <span class="today-big">Period closed</span>
+        <p class="muted">This payroll period is closed, so check-ins are disabled.</p>
+      </div>
+      }
+      @case ('not-in') {
+      <div class="today-body">
+        <span class="today-big mono">Not checked in</span>
+        <p class="muted">
+          Work starts at 9:00 AM and ends at {{ scheduledEndLabel }}.
+          @if (minutesLateNow > 0) {
+          <span class="late-hint">Checking in now counts as {{ minutesLateNow }} min late.</span>
+          }
+        </p>
+        <p-button label="Check in now" icon="pi pi-sign-in" styleClass="p-button-lg w-full" [loading]="checkInBusy"
+          (onClick)="checkIn()" />
+      </div>
+      }
+      @case ('in') {
+      <div class="today-body">
+        <span class="today-big mono">In since {{ checkInTimeLabel }}</span>
+        <p class="muted">Scheduled to finish at {{ scheduledEndLabel }}.</p>
+        <p-button label="Check out now" icon="pi pi-sign-out" styleClass="p-button-lg w-full" [loading]="checkInBusy"
+          (onClick)="checkOut()" />
+      </div>
+      }
+      @case ('done') {
+      <div class="today-body">
+        <span class="today-big mono">{{ checkInTimeLabel }} – {{ checkOutTimeLabel }}</span>
+        <p class="muted">You're done for today. To change the times, open the <a routerLink="/home">calendar</a>.</p>
+      </div>
+      }
+      }
+    </section>
+
+    <div class="stats-grid">
+      @for (card of statCards; track card.label) {
+      <div class="stat-card">
+        <span class="stat-label">{{ card.label }}</span>
+        <span class="stat-value" [class.danger]="card.danger">{{ card.value }}<small>{{ card.unit }}</small></span>
+        @if (card.meter !== undefined) {
+        <div class="meter" [class.danger]="card.danger"><span [style.width.%]="card.meter * 100"></span></div>
+        }
+        <div class="stat-footer">
+          <span>{{ card.footer }}</span>
+          @if (card.trend) {
+          <span class="trend" [class]="'trend ' + card.trend.dir">{{ card.trend.text }}</span>
+          }
         </div>
-        @if (card.trend !== undefined) {
-        <div class="trend-indicator">
-          <i [class]="card.trend > 0 ? 'pi pi-arrow-up text-green-500' : 'pi pi-arrow-down text-red-500'"></i>
-          <span [class]="card.trend > 0 ? 'text-green-500' : 'text-red-500'" class="font-medium ml-2">{{ card.trend > 0
-            ? '+' : '' }}{{ card.trend }}%</span>
-          <span class="text-500 ml-2">since last month</span>
+      </div>
+      }
+    </div>
+  </div>
+
+  <!-- Hours chart + salary -->
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-header">
+        <span class="card-title">Hours worked</span>
+        <div class="legend">
+          <span><i class="legend-strong"></i>On time</span>
+          <span><i class="legend-warning"></i>Late</span>
         </div>
+      </div>
+      @if (records.length) {
+      <div class="chart-box">
+        <p-chart type="bar" [data]="hoursChartData" [options]="hoursChartOptions" height="100%"></p-chart>
+      </div>
+      } @else {
+      <div class="empty-state">
+        <i class="pi pi-chart-bar"></i>
+        <strong>No days logged this period</strong>
+        <span>Check in from the card above or <a routerLink="/home">log a day in the calendar</a>.</span>
+      </div>
+      }
+    </section>
+
+    <section class="card salary-card">
+      <div class="card-header">
+        <span class="card-title">Salary breakdown</span>
+        @if (salary) {
+        <span class="pill" [class.success]="isLocked">{{ isLocked ? 'Final' : 'Provisional' }}</span>
         }
       </div>
-    </div>
-    }
 
-    <!-- Salary Deductions Cards -->
-    <div class="stat-card deductions-card">
-      <div class="card-content">
-        <div class="card-header">
-          <div class="card-title">
-            <span class="block text-500 text-lg mb-2">Late Arrival Deductions</span>
-            <span class="block text-900 text-4xl font-bold negative-amount">-${{lateDeductions | number:'1.2-2'}}</span>
-          </div>
-          <div class="bg-blue-100 icon-container">
-            <i class="pi pi-clock text-blue-500"></i>
-          </div>
+      @if (salaryMissing) {
+      <div class="empty-state">
+        <i class="pi pi-wallet"></i>
+        <strong>Salary not set yet</strong>
+        <span>Add your monthly salary on your <a routerLink="/profile">profile</a> to see your pay.</span>
+      </div>
+      } @else if (salaryError) {
+      <div class="empty-state">
+        <i class="pi pi-exclamation-circle"></i>
+        <strong>Couldn't calculate your salary</strong>
+        <span>Please refresh the page.</span>
+      </div>
+      } @else if (salary) {
+      <button type="button" class="net-pay" [class.revealed]="netPayVisible" (click)="netPayVisible = !netPayVisible"
+        [attr.aria-pressed]="netPayVisible" [attr.aria-label]="netPayVisible ? 'Hide net pay' : 'Show net pay'">
+        <span class="eyebrow">Net pay <i class="pi" [ngClass]="netPayVisible ? 'pi-eye-slash' : 'pi-eye'"></i></span>
+        <span class="net-pay-value mono money-blur">{{ formatMoney(salary.totalPay) }}</span>
+        @if (!netPayVisible) { <span class="net-pay-hint muted">Tap to show</span> }
+      </button>
+
+      <div class="kv-list">
+        <div class="kv">
+          <span>Monthly salary</span>
+          <span class="kv-value">{{ formatMoney(salary.regularPay) }}</span>
+        </div>
+        @for (line of chargedLines; track $index) {
+        <div class="kv negative">
+          <span>
+            {{ line.reason }}
+            <small class="muted mono">{{ line.date }} · {{ formatDays(line.days) }}</small>
+          </span>
+          <span class="kv-value">-{{ formatMoney(line.amount) }}</span>
+        </div>
+        }
+        @if (!chargedLines.length) {
+        <div class="kv">
+          <span class="muted">No deductions this period</span>
+          <span class="kv-value">{{ formatMoney(0) }}</span>
+        </div>
+        }
+        <div class="kv total net-pay-total" [class.revealed]="netPayVisible" (click)="netPayVisible = !netPayVisible">
+          <span>Net pay</span>
+          <span class="kv-value money-blur">{{ formatMoney(salary.totalPay) }}</span>
         </div>
       </div>
-    </div>
 
-    <div class="stat-card deductions-card">
-      <div class="card-content">
-        <div class="card-header">
-          <div class="card-title">
-            <span class="block text-500 text-lg mb-2">Absence Deductions</span>
-            <span class="block text-900 text-4xl font-bold negative-amount">-${{absenceDeductions |
-              number:'1.2-2'}}</span>
-          </div>
-          <div class="bg-purple-100 icon-container">
-            <i class="pi pi-calendar-times text-purple-500"></i>
-          </div>
-        </div>
+      @if (isCurrentPeriod) {
+      <div class="callout warning mt-3">
+        <i class="pi pi-info-circle"></i>
+        <span>{{ nextPenaltyText }}</span>
       </div>
-    </div>
-
-    <div class="stat-card total-deductions-card">
-      <div class="card-content">
-        <div class="card-header">
-          <div class="card-title">
-            <span class="block text-500 text-lg mb-2">Total Deductions</span>
-            <span class="block text-900 text-4xl font-bold negative-amount">-${{totalDeductions |
-              number:'1.2-2'}}</span>
-          </div>
-          <div class="bg-red-100 icon-container">
-            <i class="pi pi-wallet text-red-500"></i>
-          </div>
-        </div>
+      }
+      @if (warningLines.length) {
+      <p class="muted warning-note">
+        {{ warningLines.length }} late arrival{{ warningLines.length === 1 ? ' was a warning' : 's were warnings' }}
+        with no deduction.
+      </p>
+      }
+      @if (excuseExceeded) {
+      <div class="callout danger mt-3">
+        <i class="pi pi-exclamation-triangle"></i>
+        <span>You've used more than your 4 excuse hours this period.</span>
       </div>
-    </div>
-
-    <!-- Total Pay Card -->
-    <div class="stat-card total-pay-card">
-      <div class="card-content">
-        <div class="card-header">
-          <div class="card-title">
-            <span class="block text-500 text-lg mb-2">Total Pay</span>
-            @if (!salaryMissing) {
-            <span class="block text-900 text-4xl font-bold total-pay">
-              ${{totalPay | number:'1.2-2'}}
-              <div class="pay-tooltip">
-                <div class="tooltip-content">
-                  <div class="tooltip-row">
-                    <span>Base Pay:</span>
-                    <span>${{basePay | number:'1.2-2'}}</span>
-                  </div>
-                  <div class="tooltip-row">
-                    <span>Deductions:</span>
-                    <span class="negative-amount">-${{totalDeductions | number:'1.2-2'}}</span>
-                  </div>
-                  <div class="tooltip-row total">
-                    <span>Net Pay:</span>
-                    <span>${{totalPay | number:'1.2-2'}}</span>
-                  </div>
-                </div>
-              </div>
-            </span>
-            } @else {
-            <div class="salary-missing-message">
-              <span class="block text-500 mb-2">Please set your monthly salary in your
-                <a [routerLink]="['/profile']" class="text-primary">profile</a>
-                to see your total pay calculation
-              </span>
-            </div>
-            }
-          </div>
-          <div class="bg-green-100 icon-container">
-            <i class="pi pi-dollar text-green-500"></i>
-          </div>
-        </div>
-      </div>
-    </div>
+      }
+      }
+    </section>
   </div>
 
-  <!-- Charts and Table Section -->
-  <div class="content-grid">
-    <!-- Main Content Area -->
-    <div class="main-content">
-      <p-card header="Attendance Records" [styleClass]="'shadow-2 border-round-xl h-full'">
-        <p-table [value]="attendanceRecords" [rows]="10" [paginator]="true" [scrollable]="true"
-          [tableStyle]="{ 'min-width': '50rem' }" [rowHover]="true" styleClass="p-datatable-gridlines">
+  <!-- Records + side charts -->
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-header">
+        <span class="card-title">Attendance records</span>
+        <span class="muted">{{ records.length }} day{{ records.length === 1 ? '' : 's' }}</span>
+      </div>
+
+      @if (records.length) {
+      <div class="table-scroll">
+        <p-table [value]="records" [rows]="10" [paginator]="records.length > 10" [rowHover]="true"
+          [tableStyle]="{ 'min-width': '34rem' }">
           <ng-template pTemplate="header">
             <tr>
-              <th class="text-left font-semibold">Date</th>
-              <th class="text-left font-semibold">Check In</th>
-              <th class="text-left font-semibold">Check Out</th>
-              <th class="text-left font-semibold">Status</th>
+              <th>Date</th>
+              <th>Check in</th>
+              <th>Check out</th>
+              <th>Hours</th>
+              <th>Status</th>
             </tr>
           </ng-template>
-          <ng-template pTemplate="body" let-record>
-            <tr [ngClass]="getStatusRowClass(record.status)">
-              <td>{{ record.date | date : "mediumDate" }}</td>
-              <td>{{ formatTime12Hour(record.checkIn) }}</td>
-              <td>{{ formatTime12Hour(record.checkOut) }}</td>
-              <td>
-                <span [ngClass]="getStatusClass(record.status)" class="status-badge">
-                  {{ record.status }}
-                </span>
-              </td>
+          <ng-template pTemplate="body" let-row>
+            <tr>
+              <td class="mono">{{ row.date | date: 'EEE, MMM d' }}</td>
+              <td class="mono">{{ row.checkIn }}</td>
+              <td class="mono">{{ row.checkOut }}</td>
+              <td class="mono">{{ row.hours }}</td>
+              <td><span class="pill" [ngClass]="row.status.tone">{{ row.status.label }}</span></td>
             </tr>
           </ng-template>
         </p-table>
-      </p-card>
-    </div>
+      </div>
+      } @else {
+      <div class="empty-state">
+        <i class="pi pi-calendar"></i>
+        <strong>Nothing recorded for this period</strong>
+        <span><a routerLink="/home">Open the calendar</a> to log a day.</span>
+      </div>
+      }
+    </section>
 
-    <!-- Charts Section -->
-    <div class="charts-section">
-      <p-card header="Attendance Overview" [styleClass]="'shadow-2 border-round-xl mb-4'">
-        <p-chart type="pie" [data]="attendanceChartData" [options]="attendanceChartOptions" class="attendance-chart">
-        </p-chart>
-      </p-card>
+    <div class="side-stack">
+      <section class="card">
+        <div class="card-header">
+          <span class="card-title">Status breakdown</span>
+        </div>
+        @if (statusCounts.length) {
+        <div class="breakdown">
+          @for (item of statusCounts; track item.status.key) {
+          <div class="breakdown-row" [class]="'breakdown-row status-' + item.status.key">
+            <span class="breakdown-label">{{ item.status.label }}</span>
+            <div class="breakdown-bar"><span [style.width.%]="(item.count / records.length) * 100"></span></div>
+            <span class="mono">{{ item.count }}</span>
+          </div>
+          }
+        </div>
+        } @else {
+        <p class="muted">No days recorded yet.</p>
+        }
+      </section>
 
-      <p-card header="Monthly Days Off Trend" [styleClass]="'shadow-2 border-round-xl'">
-        <p-chart type="bar" [data]="daysOffChartData" [options]="daysOffChartOptions" class="days-off-chart">
-        </p-chart>
-      </p-card>
+      <section class="card">
+        <div class="card-header">
+          <span class="card-title">Days off · last 12 months</span>
+          <span class="mono muted">{{ remainingLeave }} left</span>
+        </div>
+        <div class="chart-box small">
+          <p-chart type="bar" [data]="daysOffChartData" [options]="daysOffChartOptions" height="100%"></p-chart>
+        </div>
+      </section>
     </div>
   </div>
 </div>

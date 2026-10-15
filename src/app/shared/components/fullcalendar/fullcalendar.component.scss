@@ -1,61 +1,379 @@
-h2 {
-  margin: 0;
-  font-size: 16px;
+@import '../../../../styles/theme';
+
+// FullCalendar reads these custom properties; they inherit into its markup
+:host {
+  display: block;
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--card);
+  --fc-neutral-bg-color: var(--card-muted);
+  --fc-today-bg-color: color-mix(in srgb, var(--warning) 9%, transparent);
+  --fc-list-event-hover-bg-color: var(--accent);
+  --fc-event-border-color: transparent;
 }
 
-ul {
-  margin: 0;
-  padding: 0 0 0 1.5em;
+.calendar-card {
+  padding: 1rem 1.25rem 1.25rem;
 }
 
-li {
-  margin: 1.5em 0;
-  padding: 0;
+.calendar-legend {
+  margin-bottom: 1rem;
 }
 
-b {
-  /* used for event dates/times */
-  margin-right: 3px;
-}
-.demo-app-main{
-  z-index: 0;
+.legend-holiday i {
+  background: color-mix(in srgb, var(--success) 35%, transparent);
 }
 
-.demo-app {
+.legend-friday i {
+  background: var(--muted);
+  border: 1px solid var(--border-strong);
+}
+
+// FullCalendar renders its own DOM, so its classes are styled through ::ng-deep (scoped to :host)
+:host ::ng-deep {
+  .fc {
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+
+  .fc .fc-toolbar {
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .fc .fc-toolbar-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+
+  .fc .fc-button {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+    border-radius: var(--radius);
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-transform: none;
+    box-shadow: none;
+
+    &:hover {
+      background: var(--accent);
+    }
+
+    &:focus {
+      box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+    }
+  }
+
+  .fc .fc-button-primary:not(:disabled).fc-button-active,
+  .fc .fc-button-primary:not(:disabled):active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .fc .fc-button-group > .fc-button {
+    border-radius: 0;
+
+    &:first-child {
+      border-radius: var(--radius) 0 0 var(--radius);
+    }
+
+    &:last-child {
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+  }
+
+  .fc .fc-col-header-cell {
+    background: var(--card-muted);
+  }
+
+  .fc .fc-col-header-cell-cushion {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    padding: 0.55rem 0;
+    text-decoration: none;
+  }
+
+  .fc .fc-daygrid-day-number {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--muted-foreground);
+    text-decoration: none;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .fc .fc-day-today .fc-daygrid-day-number {
+    color: var(--foreground);
+    font-weight: 600;
+  }
+
+  .fc .fc-scrollgrid {
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .fc .fc-daygrid-day-frame {
+    min-height: 5.5rem;
+    cursor: pointer;
+  }
+
+  .fc .fc-highlight {
+    background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  }
+
+  .friday-bg {
+    background: repeating-linear-gradient(-45deg, var(--muted), var(--muted) 6px, transparent 6px, transparent 12px);
+    opacity: 1;
+  }
+
+  .holiday-bg {
+    background: color-mix(in srgb, var(--success) 10%, transparent);
+    opacity: 1;
+  }
+
+  // One block per recorded day; colour comes from the status-* classes in styles.scss
+  .fc-daygrid-event.day-block,
+  .fc-daygrid-event.holiday-block {
+    margin: 2px 4px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    border: none;
+    border-left: 3px solid var(--status-color);
+    background: var(--status-bg);
+    font-size: 0.75rem;
+    cursor: pointer;
+
+    .fc-event-main,
+    .fc-event-title {
+      color: var(--status-color);
+      font-weight: 500;
+    }
+  }
+
+  .fc-daygrid-event.status-worked .fc-event-main {
+    color: var(--foreground);
+  }
+
+  .fc-daygrid-event.holiday-block {
+    --status-color: var(--success);
+    --status-bg: var(--success-bg);
+    cursor: default;
+  }
+
+  .fc .fc-list {
+    border-radius: var(--radius);
+  }
+
+  .fc .fc-list-day-cushion {
+    background: var(--card-muted);
+  }
+
+  // Every entry is all-day, so the list's time column only ever says "all-day"
+  .fc .fc-list-event-time {
+    display: none;
+  }
+
+  .fc .fc-list-event-dot {
+    border-color: var(--status-color, var(--foreground));
+  }
+
+  // Entries carry a full and a short label (see renderEventContent); phones show the short one
+  .ev-short {
+    display: none;
+  }
+
+  .fc-daygrid-event .ev-full,
+  .fc-daygrid-event .ev-short {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .fc-daygrid-event.day-block .fc-event-main {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    overflow: hidden;
+  }
+
+  @media (max-width: 640px) {
+    // One-row header (title left, buttons right) and the view switch underneath
+    .fc .fc-toolbar.fc-header-toolbar {
+      margin-bottom: 0.75rem;
+      gap: 0.5rem;
+      flex-wrap: nowrap;
+    }
+
+    .fc .fc-toolbar.fc-footer-toolbar {
+      margin-top: 0.75rem;
+      justify-content: center;
+    }
+
+    .fc .fc-toolbar-title {
+      font-size: 1rem;
+      white-space: nowrap;
+    }
+
+    .fc .fc-button {
+      padding: 0.35rem 0.6rem;
+      font-size: 0.8rem;
+    }
+
+    .fc .fc-col-header-cell-cushion {
+      font-size: 0.62rem;
+      letter-spacing: 0.02em;
+      padding: 0.4rem 0;
+    }
+
+    .fc .fc-daygrid-day-number {
+      font-size: 0.72rem;
+      padding: 0.25rem 0.3rem;
+    }
+
+    .fc .fc-daygrid-day-frame {
+      min-height: 3.75rem;
+    }
+
+    .fc-daygrid-event.day-block,
+    .fc-daygrid-event.holiday-block {
+      margin: 1px 2px;
+      padding: 1px 2px;
+      border-left-width: 2px;
+      border-radius: 4px;
+      text-align: center;
+      font-size: 0.6rem;
+    }
+
+    .fc-daygrid-event.day-block .fc-event-main {
+      font-size: 0.6rem;
+      letter-spacing: -0.02em;
+    }
+
+    .fc-daygrid-event .ev-full {
+      display: none;
+    }
+
+    .fc-daygrid-event .ev-short {
+      display: block;
+    }
+
+    // "+2 more" link
+    .fc .fc-daygrid-more-link {
+      font-size: 0.6rem;
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  // Give the grid the full card width
+  .calendar-card {
+    padding: 0.75rem 0.4rem 0.6rem;
+  }
+
+  // Legend scrolls sideways in one line instead of taking a quarter of the screen
+  .calendar-legend {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 0.35rem 0.75rem;
+    padding-bottom: 0.25rem;
+    font-size: 0.72rem;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    span {
+      flex: none;
+    }
+  }
+}
+
+// Phones: the day dialog fits the screen and its buttons share the footer
+:host ::ng-deep .day-dialog {
+  @media (max-width: 640px) {
+    max-height: 90dvh;
+
+    .p-dialog-footer {
+      display: flex;
+      gap: 0.5rem;
+
+      p-button {
+        flex: 1;
+      }
+
+      .p-button {
+        width: 100%;
+        margin: 0;
+      }
+    }
+  }
+}
+
+/* ---------- Day dialog ---------- */
+.dialog-intro {
+  margin: 0 0 1rem;
+}
+
+.day-off-row {
   display: flex;
-  min-height: 100%;
-  font-family: Arial, Helvetica Neue, Helvetica, sans-serif;
-  font-size: 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+
+  :host ::ng-deep .day-off-type {
+    width: 12rem;
+  }
 }
 
-.demo-app-sidebar {
-  width: 300px;
-  line-height: 1.5;
-  background: #eaf9ff;
-  border-right: 1px solid #d3e2e8;
+.switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 500;
+  cursor: pointer;
 }
 
-.demo-app-sidebar-section {
-  padding: 2em;
+.time-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-.demo-app-main {
-  flex-grow: 1;
-  padding: 3em;
+.callout {
+  margin-bottom: 0.75rem;
 }
 
-.fc {
-  /* the calendar root */
-  max-width: 1100px;
-  margin: 0 auto;
-}
+.callout-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  flex: 1;
 
-.friday-color {
-  background-color: lightblue; // Or any color you prefer
-  // Any other Friday-specific styling
-}
-
-.disabledTime {
-  opacity: 0.4;
-  pointer-events: none;
+  :host ::ng-deep .p-checkbox-label {
+    color: var(--foreground);
+  }
 }

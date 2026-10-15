@@ -1,55 +1,63 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
-import { CardModule } from 'primeng/card';
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
-import { ButtonModule } from 'primeng/button';
 import { HttpRequestsService } from '../../shared/services/http-requests.service';
-
+import { LoaderComponent } from '../../shared/loader/loader.component';
 
 @Component({
   selector: 'nation-days',
   standalone: true,
-  imports: [
-    CommonModule,
-    CardModule,
-    TableModule,
-    ButtonModule
-  ],
+  imports: [CommonModule, TableModule, LoaderComponent],
   templateUrl: './nation-days.component.html',
   styleUrls: ['./nation-days.component.scss'],
-
-  providers: [DatePipe]
 })
-export class NationDaysComponent {
+export class NationDaysComponent implements OnInit {
   nationalDays: any[] = [];
   loading: boolean = true;
 
-  constructor(private datePipe: DatePipe, private httpRequestsService: HttpRequestsService) { }
+  constructor(private httpRequestsService: HttpRequestsService) { }
 
   ngOnInit(): void {
-
     this.httpRequestsService.getHolidays().then((holidays) => {
-
-      holidays.forEach((element: any) => {
-       element.date.toDate();
-      });
-
-      this.nationalDays = holidays.map((item: any)=> {return {date: item.date.toDate(), name: item.name, type: item.tags, id: item.id}});
-      console.log(this.nationalDays);
-
-      this.loading = false;
-
+      this.nationalDays = holidays.map((item: any) => ({ date: item.date.toDate(), name: item.name, type: item.tags, id: item.id }));
     }).catch((error) => {
-      console.error('Error fetching users', error);
+      console.error('Error fetching holidays', error);
+    }).finally(() => {
+      this.loading = false;
     });
   }
 
-  getTypeClass(type: string): string {
-    switch (type) {
-      case 'NATIONAL': return 'text-blue-600';
-      case 'RELIGIOUS': return 'text-green-600';
-      case 'CULTURAL': return 'text-purple-600';
-      default: return 'text-gray-600';
+  /** The next holiday from today on. */
+  get upcoming() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return this.nationalDays
+      .filter((d) => d.date >= today)
+      .sort((a, b) => a.date - b.date)[0];
+  }
+
+  daysUntil(date: Date): number {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const day = new Date(date);
+    day.setHours(0, 0, 0, 0);
+    return Math.round((day.getTime() - today.getTime()) / 86_400_000);
+  }
+
+  isPast(date: Date): boolean {
+    return this.daysUntil(date) < 0;
+  }
+
+  tagList(tags: unknown): string[] {
+    return Array.isArray(tags) ? tags : tags ? [String(tags)] : [];
+  }
+
+  tagTone(tag: string): string {
+    switch (tag) {
+      case 'NATIONAL': return 'info';
+      case 'RELIGIOUS': return 'success';
+      case 'CULTURAL': return 'warning';
+      default: return '';
     }
   }
 }

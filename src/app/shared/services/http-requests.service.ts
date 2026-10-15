@@ -1,27 +1,36 @@
 import { Injectable } from '@angular/core';
+import { Auth } from '@angular/fire/auth';
 import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   DocumentData,
   DocumentReference,
   Firestore,
+  getDoc,
   getDocs,
   orderBy,
   query,
   QuerySnapshot,
+  serverTimestamp,
   setDoc,
+  updateDoc,
   where,
   WithFieldValue,
 } from '@angular/fire/firestore';
-import { periodContaining } from '../utils/work-schedule';
+import { periodContaining, periodKeyOfDay } from '../utils/work-schedule';
+import { DayRecord } from '../models';
+import { UserService } from './user.service';
+
+export const PERIOD_LOCKED = 'PERIOD_LOCKED';
 
 @Injectable({
   providedIn: 'root',
 })
 export class HttpRequestsService {
-  constructor(private firestore: Firestore) { }
+  constructor(private firestore: Firestore, private auth: Auth, private userService: UserService) { }
 
   async getAllUsers(): Promise<any> {
     const colRef = collection(this.firestore, 'users');
@@ -60,15 +69,51 @@ export class HttpRequestsService {
     }
   }
 
-  async saveDayEvent(userId: string, day: string, data: any): Promise<void> {
+  // Saves a day and records the change in the audit log.
+  // Days in a locked payroll period can only be changed by admins (also enforced by firestore.rules).
+  async saveDayEvent(userId: string, day: string, data: Partial<DayRecord>): Promise<void> {
+    const actor = this.userService.current;
+    if (!actor?.isAdmin && (await this.isPeriodLocked(periodKeyOfDay(day)))) {
+      throw new Error(PERIOD_LOCKED);
+    }
+
     try {
       const dayDocRef = doc(this.firestore, `users/${userId}/days/${day}`);
+      const before = await getDoc(dayDocRef);
       await setDoc(dayDocRef, data, { merge: true });
-      console.log(`Data for ${day} saved successfully!`);
+
+      await addDoc(collection(this.firestore, 'auditLog'), {
+        ownerId: userId,
+        dayId: day,
+        changedBy: this.auth.currentUser?.uid ?? '',
+        changedByName: actor?.name ?? '',
+        at: serverTimestamp(),
+        before: before.exists() ? before.data() : null,
+        after: data,
+      });
     } catch (error) {
       console.error(`Error saving data for ${day}:`, error);
       throw error;
     }
+  }
+
+  async getDay(userId: string, day: string): Promise<DayRecord | null> {
+    const snapshot = await getDoc(doc(this.firestore, `users/${userId}/days/${day}`));
+    return snapshot.exists() ? (snapshot.data() as DayRecord) : null;
+  }
+
+  async isPeriodLocked(key: string): Promise<boolean> {
+    const snapshot = await getDoc(doc(this.firestore, 'lockedPeriods', key));
+    return snapshot.exists();
+  }
+
+  /** Holiday dates as "YYYY-MM-DD" strings. */
+  async getHolidayDates(): Promise<string[]> {
+    const holidays = await this.getHolidays();
+    return holidays.map((h: any) => {
+      const d: Date = h.date.toDate();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    });
   }
 
   // Get all days for a specific user
@@ -116,6 +161,29 @@ export class HttpRequestsService {
       console.error('Error fetching user profile:', error);
       throw error;
     }
+  }
+
+  // The monthly salary is private to its owner: users/{uid}/private/salary, which admins can't read.
+  // Older accounts kept it on the profile (readable by admins); it is moved on the owner's first read.
+  async getSalary(userId: string): Promise<number | null> {
+    const snapshot = await getDoc(doc(this.firestore, `users/${userId}/private/salary`));
+    if (snapshot.exists()) {
+      const salary = snapshot.data()['salary'];
+      return typeof salary === 'number' ? salary : null;
+    }
+
+    const legacy = (await this.getUserProfile(userId))?.salary;
+    if (typeof legacy !== 'number' || !legacy) return null;
+    if (this.auth.currentUser?.uid === userId) {
+      await this.setSalary(userId, legacy).catch((error) => console.error('Error moving salary:', error));
+    }
+    return legacy;
+  }
+
+  async setSalary(userId: string, salary: number): Promise<void> {
+    await setDoc(doc(this.firestore, `users/${userId}/private/salary`), { salary, updatedAt: serverTimestamp() });
+    // Drop the old copy from the profile so admins no longer see it
+    await updateDoc(doc(this.firestore, `users/${userId}`), { salary: deleteField() });
   }
 
 }

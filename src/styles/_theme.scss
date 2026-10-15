@@ -1,374 +1,142 @@
-// Theme Mixins
-@mixin themed-component {
-  background-color: var(--background);
-  color: var(--foreground);
-  transition: background-color 0.2s ease, color 0.2s ease;
+// Design tokens and mixins.
+// Light tokens live on :root; dark tokens apply when the user picks dark
+// ([data-theme="dark"]) or, with no choice saved, when the OS prefers dark.
+
+@mixin light-tokens {
+  color-scheme: light;
+
+  --background: #f3f3f2;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --card-muted: #fafaf9;
+  --muted: #f4f4f3;
+  --muted-foreground: #6b6b6b;
+  --subtle-foreground: #a1a1a1;
+  --border: #e6e6e4;
+  --border-strong: #d4d4d2;
+  --input: #ffffff;
+  --ring: #0a0a0a;
+
+  --primary: #111111;
+  --primary-hover: #2a2a2a;
+  --primary-foreground: #ffffff;
+  --accent: #f1f1f0;
+  --accent-foreground: #0a0a0a;
+
+  --success: #15803d;
+  --success-bg: #ecfdf3;
+  --success-border: #bbf7d0;
+  --warning: #b45309;
+  --warning-bg: #fff7ea;
+  --warning-border: #fde3b0;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --danger-border: #fecaca;
+  --info: #1d4ed8;
+  --info-bg: #eff4ff;
+  --info-border: #c7d7fe;
+  --neutral-bg: #f1f1f0;
+
+  // Chart palette: monochrome bars like the reference design, plus status colours
+  --chart-strong: #111111;
+  --chart-soft: #d9d9d7;
+  --chart-grid: #ececea;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.12);
+  --overlay: rgb(0 0 0 / 0.35);
 }
 
-@mixin themed-card {
-  background-color: var(--card);
+@mixin dark-tokens {
+  color-scheme: dark;
+
+  --background: #0b0b0c;
+  --foreground: #f4f4f5;
+  --card: #141416;
+  --card-foreground: #f4f4f5;
+  --card-muted: #18181b;
+  --muted: #1c1c1f;
+  --muted-foreground: #a1a1aa;
+  --subtle-foreground: #71717a;
+  --border: #26262a;
+  --border-strong: #34343a;
+  --input: #18181b;
+  --ring: #f4f4f5;
+
+  --primary: #f4f4f5;
+  --primary-hover: #d9d9de;
+  --primary-foreground: #0b0b0c;
+  --accent: #1f1f23;
+  --accent-foreground: #f4f4f5;
+
+  --success: #4ade80;
+  --success-bg: #0f2a1a;
+  --success-border: #1f4d31;
+  --warning: #fbbf24;
+  --warning-bg: #2b2110;
+  --warning-border: #4d3a14;
+  --danger: #f87171;
+  --danger-bg: #2c1414;
+  --danger-border: #552222;
+  --info: #93b4fd;
+  --info-bg: #142039;
+  --info-border: #233a66;
+  --neutral-bg: #1f1f23;
+
+  --chart-strong: #f4f4f5;
+  --chart-soft: #3a3a40;
+  --chart-grid: #222226;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
+  --overlay: rgb(0 0 0 / 0.6);
+}
+
+:root {
+  @include light-tokens;
+
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --sidebar-width: 248px;
+  --topbar-height: 60px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include dark-tokens;
+  }
+}
+
+:root[data-theme='dark'] {
+  @include dark-tokens;
+}
+
+// Small uppercase monospace label, as used on card headers
+@mixin eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+@mixin card {
+  background: var(--card);
   color: var(--card-foreground);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
-
-  &:hover {
-    box-shadow: var(--shadow-md);
-  }
 }
 
-@mixin themed-input {
-  background-color: var(--input);
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.5rem 0.75rem;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: var(--ring);
-  }
-
-  &:focus {
-    outline: none;
-    border-color: var(--ring);
-    box-shadow: 0 0 0 2px var(--ring-light);
-  }
-}
-
-@mixin themed-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--primary);
-  color: var(--primary-foreground);
-  border: none;
-  border-radius: var(--radius);
-  padding: 0.5rem 1rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-
-  &:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-
-  &.secondary {
-    background-color: var(--secondary);
-    color: var(--secondary-foreground);
-  }
-
-  &.outline {
-    background-color: transparent;
-    border: 1px solid var(--border);
-    color: var(--foreground);
-
-    &:hover {
-      background-color: var(--secondary);
-    }
-  }
-}
-
-@mixin themed-sidebar {
-  background-color: var(--sidebar);
-  color: var(--sidebar-foreground);
-  border-right: 1px solid var(--sidebar-border);
-  transition: all 0.3s ease;
-}
-
-// Utility Classes
-.themed {
-  &-component {
-    @include themed-component;
-  }
-
-  &-card {
-    @include themed-card;
-  }
-
-  &-input {
-    @include themed-input;
-  }
-
-  &-button {
-    @include themed-button;
-  }
-
-  &-sidebar {
-    @include themed-sidebar;
-  }
-
-  &-text {
-    &-muted {
-      color: var(--muted-foreground);
-    }
-
-    &-primary {
-      color: var(--primary);
-    }
-
-    &-destructive {
-      color: var(--destructive);
-    }
-  }
-
-  &-border {
-    border: 1px solid var(--border);
-  }
-
-  &-shadow {
-    &-sm { box-shadow: var(--shadow-sm); }
-    &-md { box-shadow: var(--shadow-md); }
-    &-lg { box-shadow: var(--shadow-lg); }
-  }
-}
-
-// PrimeNG Component Overrides
-:root {
-  .p-component {
-    font-family: var(--font-sans);
-  }
-
-  // ...existing PrimeNG overrides...
-
-
-
-  // Form elements
-  &-input {
-    background-color: var(--input);
-    color: var(--foreground);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 0.5rem 0.75rem;
-    transition: all 0.2s ease;
-
-    &:hover {
-      border-color: var(--ring);
-    }
-
-    &:focus {
-      outline: none;
-      border-color: var(--ring);
-      box-shadow: 0 0 0 2px var(--ring-light);
-    }
-  }
-
-  // Buttons
-  &-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--primary);
-    color: var(--primary-foreground);
-    border: none;
-    border-radius: var(--radius);
-    padding: 0.5rem 1rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-
-    &:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
-
-    &:active {
-      transform: translateY(0);
-    }
-
-    &.secondary {
-      background-color: var(--secondary);
-      color: var(--secondary-foreground);
-    }
-
-    &.outline {
-      background-color: transparent;
-      border: 1px solid var(--border);
-      color: var(--foreground);
-
-      &:hover {
-        background-color: var(--secondary);
-      }
-    }
-  }
-
-  // Navigation elements
-  &-sidebar {
-    background-color: var(--sidebar);
-    color: var(--sidebar-foreground);
-    border-right: 1px solid var(--sidebar-border);
-    transition: all 0.3s ease;
-  }
-
-  // Typography helpers
-  &-text {
-    &-muted {
-      color: var(--muted-foreground);
-    }
-
-    &-primary {
-      color: var(--primary);
-    }
-
-    &-destructive {
-      color: var(--destructive);
-    }
-  }
-
-  // Layout utilities
-  &-border {
-    border: 1px solid var(--border);
-  }
-
-  &-shadow {
-    &-sm { box-shadow: var(--shadow-sm); }
-    &-md { box-shadow: var(--shadow-md); }
-    &-lg { box-shadow: var(--shadow-lg); }
-  }
-}
-
-// PrimeNG Component Overrides
-:root {
-  .p-component {
-    font-family: var(--font-sans);
-  }
-
-  // Buttons
-  .p-button {
-    background-color: var(--primary);
-    color: var(--primary-foreground);
-    border: none;
-    border-radius: var(--radius);
-    transition: all 0.2s ease;
-
-    &:enabled:hover {
-      background-color: var(--primary);
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
-
-    &.p-button-secondary {
-      background-color: var(--secondary);
-      color: var(--secondary-foreground);
-    }
-
-    &.p-button-outlined {
-      background-color: transparent;
-      border: 1px solid var(--border);
-      color: var(--foreground);
-
-      &:enabled:hover {
-        background-color: var(--secondary);
-      }
-    }
-  }
-
-  // Cards
-  .p-card {
-    background-color: var(--card);
-    color: var(--card-foreground);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow 0.2s ease;
-
-    &:hover {
-      box-shadow: var(--shadow-md);
-    }
-  }
-
-  // Dialogs
-  .p-dialog {
-    background-color: var(--popover);
-    color: var(--popover-foreground);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-lg);
-
-    .p-dialog-header {
-      background-color: var(--popover);
-      color: var(--popover-foreground);
-      border-bottom: 1px solid var(--border);
-      padding: 1rem;
-    }
-
-    .p-dialog-content {
-      background-color: var(--popover);
-      color: var(--popover-foreground);
-      padding: 1rem;
-    }
-  }
-
-  // Form controls
-  .p-inputtext,
-  .p-input-filled {
-    background-color: var(--input);
-    color: var(--foreground);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    transition: all 0.2s ease;
-    
-    &:enabled:hover {
-      border-color: var(--ring);
-    }
-    
-    &:enabled:focus {
-      outline: none;
-      border-color: var(--ring);
-      box-shadow: 0 0 0 2px rgba(var(--ring-rgb), 0.2);
-    }
-  }
-
-  // Dropdowns
-  .p-dropdown {
-    background-color: var(--input);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    transition: all 0.2s ease;
-
-    &:not(.p-disabled):hover {
-      border-color: var(--ring);
-    }
-
-    .p-dropdown-panel {
-      background-color: var(--popover);
-      color: var(--popover-foreground);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-lg);
-    }
-
-    .p-dropdown-item {
-      &:hover {
-        background-color: var(--secondary);
-      }
-
-      &.p-highlight {
-        background-color: var(--primary);
-        color: var(--primary-foreground);
-      }
-    }
-  }
-
-  // Menu
-  .p-menu {
-    background-color: var(--popover);
-    color: var(--popover-foreground);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-lg);
-
-    .p-menuitem-link {
-      &:hover {
-        background-color: var(--secondary);
-      }
-
-      &.p-menuitem-link-active {
-        background-color: var(--primary);
-        color: var(--primary-foreground);
-      }
-    }
+@mixin mobile {
+  @media (max-width: 768px) {
+    @content;
   }
 }

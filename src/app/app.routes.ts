@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { loggedInFormGuard } from './shared/guards/logged-in-form.guard';
 import { allowedGuard } from './shared/guards/allowed.guard';
 import { adminGuard } from './shared/guards/admin.guard';
+import { FEATURES } from './shared/features';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -33,6 +34,28 @@ export const routes: Routes = [
       import(
         './layout/time-management-dashboard/time-management-dashboard.component'
       ).then((c) => c.TimeManagementDashboardComponent),
+    canActivate: [loggedInFormGuard],
+  },
+  ...(FEATURES.leaveRequests
+    ? [
+        {
+          path: 'leave',
+          loadComponent: () =>
+            import('./layout/leave/leave.component').then((c) => c.LeaveComponent),
+          canActivate: [loggedInFormGuard],
+        },
+      ]
+    : []),
+  {
+    path: 'my-tasks',
+    loadComponent: () =>
+      import('./layout/my-tasks/my-tasks.component').then((c) => c.MyTasksComponent),
+    canActivate: [loggedInFormGuard],
+  },
+  {
+    path: 'projects',
+    loadComponent: () =>
+      import('./layout/projects/projects.component').then((c) => c.ProjectsComponent),
     canActivate: [loggedInFormGuard],
   },
   {

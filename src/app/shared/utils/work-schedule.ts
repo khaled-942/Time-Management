@@ -77,6 +77,58 @@ export function periodContaining(date: Date): ReportingPeriod {
   return periodEndingIn(end.getFullYear(), end.getMonth());
 }
 
+/** Stable id of a period, e.g. "2026-11" for Oct 11 → Nov 10, 2026. */
+export function periodKey(period: ReportingPeriod): string {
+  return `${period.year}-${pad(period.monthIndex + 1)}`;
+}
+
+export function periodFromKey(key: string): ReportingPeriod {
+  const [y, m] = key.split('-').map(Number);
+  return periodEndingIn(y, m - 1);
+}
+
+export function periodKeyOfDay(day: string): string {
+  return periodKey(periodContaining(parseLocalDate(day)));
+}
+
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** e.g. "Nov 2026 · Oct 11 – Nov 10" */
+export function periodLabel(period: ReportingPeriod): string {
+  const start = period.start;
+  return `${SHORT_MONTHS[period.monthIndex]} ${period.year} · ${SHORT_MONTHS[start.getMonth()]} 11 – ${SHORT_MONTHS[period.monthIndex]} 10`;
+}
+
+/** The current period and the `count - 1` before it, newest first. */
+export function recentPeriods(count: number, today: Date = new Date()): ReportingPeriod[] {
+  const current = periodContaining(today);
+  const periods: ReportingPeriod[] = [];
+  for (let i = 0; i < count; i++) {
+    periods.push(periodEndingIn(current.year, current.monthIndex - i));
+  }
+  return periods;
+}
+
+/** Every date from start to end (inclusive) as "YYYY-MM-DD". */
+export function daysBetween(startStr: string, endStr: string): string[] {
+  const days: string[] = [];
+  const end = parseLocalDate(endStr);
+  for (let d = parseLocalDate(startStr); d <= end; d.setDate(d.getDate() + 1)) {
+    days.push(toDateString(d));
+  }
+  return days;
+}
+
+/** Working days in the range: every day except Fridays and the given holidays. */
+export function workingDaysBetween(startStr: string, endStr: string, holidays: string[] = []): string[] {
+  const holidaySet = new Set(holidays);
+  return daysBetween(startStr, endStr).filter((day) => !isFriday(parseLocalDate(day)) && !holidaySet.has(day));
+}
+
+export function nowTimeString(date: Date = new Date()): string {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 // The most recent period (current or past) whose end falls in the given month.
 export function latestPeriodForMonth(monthIndex: number, today: Date = new Date()): ReportingPeriod {
   const current = periodContaining(today);
