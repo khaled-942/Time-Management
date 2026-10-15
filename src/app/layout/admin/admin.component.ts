@@ -18,6 +18,7 @@ import { HttpRequestsService } from '../../shared/services/http-requests.service
 import { LeaveService } from '../../shared/services/leave.service';
 import { PayrollService } from '../../shared/services/payroll.service';
 import { OrgService } from '../../shared/services/org.service';
+import { DirectoryService } from '../../shared/services/directory.service';
 import { FEATURES } from '../../shared/features';
 import { LoaderComponent } from '../../shared/loader/loader.component';
 import {
@@ -158,6 +159,7 @@ export class AdminComponent implements OnInit {
     private leaveService: LeaveService,
     private payroll: PayrollService,
     private org: OrgService,
+    private directory: DirectoryService,
     private messageService: MessageService
   ) { }
 
@@ -194,6 +196,8 @@ export class AdminComponent implements OnInit {
       const users: UserProfile[] = await this.httpRequestsService.getAllUsers();
       this.users = users.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
       this.usersById = new Map(this.users.map((u) => [u.userId, u]));
+      // Keeps the public directory (names/teams on tasks) right after role and team changes
+      this.directory.syncAll(this.users).catch((error) => console.error('Error syncing directory', error));
       this.editableUsers = this.users.map((user) => ({
         user,
         isAdmin: !!user.isAdmin,

@@ -1,0 +1,235 @@
+<p-dialog [visible]="open" (visibleChange)="!$event && closed.emit()" [modal]="true" [draggable]="false"
+  [style]="{ width: '44rem' }" [breakpoints]="{ '760px': '96vw' }" [header]="header" styleClass="task-dialog"
+  [dismissableMask]="!canEdit">
+  @if (open && form) {
+  <div class="task-form">
+    <!-- Review note from the reviewer -->
+    @if (task?.reviewNote && !(canEdit && form.status === 'changes')) {
+    <div class="callout warning">
+      <i class="pi pi-comments"></i>
+      <div>
+        <strong>Changes requested</strong>
+        <p class="review-note">{{ task!.reviewNote }}</p>
+      </div>
+    </div>
+    }
+
+    @if (canEdit) {
+    <!-- ========== Edit mode ========== -->
+    <label class="field">
+      <span>Title</span>
+      <input pInputText [(ngModel)]="form.title" placeholder="e.g. Build the checkout page" maxlength="200" />
+    </label>
+
+    <div class="field">
+      <span>Type</span>
+      <div class="segmented" role="radiogroup" aria-label="Task type">
+        @for (type of types; track type.value) {
+        <button type="button" role="radio" [attr.aria-checked]="form.type === type.value"
+          [class.selected]="form.type === type.value" (click)="form.type = type.value">
+          <i [class]="type.icon"></i>{{ type.label }}
+        </button>
+        }
+      </div>
+    </div>
+
+    <label class="field">
+      <span>Description <small class="muted">(optional)</small></span>
+      <textarea pInputTextarea [(ngModel)]="form.description" rows="4" maxlength="5000"
+        placeholder="What needs to be built, acceptance criteria, endpoints…"></textarea>
+    </label>
+
+    <div class="form-grid">
+      <label class="field">
+        <span>Project</span>
+        <p-dropdown [options]="projectOptions" [(ngModel)]="form.projectId" optionLabel="label" optionValue="value"
+          [filter]="projectOptions.length > 8" filterBy="label" styleClass="w-full" appendTo="body">
+          <ng-template let-option pTemplate="item">
+            <span class="project-tag" [style.--project-color]="option.color || null"><i></i>{{ option.label }}</span>
+          </ng-template>
+        </p-dropdown>
+      </label>
+
+      <label class="field">
+        <span>Status</span>
+        <p-dropdown [options]="statusOptions" [(ngModel)]="form.status" optionLabel="label" optionValue="value"
+          styleClass="w-full" appendTo="body"></p-dropdown>
+      </label>
+
+      <label class="field full">
+        <span>Assignees</span>
+        <p-multiSelect [options]="assigneeOptions" [(ngModel)]="form.assigneeIds" optionLabel="label" optionValue="value"
+          placeholder="Nobody yet" display="chip" [filter]="true" filterBy="label" styleClass="w-full" appendTo="body">
+          <ng-template let-option pTemplate="item">
+            <span class="person-option">
+              <img [src]="option.avatar" alt="" />
+              <span>{{ option.label }} @if (option.detail) { <small class="muted">{{ option.detail }}</small> }</span>
+            </span>
+          </ng-template>
+        </p-multiSelect>
+      </label>
+
+      <div class="field">
+        <span>Priority</span>
+        <p-dropdown [options]="priorities" [(ngModel)]="form.priority" optionLabel="label" optionValue="value"
+          styleClass="w-full" appendTo="body">
+          <ng-template let-option pTemplate="item">
+            <span class="priority" [ngClass]="'priority-' + option.value"><i [class]="option.icon"></i>{{ option.label }}</span>
+          </ng-template>
+        </p-dropdown>
+      </div>
+
+      <label class="field">
+        <span>Due date <small class="muted">(optional)</small></span>
+        <input pInputText type="date" [(ngModel)]="form.dueDate" />
+      </label>
+
+      <label class="field">
+        <span>Estimate <small class="muted">(hours)</small></span>
+        <p-inputNumber [(ngModel)]="form.estimateHours" [min]="0" [max]="999" [maxFractionDigits]="1" placeholder="—"
+          styleClass="w-full" inputStyleClass="w-full mono"></p-inputNumber>
+      </label>
+    </div>
+
+    @if (form.status === 'changes') {
+    <label class="field">
+      <span>What needs to change?</span>
+      <textarea pInputTextarea [(ngModel)]="form.reviewNote" rows="3" maxlength="1000"
+        placeholder="e.g. Handle the empty cart state and add the loading spinner"></textarea>
+    </label>
+    }
+    } @else {
+    <!-- ========== View mode ========== -->
+    <div class="view-head">
+      <h3>{{ task!.title }}</h3>
+      <div class="view-tags">
+        <span class="pill" [ngClass]="TASK_TYPES[task!.type].tone"><i [class]="TASK_TYPES[task!.type].icon"></i> {{ TASK_TYPES[task!.type].label }}</span>
+        <span class="priority" [ngClass]="'priority-' + task!.priority">
+          <i [class]="TASK_PRIORITIES[task!.priority].icon"></i>{{ TASK_PRIORITIES[task!.priority].label }}
+        </span>
+        @if (project(task!.projectId); as p) {
+        <span class="project-tag" [style.--project-color]="p.color"><i></i>{{ p.name }}</span>
+        }
+      </div>
+    </div>
+
+    @if (task!.description) {
+    <p class="description">{{ task!.description }}</p>
+    }
+
+    <dl class="view-facts">
+      <div>
+        <dt>Assignees</dt>
+        <dd>
+          @for (id of task!.assigneeIds; track id) {
+          <span class="person-chip">
+            <img [src]="person(id)?.avatar" alt="" />{{ person(id)?.name ?? 'Unknown' }}
+          </span>
+          } @empty {
+          <span class="muted">Nobody yet</span>
+          }
+        </dd>
+      </div>
+      <div>
+        <dt>Reviewer</dt>
+        <dd>{{ task!.createdByName }}</dd>
+      </div>
+      <div>
+        <dt>Due</dt>
+        <dd [class.text-danger]="overdue">{{ task!.dueDate ? (task!.dueDate | date: 'EEE, MMM d') : '—' }}</dd>
+      </div>
+      <div>
+        <dt>Estimate</dt>
+        <dd class="mono">{{ task!.estimateHours != null ? task!.estimateHours + 'h' : '—' }}</dd>
+      </div>
+    </dl>
+
+    <label class="field status-field">
+      <span>Status</span>
+      <p-dropdown [options]="statusOptions" [(ngModel)]="form.status" optionLabel="label" optionValue="value"
+        [disabled]="!canWork" styleClass="w-full" appendTo="body"></p-dropdown>
+      @if (canWork) {
+      <small class="muted">Move it to Need review when it's ready; {{ task!.createdByName }} will approve it.</small>
+      }
+    </label>
+    }
+
+    <!-- Links (both modes) -->
+    @if (canEdit || form.links.length) {
+    <div class="field">
+      <span>Links</span>
+      @if (form.links.length) {
+      <ul class="link-list">
+        @for (link of form.links; track $index) {
+        <li>
+          <i class="pi pi-link"></i>
+          @if (safeUrl(link.url); as url) {
+          <a [href]="url" target="_blank" rel="noopener noreferrer">{{ link.label }}</a>
+          } @else {
+          <span>{{ link.label }}</span>
+          }
+          @if (canEdit) {
+          <p-button icon="pi pi-times" styleClass="p-button-text p-button-sm" ariaLabel="Remove link" (onClick)="removeLink($index)" />
+          }
+        </li>
+        }
+      </ul>
+      }
+      @if (canEdit) {
+      <div class="add-row">
+        <input pInputText [(ngModel)]="newLink.label" placeholder="Label (PR #42, Figma…)" maxlength="60" class="link-label" />
+        <input pInputText [(ngModel)]="newLink.url" placeholder="https://…" (keyup.enter)="addLink()" />
+        <p-button icon="pi pi-plus" styleClass="p-button-outlined" ariaLabel="Add link" [disabled]="!newLinkValid"
+          (onClick)="addLink()" />
+      </div>
+      }
+    </div>
+    }
+
+    <!-- Checklist (both modes) -->
+    @if (canEdit || form.checklist.length) {
+    <div class="field">
+      <span>Checklist @if (form.checklist.length) { <small class="muted mono">{{ checklistDone }}/{{ form.checklist.length }}</small> }</span>
+      @if (form.checklist.length) {
+      <ul class="checklist">
+        @for (item of form.checklist; track $index) {
+        <li [class.done]="item.done">
+          <p-checkbox [(ngModel)]="item.done" [binary]="true" [disabled]="!canWork" [inputId]="'check-' + $index"></p-checkbox>
+          <label [for]="'check-' + $index">{{ item.text }}</label>
+          @if (canEdit) {
+          <p-button icon="pi pi-times" styleClass="p-button-text p-button-sm" ariaLabel="Remove item"
+            (onClick)="removeChecklistItem($index)" />
+          }
+        </li>
+        }
+      </ul>
+      }
+      @if (canEdit) {
+      <div class="add-row">
+        <input pInputText [(ngModel)]="newChecklistItem" placeholder="e.g. API, UI, tests" maxlength="200"
+          (keyup.enter)="addChecklistItem()" />
+        <p-button icon="pi pi-plus" styleClass="p-button-outlined" ariaLabel="Add checklist item"
+          [disabled]="!newChecklistItem.trim()" (onClick)="addChecklistItem()" />
+      </div>
+      }
+    </div>
+    }
+
+    @if (!isNew && canEdit) {
+    <p class="muted small">Created by {{ task!.createdByName }}, who reviews it.</p>
+    }
+  </div>
+  }
+
+  <ng-template pTemplate="footer">
+    @if (!isNew && canEdit) {
+    <p-button [label]="confirmDelete ? 'Really delete?' : ''" icon="pi pi-trash" styleClass="p-button-danger p-button-text delete-btn"
+      ariaLabel="Delete task" [disabled]="saving" (onClick)="remove()" />
+    }
+    <p-button [label]="canWork ? 'Cancel' : 'Close'" styleClass="p-button-outlined" (onClick)="closed.emit()" />
+    @if (canWork) {
+    <p-button [label]="isNew ? 'Create task' : 'Save'" icon="pi pi-check" [loading]="saving" [disabled]="!!error"
+      [pTooltip]="error" tooltipPosition="top" (onClick)="submit()" />
+    }
+  </ng-template>
+</p-dialog>

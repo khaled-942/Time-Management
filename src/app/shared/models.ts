@@ -52,6 +52,19 @@ export function roleOf(user: Partial<UserProfile> | null | undefined): Role {
   return user?.role ?? 'member';
 }
 
+/**
+ * directory/{uid}: the public part of a profile, readable by every signed-in person (users/{uid}
+ * itself stays private). Kept in sync by DirectoryService; role/teamId/active must match users/{uid}.
+ */
+export interface DirectoryEntry {
+  userId: string;
+  name: string;
+  avatar: string;
+  role: Role;
+  teamId: string;
+  active: boolean;
+}
+
 /** teams/{id}: one leader (users with role 'leader' and this teamId), members share the teamId */
 export interface Team {
   id?: string;
@@ -80,6 +93,73 @@ export interface TimeEntry {
   start: string; // HH:mm
   end: string; // HH:mm, '' while the timer is running
   note: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+/* ---------- Team tasks (tasks/{id}) ---------- */
+
+export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'review' | 'changes' | 'done';
+export type TaskType = 'feature' | 'bug' | 'review_fixes' | 'chore';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+/** Board columns, in order. Assignees may move tasks between the first four; only the reviewer sets the last two. */
+export const TASK_STATUSES: { value: TaskStatus; label: string; reviewerOnly?: boolean }[] = [
+  { value: 'backlog', label: 'Backlog' },
+  { value: 'todo', label: 'To do' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'review', label: 'Need review' },
+  { value: 'changes', label: 'Changes requested', reviewerOnly: true },
+  { value: 'done', label: 'Done', reviewerOnly: true },
+];
+
+export const TASK_TYPES: Record<TaskType, { label: string; icon: string; tone: string }> = {
+  feature: { label: 'Feature', icon: 'pi pi-sparkles', tone: 'info' },
+  bug: { label: 'Bug', icon: 'pi pi-exclamation-circle', tone: 'danger' },
+  review_fixes: { label: 'Review fixes', icon: 'pi pi-comments', tone: 'warning' },
+  chore: { label: 'Chore', icon: 'pi pi-wrench', tone: '' },
+};
+
+export const TASK_PRIORITIES: Record<TaskPriority, { label: string; icon: string; tone: string }> = {
+  low: { label: 'Low', icon: 'pi pi-arrow-down', tone: '' },
+  medium: { label: 'Medium', icon: 'pi pi-equals', tone: 'info' },
+  high: { label: 'High', icon: 'pi pi-arrow-up', tone: 'warning' },
+  urgent: { label: 'Urgent', icon: 'pi pi-angle-double-up', tone: 'danger' },
+};
+
+export interface TaskLink {
+  label: string; // e.g. "PR #42", "Figma"
+  url: string;
+}
+
+export interface ChecklistItem {
+  text: string;
+  done: boolean;
+}
+
+/**
+ * tasks/{id}. Visible to admins and PMs, to everyone in `teamIds`, and to the assignees.
+ * The creator is the reviewer: only they (or a PM/admin) can mark it Done or request changes.
+ */
+export interface Task {
+  id?: string;
+  title: string;
+  description: string;
+  type: TaskType;
+  priority: TaskPriority;
+  status: TaskStatus;
+  order: number; // position inside its column, ascending
+  projectId: string; // '' for no project
+  assigneeIds: string[];
+  teamIds: string[]; // teams of the assignees (or the leader's own team); drives who can see it
+  parentId: string; // '' for top-level tasks; sub-tasks point at their parent
+  createdBy: string;
+  createdByName: string;
+  dueDate: string; // YYYY-MM-DD or ''
+  estimateHours: number | null;
+  links: TaskLink[];
+  checklist: ChecklistItem[];
+  reviewNote: string; // set by the reviewer when requesting changes
   createdAt?: any;
   updatedAt?: any;
 }

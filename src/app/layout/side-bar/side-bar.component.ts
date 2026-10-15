@@ -47,6 +47,7 @@ export class SideBarComponent implements OnInit, OnDestroy {
     {
       title: 'Work',
       items: [
+        { icon: 'pi pi-objects-column', label: 'Board', route: '/board' },
         { icon: 'pi pi-check-square', label: 'My Tasks', route: '/my-tasks' },
         { icon: 'pi pi-briefcase', label: 'Projects', route: '/projects' },
       ],

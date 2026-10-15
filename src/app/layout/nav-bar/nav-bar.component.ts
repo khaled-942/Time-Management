@@ -15,6 +15,7 @@ const PAGE_TITLES: Record<string, [section: string, title: string]> = {
   dashboard: ['Dashboard', 'Overview'],
   home: ['Dashboard', 'Calendar'],
   leave: ['Dashboard', 'Leave Requests'],
+  board: ['Work', 'Board'],
   'my-tasks': ['Work', 'My Tasks'],
   projects: ['Work', 'Projects'],
   'nation-days': ['Company', 'National Days'],

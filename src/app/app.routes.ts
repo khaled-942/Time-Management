@@ -47,6 +47,12 @@ export const routes: Routes = [
       ]
     : []),
   {
+    path: 'board',
+    loadComponent: () =>
+      import('./layout/board/board.component').then((c) => c.BoardComponent),
+    canActivate: [loggedInFormGuard],
+  },
+  {
     path: 'my-tasks',
     loadComponent: () =>
       import('./layout/my-tasks/my-tasks.component').then((c) => c.MyTasksComponent),

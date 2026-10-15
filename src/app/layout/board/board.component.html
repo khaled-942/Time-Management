@@ -1,0 +1,154 @@
+@if (loading) {
+<app-loader></app-loader>
+}
+<p-toast position="bottom-right"></p-toast>
+
+<div class="page board-page">
+  <div class="page-header">
+    <div>
+      <h1>Board</h1>
+      <p>Drag cards across as work moves. The person who created a task reviews it and marks it done.</p>
+    </div>
+    @if (canCreate) {
+    <div class="page-actions">
+      <p-button label="New task" icon="pi pi-plus" (onClick)="openNew()" />
+    </div>
+    }
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <span class="p-input-icon-left search">
+      <i class="pi pi-search"></i>
+      <input pInputText [(ngModel)]="search" (ngModelChange)="rebuild()" placeholder="Search tasks" aria-label="Search tasks" />
+    </span>
+    <p-dropdown [options]="assigneeOptions" [(ngModel)]="assigneeFilter" (onChange)="rebuild()" optionLabel="label"
+      optionValue="value" [filter]="assigneeOptions.length > 8" filterBy="label" styleClass="filter" appendTo="body"
+      ariaLabel="Assignee"></p-dropdown>
+    <p-dropdown [options]="projectOptions" [(ngModel)]="projectFilter" (onChange)="rebuild()" optionLabel="label"
+      optionValue="value" [filter]="projectOptions.length > 8" filterBy="label" styleClass="filter" appendTo="body"
+      ariaLabel="Project"></p-dropdown>
+    @if (showTeamFilter) {
+    <p-dropdown [options]="teamOptions" [(ngModel)]="teamFilter" (onChange)="rebuild()" optionLabel="label"
+      optionValue="value" styleClass="filter" appendTo="body" ariaLabel="Team"></p-dropdown>
+    }
+    <p-dropdown [options]="typeOptions" [(ngModel)]="typeFilter" (onChange)="rebuild()" optionLabel="label"
+      optionValue="value" styleClass="filter" appendTo="body" ariaLabel="Type"></p-dropdown>
+    @if (filtersActive) {
+    <p-button label="Clear" icon="pi pi-filter-slash" styleClass="p-button-text p-button-sm" (onClick)="clearFilters()" />
+    }
+  </div>
+
+  @if (!loading && !tasks.length) {
+  <div class="callout info">
+    <i class="pi pi-objects-column"></i>
+    <span>{{ canCreate ? 'No tasks yet. Create the first one for your team with "New task" or the + on a column.' : 'No tasks yet. Tasks assigned to you or your team will show up here.' }}</span>
+  </div>
+  }
+
+  <!-- Columns -->
+  <div class="board" cdkDropListGroup>
+    @for (column of columns; track column.status) {
+    <section class="column" [ngClass]="'column-' + column.status" cdkDropList [cdkDropListData]="column"
+      [cdkDropListEnterPredicate]="enterPredicate" (cdkDropListDropped)="drop($event)"
+      [attr.aria-label]="column.label">
+      <header class="column-head">
+        <span class="column-dot" aria-hidden="true"></span>
+        <span class="column-title">{{ column.label }}</span>
+        <span class="column-count mono">{{ column.tasks.length }}</span>
+        @if (column.reviewerOnly) {
+        <i class="pi pi-lock column-lock" pTooltip="Only the reviewer moves cards here" tooltipPosition="top"></i>
+        }
+        @if (canCreate && !column.reviewerOnly) {
+        <p-button icon="pi pi-plus" styleClass="p-button-text p-button-sm add-here" [ariaLabel]="'New task in ' + column.label"
+          (onClick)="openNew(column.status)" />
+        }
+      </header>
+
+      <div class="column-body">
+        @for (task of column.tasks; track task.id) {
+        <article class="task-card" cdkDrag [cdkDragData]="task" [cdkDragDisabled]="!canDrag(task)"
+          [cdkDragStartDelay]="{ touch: 250, mouse: 0 }" [class.locked]="!canDrag(task)"
+          [style.--project-color]="project(task.projectId)?.color || null" (cdkDragStarted)="dragging = true"
+          (cdkDragEnded)="endDrag()" (click)="openTask(task)"
+          (keydown.enter)="openTask(task)" tabindex="0" role="button" [attr.aria-label]="task.title">
+          <div class="card-top">
+            <span class="type" [ngClass]="TASK_TYPES[task.type].tone" [pTooltip]="TASK_TYPES[task.type].label" tooltipPosition="top">
+              <i [class]="TASK_TYPES[task.type].icon"></i>
+            </span>
+            @if (project(task.projectId); as p) {
+            <span class="project-tag"><i></i>{{ p.name }}</span>
+            }
+            <span class="priority" [ngClass]="'priority-' + task.priority" [pTooltip]="TASK_PRIORITIES[task.priority].label + ' priority'"
+              tooltipPosition="top">
+              <i [class]="TASK_PRIORITIES[task.priority].icon"></i>
+            </span>
+          </div>
+
+          <h3 class="card-title-text">{{ task.title }}</h3>
+
+          @if (task.status === 'changes' && task.reviewNote) {
+          <p class="review-note"><i class="pi pi-comments"></i> {{ task.reviewNote }}</p>
+          }
+
+          <div class="card-meta">
+            @if (task.dueDate) {
+            <span class="meta" [class.overdue]="isOverdue(task)">
+              <i class="pi pi-calendar"></i>{{ task.dueDate | date: 'MMM d' }}
+            </span>
+            }
+            @if (task.checklist.length) {
+            <span class="meta mono" [class.complete]="checklistDone(task) === task.checklist.length">
+              <i class="pi pi-check-square"></i>{{ checklistDone(task) }}/{{ task.checklist.length }}
+            </span>
+            }
+            @if (task.links.length) {
+            <span class="meta"><i class="pi pi-link"></i>{{ task.links.length }}</span>
+            }
+            @if (task.estimateHours != null) {
+            <span class="meta mono">{{ task.estimateHours }}h</span>
+            }
+            <span class="avatars">
+              @for (id of task.assigneeIds.slice(0, 3); track id) {
+              <img [src]="person(id)?.avatar" [alt]="person(id)?.name" [pTooltip]="person(id)?.name" tooltipPosition="top" />
+              }
+              @if (task.assigneeIds.length > 3) {
+              <span class="more mono">+{{ task.assigneeIds.length - 3 }}</span>
+              }
+            </span>
+          </div>
+
+          <div class="drag-placeholder" *cdkDragPlaceholder></div>
+        </article>
+        } @empty {
+        <div class="column-empty">{{ filtersActive ? 'No matching tasks' : 'Nothing here' }}</div>
+        }
+      </div>
+    </section>
+    }
+  </div>
+  @if (filtersActive) {
+  <p class="muted filter-note">Showing {{ totalVisible }} of {{ tasks.length }} tasks.</p>
+  }
+</div>
+
+<app-task-dialog [open]="dialogOpen" [task]="dialogTask" [initialStatus]="dialogStatus" [me]="me" [people]="people"
+  [teams]="teams" [projects]="projects" [saving]="saving" (closed)="closeDialog()"
+  (submitted)="onDialogSubmit($event)"></app-task-dialog>
+
+<!-- Note for "Changes requested" -->
+<p-dialog [visible]="!!pendingChanges" (visibleChange)="!$event && (pendingChanges = null)" [modal]="true"
+  [draggable]="false" [style]="{ width: '28rem' }" [breakpoints]="{ '640px': '94vw' }" header="Request changes">
+  @if (pendingChanges) {
+  <p class="mt-0"><strong>{{ pendingChanges.task.title }}</strong></p>
+  <label class="field">
+    <span>What needs to change?</span>
+    <textarea pInputTextarea [(ngModel)]="changesNote" rows="4" maxlength="1000"
+      placeholder="e.g. Handle the empty state and add tests for the API errors"></textarea>
+  </label>
+  }
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" styleClass="p-button-outlined" (onClick)="pendingChanges = null" />
+    <p-button label="Send back" icon="pi pi-replay" [disabled]="!changesNote.trim()" (onClick)="confirmChanges()" />
+  </ng-template>
+</p-dialog>

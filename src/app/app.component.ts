@@ -12,6 +12,7 @@ import { NavBarComponent } from './layout/nav-bar/nav-bar.component';
 import { SideBarComponent } from './layout/side-bar/side-bar.component';
 import { AuthService } from './auth/auth.service';
 import { UserService } from './shared/services/user.service';
+import { DirectoryService } from './shared/services/directory.service';
 
 @Component({
   selector: 'app-root',
@@ -28,7 +29,8 @@ export class AppComponent implements OnInit {
   constructor(
     private authService: AuthService,
     private router: Router,
-    private userService: UserService
+    private userService: UserService,
+    private directory: DirectoryService
   ) { }
 
   ngOnInit() {
@@ -49,6 +51,8 @@ export class AppComponent implements OnInit {
       // Subscribe to changes
       this.isLoggedIn = status;
     });
+
+    if (typeof window !== 'undefined') this.directory.start();
 
     if (this.isLoggedIn) {
       const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
