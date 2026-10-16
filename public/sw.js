@@ -3,9 +3,9 @@
 // Registered in app.config.ts; production builds only (ng serve doesn't emit ngsw-worker.js).
 importScripts('./ngsw-worker.js');
 
-// Pushes come from the sendPush Cloud Function (functions/src/index.ts) via Firebase Cloud
-// Messaging as data-only messages: { data: { title, body, link, tag } }. Angular's worker ignores
-// them (it only shows payloads with a `notification` key), so they're shown exactly once, here.
+// Pushes come from the send-push Supabase Edge Function (supabase/functions/send-push) as Web Push
+// messages shaped { data: { title, body, link, tag } }. Angular's worker ignores them (it only shows
+// payloads with a `notification` key), so they're shown exactly once, here.
 self.addEventListener('push', (event) => {
   let data = {};
   try {

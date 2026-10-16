@@ -25,14 +25,6 @@ export class RegisterComponent {
   error: string = '';
   isLoading: boolean = false;
 
-  user = {
-    userId: '',
-    email: '',
-    name: '',
-    currentAvatar: '',
-    verified: true
-  };
-
   // private authService = inject(AuthService);
 
   constructor(
@@ -69,17 +61,9 @@ export class RegisterComponent {
     this.isLoading = true;
     const { username, email, password } = this.registerForm.value;
     try {
-      const res: any = await this.authService.register(email, password);
-      if (res._tokenResponse != undefined) {
-        this.user.userId = res.user.uid;
-        this.user.email = email;
-        this.user.name = username;
-        this.user.currentAvatar = this.avatarService.generateAvatars(
-          this.user.name,
-          true
-        )[0].url;
-        await this.authService.saveRegisterdUser('users', this.user, this.user.userId);
-        console.log('User registered');
+      const avatar = this.avatarService.generateAvatars(username, true)[0].url;
+      const res = await this.authService.register(email, password, username, avatar);
+      if (res.uid) {
         this.router.navigate(['/login']);
       } else if (res.code == 'auth/email-already-in-use') {
         this.error = 'This email is already registered';

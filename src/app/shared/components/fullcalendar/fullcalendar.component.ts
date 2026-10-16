@@ -223,7 +223,7 @@ export class FullcalendarComponent implements OnDestroy {
   getNationalDays(): Promise<any[]> {
     this.nationalDaysLoaded ??= this.httpRequestsService.getHolidays().then((holidays) => {
       this.nationalDays = holidays.map((item: any) => ({
-        date: item.date.toDate(), // Firestore Timestamp
+        date: item.date.toDate(), // Timestamp
         name: item.name,
         type: item.tags,
         id: item.id,

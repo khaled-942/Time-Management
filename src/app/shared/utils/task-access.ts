@@ -1,6 +1,6 @@
 import { roleOf, Task, TASK_STATUSES, TaskStatus, UserProfile } from '../models';
 
-// Who may do what with team tasks. firestore.rules enforces the same rules; keep them in step.
+// Who may do what with team tasks. The database (row-level security in supabase/migrations) enforces the same rules; keep them in step.
 
 /** Admins and project managers manage every task. */
 export function managesAll(me: UserProfile | null): boolean {

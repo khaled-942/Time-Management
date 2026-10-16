@@ -1,15 +1,11 @@
 export const environment = {
   production: false,
-  firebase: {
-    apiKey: 'AIzaSyDNW9T0L-1iqFP2x7Bx-Tc5AAcKH9oARo0',
-    authDomain: 'time-management-6cd21.firebaseapp.com',
-    projectId: 'time-management-6cd21',
-    storageBucket: 'time-management-6cd21.firebasestorage.app',
-    messagingSenderId: '63976208649',
-    appId: '1:63976208649:web:682c6132672869775dfbd8',
-    measurementId: 'G-0J65MDFDVR',
+  // Supabase → Project Settings → API. The publishable (anon) key is public by design; row-level security protects the data.
+  supabase: {
+    url: 'https://lvlgezwylzopnbkzwdhg.supabase.co',
+    anonKey: 'sb_publishable_Xk9bGFrqsr8mZdlq__2iCg_4S2_BPvY',
   },
-  // Public "Web Push certificate" key: Firebase console → Project settings → Cloud Messaging →
-  // Web configuration → Generate key pair. Push notifications stay off while it's empty.
-  vapidKey: '',
+  // Public VAPID key for Web Push (the private half is the send-push Edge Function's VAPID_PRIVATE_KEY
+  // secret). Push notifications stay off while it's empty.
+  vapidKey: 'BJzI4hXsonMtFNigYXPTx3urOfKw9Y7Rlx8Pox8MJRTBDdb0Jkh5YHO_oGZzg6jDAIW1aCchOVm9zUgnX4O6RlU',
 };

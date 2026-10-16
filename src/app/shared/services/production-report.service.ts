@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { doc, Firestore, getDoc, serverTimestamp, setDoc } from '@angular/fire/firestore';
 import { DayOffType, DayRecord, Project, UserProfile, WorkLog } from '../models';
+import { maybe, must, SupabaseService } from './supabase.service';
 import { HttpRequestsService } from './http-requests.service';
 import { OrgService } from './org.service';
 import { TaskService } from './task.service';
@@ -9,10 +9,10 @@ import { downloadBlob } from '../utils/format';
 
 // Monthly production report: what was worked on each day of a calendar month (1st → last day,
 // unlike the 11th → 10th payroll period), built from the time people log on board tasks
-// (tasks/{id}/workLogs) plus attendance days and holidays. Exported as Word (day by day) and
+// (work_logs) plus attendance days and holidays. Exported as Word (day by day) and
 // Excel (project × day grid), matching the paper reports people used to fill in by hand.
 
-/** Where the first version kept the settings, before they moved to Firestore. */
+/** Where the first version kept the settings, before they moved to the database. */
 const LEGACY_SETTINGS_KEY = 'productionReportSettings';
 
 /** Day of the month the report is due (or the month's last day when it's shorter). */
@@ -39,7 +39,7 @@ export interface ReportAssignment {
   end: string; // YYYY-MM-DD, '' = still going
 }
 
-/** users/{uid}/private/report: the person's own report details, the same for every month. */
+/** user_private (report columns): the person's own report details, the same for every month. */
 export interface ReportSettings {
   organization: string;
   department: string;
@@ -136,7 +136,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 })
 export class ProductionReportService {
   constructor(
-    private firestore: Firestore,
+    private supabase: SupabaseService,
     private tasks: TaskService,
     private http: HttpRequestsService,
     private org: OrgService
@@ -145,20 +145,30 @@ export class ProductionReportService {
   /* ---------- Settings ---------- */
 
   async getSettings(userId: string): Promise<ReportSettings> {
-    const snapshot = await getDoc(doc(this.firestore, `users/${userId}/private/report`));
-    if (snapshot.exists()) {
-      const data = snapshot.data();
+    const data = maybe(
+      await this.supabase.client
+        .from('user_private')
+        .select('organization, department, assignments')
+        .eq('userId', userId)
+        .maybeSingle()
+    );
+    // The row also holds the salary, so it can exist before the report settings were ever saved
+    if (data && data.organization !== null) {
       return {
-        organization: data['organization'] ?? '',
-        department: data['department'] ?? '',
-        assignments: Array.isArray(data['assignments']) ? data['assignments'] : [],
+        organization: data.organization ?? '',
+        department: data.department ?? '',
+        assignments: Array.isArray(data.assignments) ? data.assignments : [],
       };
     }
     return this.legacySettings();
   }
 
   async saveSettings(userId: string, settings: ReportSettings) {
-    await setDoc(doc(this.firestore, `users/${userId}/private/report`), { ...settings, updatedAt: serverTimestamp() });
+    must(
+      await this.supabase.client
+        .from('user_private')
+        .upsert({ userId, ...settings, updatedAt: new Date().toISOString() }, { onConflict: 'userId' })
+    );
     try {
       window.localStorage.removeItem(LEGACY_SETTINGS_KEY);
     } catch {
@@ -166,7 +176,7 @@ export class ProductionReportService {
     }
   }
 
-  /** Settings the first version kept in this browser; offered until they're saved to Firestore. */
+  /** Settings the first version kept in this browser; offered until they're saved to the database. */
   private legacySettings(): ReportSettings {
     const empty: ReportSettings = { organization: '', department: '', assignments: [] };
     try {

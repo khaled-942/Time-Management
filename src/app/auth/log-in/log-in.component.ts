@@ -44,22 +44,22 @@ export class LogInComponent {
     this.isLoading = true;
     try {
       const { username, password } = this.loginForm.value;
-      await this.authService.login(username, password).then(async (res: any) => {
-        if (res._tokenResponse !== undefined) {
+      await this.authService.login(username, password).then(async (res) => {
+        if (res.uid) {
           if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
             localStorage.setItem(
               'user',
-              JSON.stringify({ id: res.user.uid, token: res.user.accessToken, date: new Date() })
+              JSON.stringify({ id: res.uid, token: res.token, date: new Date() })
             );
           }
-          const profile = (await this.authService.getUserById(res.user.uid))[0];
+          const profile = (await this.authService.getUserById(res.uid))[0];
           if (profile?.active === false) {
             // Deactivated by an admin
             this.authService.logout();
             this.error = 'Your account has been deactivated. Please contact an admin.';
             return;
           }
-          if (profile?.birthDate?.toDate) profile.birthDate = profile.birthDate.toDate();
+          if (profile?.['birthDate']?.toDate) profile['birthDate'] = profile['birthDate'].toDate();
           this.userService.setUser(profile);
           this.authService.loginStatusChanged.emit(true);
           this.router.navigate(['/dashboard']);

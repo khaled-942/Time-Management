@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/time-management/browser",
+  "git": {
+    "deploymentEnabled": {
+      "main": false
+    }
+  },
+  "rewrites": [
+    { "source": "/((?!.*[.]).*)", "destination": "/index.csr.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(sw.js|ngsw-worker.js|ngsw.json)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
+  ]
+}

@@ -1,30 +1,8 @@
 import { Injectable, NgZone } from '@angular/core';
-import { Auth } from '@angular/fire/auth';
-import {
-  addDoc,
-  collection,
-  collectionGroup,
-  deleteDoc,
-  deleteField,
-  doc,
-  Firestore,
-  getDocs,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  Query,
-  runTransaction,
-  serverTimestamp,
-  Unsubscribe,
-  updateDoc,
-  where,
-  writeBatch,
-} from '@angular/fire/firestore';
 import { Task, TASK_PRIORITIES, TASK_STATUSES, TASK_TYPES, TaskActivity, TaskStatus, UserProfile, WorkLog } from '../models';
-import { managesAll } from '../utils/task-access';
 import { DirectoryService } from './directory.service';
 import { NotificationService } from './notification.service';
+import { must, SupabaseService, Unsubscribe, withTimestamps } from './supabase.service';
 import { UserService } from './user.service';
 
 export type NewTask = Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'subtasks'>;
@@ -38,17 +16,19 @@ const statusLabel = (status: TaskStatus) => TASK_STATUSES.find((s) => s.value ==
 /** Board link that opens the task's dialog. */
 export const taskLink = (id: string) => `/board?task=${id}`;
 
-// Team tasks (tasks/{id}), kept live with Firestore listeners. Every write goes through here so
-// the side effects stay in one place: sub-task progress on the parent, the parent moving to
-// Need review when all its sub-tasks are done, bell notifications, and the task's activity log
-// (tasks/{id}/activity). Time spent on tasks lives in tasks/{id}/workLogs.
+const taskFromRow = (row: any): Task => withTimestamps<Task>(row, ['createdAt', 'updatedAt']);
+const logFromRow = (row: any): WorkLog => withTimestamps<WorkLog>(row, ['createdAt']);
+
+// Team tasks (tasks), kept live with Supabase Realtime. Every write goes through here so the side
+// effects stay in one place: sub-task progress on the parent, the parent moving to Need review
+// when all its sub-tasks are done, bell notifications, and the task's activity log
+// (task_activity). Time spent on tasks lives in work_logs.
 @Injectable({
   providedIn: 'root',
 })
 export class TaskService {
   constructor(
-    private firestore: Firestore,
-    private auth: Auth,
+    private supabase: SupabaseService,
     private zone: NgZone,
     private notifications: NotificationService,
     private userService: UserService,
@@ -66,12 +46,12 @@ export class TaskService {
     return this.names.then((names) => ids.map((id) => names.get(id) ?? 'someone').join(', '));
   }
 
-  private get tasks() {
-    return collection(this.firestore, 'tasks');
+  private get db() {
+    return this.supabase.client;
   }
 
   private get uid(): string {
-    return this.auth.currentUser?.uid ?? '';
+    return this.supabase.uid;
   }
 
   private get myName(): string {
@@ -80,54 +60,40 @@ export class TaskService {
 
   /**
    * Live list of the tasks `me` may see. PMs and admins read everything; others read their
-   * team's tasks plus anything they're assigned to or created. Each query matches a branch of
-   * the read rule in firestore.rules, so Firestore can authorise it.
+   * team's tasks plus anything they're assigned to or created. Row-level security (mirroring
+   * task-access.ts) does the filtering, so one query covers every case.
    */
-  watch(me: UserProfile, onChange: (tasks: Task[]) => void, onError: (error: unknown) => void): Unsubscribe {
-    const queries: Query[] = managesAll(me)
-      ? [this.tasks]
-      : [
-          ...(me.teamId ? [query(this.tasks, where('teamIds', 'array-contains', me.teamId))] : []),
-          query(this.tasks, where('assigneeIds', 'array-contains', me.userId)),
-          query(this.tasks, where('createdBy', '==', me.userId)),
-        ];
-
-    const results: Task[][] = queries.map(() => []);
-    const listeners = queries.map((q, i) =>
-      onSnapshot(
-        q,
-        (snapshot) => {
-          results[i] = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Task) }));
-          // The same task can match several queries
-          const merged = new Map(results.flat().map((t) => [t.id!, t]));
-          this.zone.run(() => onChange([...merged.values()]));
-        },
-        (error) => this.zone.run(() => onError(error))
-      )
+  watch(_me: UserProfile, onChange: (tasks: Task[]) => void, onError: (error: unknown) => void): Unsubscribe {
+    return this.supabase.watch(
+      'tasks',
+      async () => {
+        const rows = must(await this.db.from('tasks').select('*'));
+        this.zone.run(() => onChange(rows.map(taskFromRow)));
+      },
+      onError
     );
-    return () => listeners.forEach((unsubscribe) => unsubscribe());
   }
 
   /* ---------- Writes ---------- */
 
   async create(task: NewTask): Promise<string> {
-    const ref = await addDoc(this.tasks, { ...task, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-    const created: Task = { ...task, id: ref.id };
+    const id: string = must(await this.db.from('tasks').insert(task).select('id').single()).id;
+    const created: Task = { ...task, id };
     await Promise.all([
-      task.parentId ? this.syncParent(task.parentId, ref.id, task.status === 'done') : null,
+      task.parentId ? this.syncParent(task.parentId, id, task.status === 'done') : null,
       this.notifyAssigned(created, task.assigneeIds),
-      this.record(ref.id, 'pi pi-plus-circle', `created the task in ${statusLabel(task.status)}`),
+      this.record(id, 'pi pi-plus-circle', `created the task in ${statusLabel(task.status)}`),
       task.assigneeIds.length
-        ? this.nameOf(task.assigneeIds).then((names) => this.record(ref.id, 'pi pi-user-plus', `assigned ${names}`))
+        ? this.nameOf(task.assigneeIds).then((names) => this.record(id, 'pi pi-user-plus', `assigned ${names}`))
         : null,
       task.parentId ? this.record(task.parentId, 'pi pi-sitemap', `added the sub-task "${task.title}"`) : null,
     ]);
-    return ref.id;
+    return id;
   }
 
   /** Save `changes` to `before` (the task as it was) and run the side effects of what changed. */
   async update(before: Task, changes: Partial<NewTask>) {
-    await updateDoc(doc(this.tasks, before.id!), { ...changes, updatedAt: serverTimestamp() });
+    must(await this.db.from('tasks').update({ ...changes, updatedAt: new Date().toISOString() }).eq('id', before.id!));
     const after: Task = { ...before, ...changes };
 
     const effects: Promise<unknown>[] = [this.recordChanges(before, changes)];
@@ -156,16 +122,10 @@ export class TaskService {
   }
 
   async remove(task: Task) {
-    const logs = await getDocs(query(this.workLogs(task.id!), limit(1)));
-    if (!logs.empty) throw new Error(HAS_WORK_LOGS);
-    // History goes with the task (the rules need the task to still exist to allow it)
-    const history = await getDocs(this.activity(task.id!));
-    for (let i = 0; i < history.docs.length; i += 400) {
-      const batch = writeBatch(this.firestore);
-      history.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-    }
-    await deleteDoc(doc(this.tasks, task.id!));
+    const logs = must(await this.db.from('work_logs').select('id').eq('taskId', task.id!).limit(1));
+    if (logs.length) throw new Error(HAS_WORK_LOGS);
+    // History goes with the task (on delete cascade)
+    must(await this.db.from('tasks').delete().eq('id', task.id!));
     if (task.parentId) {
       await this.syncParent(task.parentId, task.id!, null).catch((error) =>
         console.error('Could not update the parent task:', error)
@@ -176,32 +136,12 @@ export class TaskService {
   /* ---------- Sub-tasks ---------- */
 
   /**
-   * Record a sub-task's state on its parent (`done` null = removed). When every sub-task is
-   * done, the parent moves to Need review and its reviewer is told.
+   * Record a sub-task's state on its parent (`done` null = removed), atomically in the database
+   * (sync_parent). When every sub-task is done, the parent moves to Need review and its reviewer is told.
    */
   private async syncParent(parentId: string, subtaskId: string, done: boolean | null) {
-    const parentRef = doc(this.tasks, parentId);
-    const movedToReview = await runTransaction(this.firestore, async (tx) => {
-      const snapshot = await tx.get(parentRef);
-      if (!snapshot.exists()) return null;
-      const parent = { id: snapshot.id, ...(snapshot.data() as Task) };
-
-      const subtasks = { ...(parent.subtasks ?? {}) };
-      if (done === null) delete subtasks[subtaskId];
-      else subtasks[subtaskId] = done;
-
-      const states = Object.values(subtasks);
-      const allDone = states.length > 0 && states.every(Boolean);
-      const shouldReview = allDone && !['review', 'done'].includes(parent.status);
-
-      tx.update(parentRef, {
-        [`subtasks.${subtaskId}`]: done === null ? deleteField() : done,
-        // Date.now() sorts after the board's usual values, so the parent lands at the end of Need review
-        ...(shouldReview ? { status: 'review', order: Date.now() } : {}),
-        updatedAt: serverTimestamp(),
-      });
-      return shouldReview ? parent : null;
-    });
+    const rows: any[] = must(await this.db.rpc('sync_parent', { parent_id: parentId, subtask_id: subtaskId, done }));
+    const movedToReview = rows?.[0] ? taskFromRow(rows[0]) : null;
 
     if (movedToReview) {
       await this.record(parentId, 'pi pi-check-circle', 'finished the last sub-task, so it moved to Need review');
@@ -217,73 +157,69 @@ export class TaskService {
 
   /* ---------- Work logs ---------- */
 
-  private workLogs(taskId: string) {
-    return collection(this.firestore, `tasks/${taskId}/workLogs`);
-  }
-
   /** Live list of the time logged on a task, newest first. */
   watchWorkLogs(taskId: string, onChange: (logs: WorkLog[]) => void, onError: (error: unknown) => void): Unsubscribe {
-    return onSnapshot(
-      query(this.workLogs(taskId), orderBy('date', 'desc')),
-      (snapshot) => this.zone.run(() => onChange(snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as WorkLog) })))),
+    return this.supabase.watch(
+      'work_logs',
+      async () => {
+        const rows = must(await this.db.from('work_logs').select('*').eq('taskId', taskId).order('date', { ascending: false }));
+        this.zone.run(() => onChange(rows.map(logFromRow)));
+      },
       (error) => this.zone.run(() => onError(error))
     );
   }
 
   /** Log time on `task` as the signed-in person. */
   async logTime(task: Task, log: NewWorkLog) {
-    await addDoc(this.workLogs(task.id!), {
-      ...log,
-      taskId: task.id!,
-      taskTitle: task.title,
-      projectId: task.projectId,
-      userId: this.uid,
-      userName: this.myName,
-      createdAt: serverTimestamp(),
-    });
+    must(
+      await this.db.from('work_logs').insert({
+        ...log,
+        taskId: task.id!,
+        taskTitle: task.title,
+        projectId: task.projectId,
+        userId: this.uid,
+        userName: this.myName,
+      })
+    );
     await this.record(task.id!, 'pi pi-clock', `logged ${log.hours}h on ${log.date}${log.kind ? ` (${log.kind})` : ''}`);
   }
 
   async deleteTimeLog(task: Task, log: WorkLog) {
-    await deleteDoc(doc(this.workLogs(task.id!), log.id!));
+    must(await this.db.from('work_logs').delete().eq('id', log.id!));
     const whose = log.userId === this.uid ? 'their' : `${log.userName}'s`;
     await this.record(task.id!, 'pi pi-trash', `removed ${whose} ${log.hours}h on ${log.date}`);
   }
 
   /** The signed-in person's logs from `from` to `to` (YYYY-MM-DD, inclusive) across all tasks. */
   async myWorkLogs(from: string, to: string): Promise<WorkLog[]> {
-    const snapshot = await getDocs(
-      query(
-        collectionGroup(this.firestore, 'workLogs'),
-        where('userId', '==', this.uid),
-        where('date', '>=', from),
-        where('date', '<=', to)
-      )
+    const rows = must(
+      await this.db.from('work_logs').select('*').eq('userId', this.uid).gte('date', from).lte('date', to)
     );
-    return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as WorkLog) }));
+    return rows.map(logFromRow);
   }
 
   /* ---------- Activity ---------- */
 
-  private activity(taskId: string) {
-    return collection(this.firestore, `tasks/${taskId}/activity`);
-  }
-
   /** Live history of a task, newest first. */
   watchActivity(taskId: string, onChange: (entries: TaskActivity[]) => void, onError: (error: unknown) => void): Unsubscribe {
-    return onSnapshot(
-      query(this.activity(taskId), orderBy('at', 'desc'), limit(200)),
-      (snapshot) =>
-        this.zone.run(() =>
-          onChange(snapshot.docs.map((d) => ({ id: d.id, ...(d.data({ serverTimestamps: 'estimate' }) as TaskActivity) })))
-        ),
+    return this.supabase.watch(
+      'task_activity',
+      async () => {
+        const rows = must(
+          await this.db.from('task_activity').select('*').eq('taskId', taskId).order('at', { ascending: false }).limit(200)
+        );
+        this.zone.run(() => onChange(rows.map((r) => withTimestamps<TaskActivity>(r, ['at']))));
+      },
       (error) => this.zone.run(() => onError(error))
     );
   }
 
   /** Add a line to a task's history. Best-effort: the change itself is already saved. */
   private record(taskId: string, icon: string, text: string): Promise<void> {
-    return addDoc(this.activity(taskId), { by: this.uid, byName: this.myName, icon, text: text.slice(0, 500), at: serverTimestamp() })
+    return Promise.resolve(
+      this.db.from('task_activity').insert({ taskId, by: this.uid, byName: this.myName, icon, text: text.slice(0, 500) })
+    )
+      .then(must)
       .then(() => undefined)
       .catch((error) => console.error('Could not record task activity:', error));
   }

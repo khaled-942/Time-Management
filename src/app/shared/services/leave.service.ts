@@ -1,50 +1,41 @@
 import { Injectable } from '@angular/core';
-import { Auth } from '@angular/fire/auth';
-import {
-  addDoc,
-  collection,
-  doc,
-  Firestore,
-  getDocs,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from '@angular/fire/firestore';
 import { DayOffType, DayRecord, LeaveRequest } from '../models';
 import { parseLocalDate, scheduledEnd, workingDaysBetween } from '../utils/work-schedule';
 import { HttpRequestsService } from './http-requests.service';
 import { NotificationService } from './notification.service';
+import { must, SupabaseService, withoutNulls, withTimestamps } from './supabase.service';
 import { UserService } from './user.service';
 
 /** Paid days off per calendar year. */
 export const ANNUAL_LEAVE_DAYS = 21;
+
+function requestFromRow(row: any): LeaveRequest {
+  return withTimestamps<LeaveRequest>(withoutNulls(row), ['createdAt', 'decidedAt']);
+}
 
 @Injectable({
   providedIn: 'root',
 })
 export class LeaveService {
   constructor(
-    private firestore: Firestore,
-    private auth: Auth,
+    private supabase: SupabaseService,
     private http: HttpRequestsService,
     private userService: UserService,
     private notifications: NotificationService
   ) { }
 
-  private sortNewestFirst(requests: LeaveRequest[]) {
-    const time = (r: LeaveRequest) => (r.createdAt?.toMillis ? r.createdAt.toMillis() : Date.now());
-    return requests.sort((a, b) => time(b) - time(a));
+  private get requests() {
+    return this.supabase.client.from('leaveRequests');
   }
 
   async getMyRequests(userId: string): Promise<LeaveRequest[]> {
-    const snapshot = await getDocs(query(collection(this.firestore, 'leaveRequests'), where('userId', '==', userId)));
-    return this.sortNewestFirst(snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as LeaveRequest) })));
+    const rows = must(await this.requests.select('*').eq('userId', userId).order('createdAt', { ascending: false }));
+    return rows.map(requestFromRow);
   }
 
   async getAllRequests(): Promise<LeaveRequest[]> {
-    const snapshot = await getDocs(collection(this.firestore, 'leaveRequests'));
-    return this.sortNewestFirst(snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as LeaveRequest) })));
+    const rows = must(await this.requests.select('*').order('createdAt', { ascending: false }));
+    return rows.map(requestFromRow);
   }
 
   /** Paid days off taken in the given calendar year (from saved days). */
@@ -55,35 +46,30 @@ export class LeaveService {
 
   async request(start: string, end: string, reason: string): Promise<LeaveRequest> {
     const user = this.userService.current;
-    const uid = this.auth.currentUser?.uid;
+    const uid = this.supabase.uid;
     if (!user || !uid) throw new Error('Not signed in');
 
     const holidays = await this.http.getHolidayDates();
     const days = workingDaysBetween(start, end, holidays).length;
     if (days === 0) throw new Error('NO_WORKING_DAYS');
 
-    const request: LeaveRequest = {
-      userId: uid,
-      userName: user.name,
-      start,
-      end,
-      days,
-      reason,
-      status: 'pending',
-      createdAt: serverTimestamp(),
-    };
-    const ref = await addDoc(collection(this.firestore, 'leaveRequests'), request);
+    const row = must(
+      await this.requests
+        .insert({ userId: uid, userName: user.name, start, end, days, reason, status: 'pending' })
+        .select('*')
+        .single()
+    );
     await this.notifications.notifyAdmins(
       'New leave request',
       `${user.name} requested ${days} day${days === 1 ? '' : 's'} off (${start} → ${end}).`,
       '/admin',
       'pi pi-calendar-plus'
     );
-    return { ...request, id: ref.id };
+    return requestFromRow(row);
   }
 
   async cancel(request: LeaveRequest) {
-    await updateDoc(doc(this.firestore, 'leaveRequests', request.id!), { status: 'cancelled' });
+    must(await this.requests.update({ status: 'cancelled' }).eq('id', request.id!));
   }
 
   /** Admin: approve, marking every working day in the range as a paid day off. */
@@ -116,13 +102,17 @@ export class LeaveService {
   }
 
   private async decide(request: LeaveRequest, status: 'approved' | 'rejected', note: string) {
-    await updateDoc(doc(this.firestore, 'leaveRequests', request.id!), {
-      status,
-      decisionNote: note,
-      decidedBy: this.auth.currentUser?.uid ?? '',
-      decidedByName: this.userService.current?.name ?? '',
-      decidedAt: serverTimestamp(),
-    });
+    must(
+      await this.requests
+        .update({
+          status,
+          decisionNote: note,
+          decidedBy: this.supabase.uid,
+          decidedByName: this.userService.current?.name ?? '',
+          decidedAt: new Date().toISOString(),
+        })
+        .eq('id', request.id!)
+    );
     await this.notifications.notifyUser(
       request.userId,
       status === 'approved' ? 'Leave approved' : 'Leave rejected',

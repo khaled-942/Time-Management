@@ -12,7 +12,6 @@ import { NavBarComponent } from './layout/nav-bar/nav-bar.component';
 import { SideBarComponent } from './layout/side-bar/side-bar.component';
 import { AuthService } from './auth/auth.service';
 import { UserService } from './shared/services/user.service';
-import { DirectoryService } from './shared/services/directory.service';
 import { PushService } from './shared/services/push.service';
 import { distinctUntilChanged, filter, map } from 'rxjs';
 
@@ -32,7 +31,6 @@ export class AppComponent implements OnInit {
     private authService: AuthService,
     private router: Router,
     private userService: UserService,
-    private directory: DirectoryService,
     private push: PushService
   ) { }
 
@@ -56,7 +54,6 @@ export class AppComponent implements OnInit {
     });
 
     if (typeof window !== 'undefined') {
-      this.directory.start();
       // Once per signed-in person: check push support and refresh this device's token
       this.userService.user$
         .pipe(

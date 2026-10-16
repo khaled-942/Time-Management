@@ -1,4 +1,4 @@
-// Shapes of the Firestore documents the app reads and writes.
+// Shapes of the database rows the app reads and writes (supabase/migrations).
 
 /** users/{uid}/days/{YYYY-MM-DD} */
 export interface DayRecord {
